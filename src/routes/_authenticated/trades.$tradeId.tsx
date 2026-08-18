@@ -46,28 +46,32 @@ function TradeRoom() {
     refetchInterval: 8000,
   });
 
-  const act = (fn: (args: { data: { tradeId: string } }) => Promise<unknown>, success: string) =>
-    useMutationFor(fn, success);
+  const onSettled = (success: string) => ({
+    onSuccess: () => {
+      toast.success(success);
+      void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  function useMutationFor(
-    fn: (args: { data: { tradeId: string } }) => Promise<unknown>,
-    success: string,
-  ) {
-    return useMutation({
-      mutationFn: () => fn({ data: { tradeId } }),
-      onSuccess: () => {
-        toast.success(success);
-        void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
-        void qc.invalidateQueries({ queryKey: ["trades"] });
-        void qc.invalidateQueries({ queryKey: ["wallet"] });
-      },
-      onError: (e: Error) => toast.error(e.message),
-    });
-  }
+  const paidFn = useServerFn(markPaymentSent);
+  const releaseFn = useServerFn(releaseEscrow);
+  const cancelFn = useServerFn(cancelTrade);
 
-  const paid = act(useServerFn(markPaymentSent), "Payment marked as sent");
-  const release = act(useServerFn(releaseEscrow), "Escrow released to the buyer");
-  const cancel = act(useServerFn(cancelTrade), "Trade cancelled and escrow refunded");
+  const paid = useMutation({
+    mutationFn: () => paidFn({ data: { tradeId } }),
+    ...onSettled("Payment marked as sent"),
+  });
+  const release = useMutation({
+    mutationFn: () => releaseFn({ data: { tradeId } }),
+    ...onSettled("Escrow released to the buyer"),
+  });
+  const cancel = useMutation({
+    mutationFn: () => cancelFn({ data: { tradeId } }),
+    ...onSettled("Trade cancelled and escrow refunded"),
+  });
 
   const disputeFn = useServerFn(openDispute);
   const dispute = useMutation({

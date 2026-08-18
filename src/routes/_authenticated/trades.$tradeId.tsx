@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { TradeChat } from "@/components/trade-chat";
 
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({

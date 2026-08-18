@@ -265,7 +265,7 @@ function TradeRoom() {
       )}
 
       <p className="pt-4 text-center text-xs text-muted-foreground">
-        Real-time chat with payment proof arrives in the next phase.
+        Messages and attachments are kept as evidence for admin dispute review.
       </p>
     </div>
   );

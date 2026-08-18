@@ -187,6 +187,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       trades: {
         Row: {
           amount: number
@@ -262,6 +283,8 @@ export type Database = {
           external_address: string | null
           external_tx_hash: string | null
           id: string
+          provider_payload: Json | null
+          provider_payment_id: string | null
           status: Database["public"]["Enums"]["tx_status"]
           trade_id: string | null
           type: Database["public"]["Enums"]["tx_type"]
@@ -275,6 +298,8 @@ export type Database = {
           external_address?: string | null
           external_tx_hash?: string | null
           id?: string
+          provider_payload?: Json | null
+          provider_payment_id?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           trade_id?: string | null
           type: Database["public"]["Enums"]["tx_type"]
@@ -288,6 +313,8 @@ export type Database = {
           external_address?: string | null
           external_tx_hash?: string | null
           id?: string
+          provider_payload?: Json | null
+          provider_payment_id?: string | null
           status?: Database["public"]["Enums"]["tx_status"]
           trade_id?: string | null
           type?: Database["public"]["Enums"]["tx_type"]

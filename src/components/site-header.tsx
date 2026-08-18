@@ -16,9 +16,10 @@ const NAV = [
 
 
 export function SiteHeader() {
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const nav = isAdmin ? [...NAV, { to: "/admin", label: "Admin" } as const] : NAV;
 
   const signOut = async () => {
     await supabase.auth.signOut();

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { TradeChat } from "@/components/trade-chat";
 
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
@@ -176,6 +177,12 @@ function TradeRoom() {
         </CardContent>
       </Card>
 
+      <TradeChat
+        tradeId={t.id}
+        counterpartyName={counterparty?.display_name ?? "Trader"}
+        disabled={!active && t.status !== "disputed"}
+      />
+
       {d.dispute ? (
         <Card className="mb-4 border-destructive/50">
           <CardHeader className="pb-2">
@@ -258,7 +265,7 @@ function TradeRoom() {
       )}
 
       <p className="pt-4 text-center text-xs text-muted-foreground">
-        Real-time chat with payment proof arrives in the next phase.
+        Messages and attachments are kept as evidence for admin dispute review.
       </p>
     </div>
   );

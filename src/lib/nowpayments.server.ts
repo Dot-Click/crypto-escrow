@@ -3,6 +3,12 @@ import { createHmac, timingSafeEqual } from "crypto";
 
 const SANDBOX_BASE = "https://api-sandbox.nowpayments.io/v1";
 
+/** Sandbox by default; override with NOWPAYMENTS_API_BASE when needed. */
+function npBase(): string {
+  return process.env["NOWPAYMENTS_API_BASE"] || SANDBOX_BASE;
+}
+
+
 export function npApiKey(): string | undefined {
   return process.env["NOWPAYMENTS_API_KEY"] || undefined;
 }
@@ -61,30 +67,46 @@ export async function createDepositAddress(params: {
     };
   }
 
-  const res = await fetch(`${SANDBOX_BASE}/payment`, {
-    method: "POST",
-    headers: { "x-api-key": key, "content-type": "application/json" },
-    body: JSON.stringify({
-      price_amount: 100,
-      price_currency: "usd",
-      pay_currency: params.cryptoType.toLowerCase(),
-      order_id: params.walletId,
-      order_description: `Wallet top-up (${params.cryptoType})`,
-      ipn_callback_url: params.callbackUrl,
-    }),
-  });
+  const demo = {
+    address: `TESTNET-DEMO-${params.cryptoType}-${params.walletId.slice(0, 8)}`,
+    providerPaymentId: null,
+    simulated: true,
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(`${npBase()}/payment`, {
+      method: "POST",
+      headers: { "x-api-key": key, "content-type": "application/json" },
+      signal: AbortSignal.timeout(12_000),
+      body: JSON.stringify({
+        price_amount: 100,
+        price_currency: "usd",
+        pay_currency: params.cryptoType.toLowerCase(),
+        order_id: params.walletId,
+        order_description: `Wallet top-up (${params.cryptoType})`,
+        ipn_callback_url: params.callbackUrl,
+      }),
+    });
+  } catch (e) {
+    // Provider unreachable (sandbox outage/network) — keep the demo usable.
+    console.error("[nowpayments] deposit address request failed", e);
+    return demo;
+  }
 
   if (!res.ok) {
-    throw new Error(`Provider rejected the deposit request (${res.status})`);
+    console.error("[nowpayments] deposit rejected", res.status, await res.text().catch(() => ""));
+    return demo;
   }
   const json = (await res.json()) as { pay_address?: string; payment_id?: number | string };
-  if (!json.pay_address) throw new Error("Provider did not return a deposit address");
+  if (!json.pay_address) return demo;
   return {
     address: json.pay_address,
     providerPaymentId: json.payment_id ? String(json.payment_id) : null,
     simulated: false,
   };
 }
+
 
 type PayoutResult = { providerPayoutId: string | null; simulated: boolean };
 
@@ -101,22 +123,24 @@ export async function createPayout(params: {
     return { providerPayoutId: null, simulated: true };
   }
 
-  const authRes = await fetch(`${SANDBOX_BASE}/auth`, {
+  const authRes = await fetch(`${npBase()}/auth`, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({ email, password }),
   });
   if (!authRes.ok) throw new Error("Provider authentication failed");
   const { token } = (await authRes.json()) as { token?: string };
   if (!token) throw new Error("Provider authentication failed");
 
-  const res = await fetch(`${SANDBOX_BASE}/payout`, {
+  const res = await fetch(`${npBase()}/payout`, {
     method: "POST",
     headers: {
       "x-api-key": key,
       Authorization: `Bearer ${token}`,
       "content-type": "application/json",
     },
+    signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({
       ipn_callback_url: process.env["NOWPAYMENTS_PAYOUT_CALLBACK_URL"] ?? undefined,
       withdrawals: [

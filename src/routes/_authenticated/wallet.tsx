@@ -290,10 +290,10 @@ function WalletPage() {
               >
                 <Copy className="size-4" /> Copy address
               </Button>
-              {overview.data?.providerConfigured === false ? (
+              {activeWallet.external_deposit_address.startsWith("TESTNET-DEMO-") ? (
                 <p className="text-xs text-muted-foreground">
-                  Demo placeholder address — connect the payment provider keys to issue real
-                  testnet addresses.
+                  Demo placeholder address — the testnet provider is unreachable right now, so
+                  no live address could be issued. Deposit crediting still works via webhook.
                 </p>
               ) : null}
             </div>

@@ -15,6 +15,8 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
+import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
+import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authenticated/trades.$tradeId'
 import { Route as ApiPublicWebhooksNowpaymentsDepositRouteImport } from './routes/api/public/webhooks/nowpayments/deposit'
 import { Route as ApiPublicWebhooksNowpaymentsPayoutRouteImport } from './routes/api/public/webhooks/nowpayments/payout'
 
@@ -48,6 +50,18 @@ const AuthenticatedListingsNewRoute =
     path: '/listings/new',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTradesIndexRoute =
+  AuthenticatedTradesIndexRouteImport.update({
+    id: '/trades/',
+    path: '/trades/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTradesTradeIdRoute =
+  AuthenticatedTradesTradeIdRouteImport.update({
+    id: '/trades/$tradeId',
+    path: '/trades/$tradeId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicWebhooksNowpaymentsDepositRoute =
   ApiPublicWebhooksNowpaymentsDepositRouteImport.update({
     id: '/api/public/webhooks/nowpayments/deposit',
@@ -67,6 +81,8 @@ export interface FileRoutesByFullPath {
   '/profile': typeof AuthenticatedProfileRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
+  '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
+  '/trades/': typeof AuthenticatedTradesIndexRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
 }
@@ -76,6 +92,8 @@ export interface FileRoutesByTo {
   '/profile': typeof AuthenticatedProfileRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
+  '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
+  '/trades': typeof AuthenticatedTradesIndexRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
 }
@@ -87,6 +105,8 @@ export interface FileRoutesById {
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
+  '/_authenticated/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
+  '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
 }
@@ -98,6 +118,8 @@ export interface FileRouteTypes {
     | '/profile'
     | '/wallet'
     | '/listings/new'
+    | '/trades/$tradeId'
+    | '/trades/'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
   fileRoutesByTo: FileRoutesByTo
@@ -107,6 +129,8 @@ export interface FileRouteTypes {
     | '/profile'
     | '/wallet'
     | '/listings/new'
+    | '/trades/$tradeId'
+    | '/trades'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
   id:
@@ -117,6 +141,8 @@ export interface FileRouteTypes {
     | '/_authenticated/profile'
     | '/_authenticated/wallet'
     | '/_authenticated/listings/new'
+    | '/_authenticated/trades/$tradeId'
+    | '/_authenticated/trades/'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
   fileRoutesById: FileRoutesById
@@ -173,6 +199,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListingsNewRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/trades/': {
+      id: '/_authenticated/trades/'
+      path: '/trades'
+      fullPath: '/trades/'
+      preLoaderRoute: typeof AuthenticatedTradesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/trades/$tradeId': {
+      id: '/_authenticated/trades/$tradeId'
+      path: '/trades/$tradeId'
+      fullPath: '/trades/$tradeId'
+      preLoaderRoute: typeof AuthenticatedTradesTradeIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/webhooks/nowpayments/deposit': {
       id: '/api/public/webhooks/nowpayments/deposit'
       path: '/api/public/webhooks/nowpayments/deposit'
@@ -194,12 +234,16 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedListingsNewRoute: typeof AuthenticatedListingsNewRoute
+  AuthenticatedTradesTradeIdRoute: typeof AuthenticatedTradesTradeIdRoute
+  AuthenticatedTradesIndexRoute: typeof AuthenticatedTradesIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedListingsNewRoute: AuthenticatedListingsNewRoute,
+  AuthenticatedTradesTradeIdRoute: AuthenticatedTradesTradeIdRoute,
+  AuthenticatedTradesIndexRoute: AuthenticatedTradesIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

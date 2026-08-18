@@ -1,5 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { createTrade } from "@/lib/trades.functions";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
 import { Search, ShieldCheck, Wallet, MessagesSquare } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,6 +60,7 @@ function Marketplace() {
   const [maxPrice, setMaxPrice] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
+  const [activeListing, setActive] = useState<ListingRow | null>(null);
 
   const listings = useQuery({
     queryKey: ["listings"],
@@ -246,7 +258,7 @@ function Marketplace() {
                         <p className="max-w-prose text-xs text-muted-foreground">{l.terms}</p>
                       ) : null}
                     </div>
-                    <Button className="w-full sm:w-auto" disabled>
+                    <Button className="w-full sm:w-auto" onClick={() => setActive(l)}>
                       Start trade
                     </Button>
                   </CardContent>
@@ -254,12 +266,120 @@ function Marketplace() {
               );
             })
           )}
-          <p className="pt-1 text-center text-xs text-muted-foreground">
-            Trade rooms and escrow arrive in the next phase.
-          </p>
         </div>
       </div>
+
+      <StartTradeDialog listing={activeListing} onClose={() => setActive(null)} />
     </div>
+  );
+}
+
+type ListingRow = {
+  id: string;
+  side: string;
+  crypto_type: string;
+  amount: number | string;
+  price: number | string;
+  accepted_payment_methods: string[];
+};
+
+function StartTradeDialog({
+  listing,
+  onClose,
+}: {
+  listing: ListingRow | null;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const create = useServerFn(createTrade);
+  const [amount, setAmount] = useState("");
+  const [payment, setPayment] = useState("");
+
+  const max = Number(listing?.amount ?? 0);
+  const price = Number(listing?.price ?? 0);
+  const parsed = Number(amount);
+  const valid = listing && payment && parsed > 0 && parsed <= max;
+
+  const start = useMutation({
+    mutationFn: async () => {
+      if (!listing) throw new Error("No offer selected");
+      return create({
+        data: { listingId: listing.id, amount: parsed, paymentMethod: payment },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success("Trade opened — crypto is now held in escrow");
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
+      onClose();
+      setAmount("");
+      setPayment("");
+      navigate({ to: "/trades/$tradeId", params: { tradeId: res.tradeId } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Dialog open={!!listing} onOpenChange={(o) => (o ? null : onClose())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            Start trade · {listing?.crypto_type}
+          </DialogTitle>
+          <DialogDescription>
+            {listing?.side === "sell"
+              ? "You buy crypto. Escrow holds the seller's balance until you pay and they release."
+              : "You sell crypto. Escrow holds your wallet balance until the buyer pays."}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="trade-amount">
+              Amount ({listing?.crypto_type}) · max {max}
+            </Label>
+            <Input
+              id="trade-amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder={String(max)}
+            />
+            {parsed > 0 ? (
+              <p className="mono text-xs text-muted-foreground">
+                ≈ ${(parsed * price).toLocaleString()} total
+              </p>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <Label>Payment method</Label>
+            <Select value={payment} onValueChange={setPayment}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a method" />
+              </SelectTrigger>
+              <SelectContent>
+                {(listing?.accepted_payment_methods ?? []).map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            className="w-full"
+            disabled={!valid || start.isPending}
+            onClick={() => start.mutate()}
+          >
+            {start.isPending ? "Opening escrow…" : "Open trade room"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

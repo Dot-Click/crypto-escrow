@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
 import { Route as ApiPublicWebhooksNowpaymentsDepositRouteImport } from './routes/api/public/webhooks/nowpayments/deposit'
 import { Route as ApiPublicWebhooksNowpaymentsPayoutRouteImport } from './routes/api/public/webhooks/nowpayments/payout'
@@ -34,6 +35,11 @@ const AuthRoute = AuthRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedListingsNewRoute =
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/wallet': typeof AuthenticatedWalletRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/profile': typeof AuthenticatedProfileRoute
+  '/wallet': typeof AuthenticatedWalletRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
+  '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
   '/api/public/webhooks/nowpayments/deposit': typeof ApiPublicWebhooksNowpaymentsDepositRoute
   '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/profile'
+    | '/wallet'
     | '/listings/new'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/profile'
+    | '/wallet'
     | '/listings/new'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/profile'
+    | '/_authenticated/wallet'
     | '/_authenticated/listings/new'
     | '/api/public/webhooks/nowpayments/deposit'
     | '/api/public/webhooks/nowpayments/payout'
@@ -147,6 +159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/wallet': {
+      id: '/_authenticated/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof AuthenticatedWalletRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/listings/new': {
       id: '/_authenticated/listings/new'
       path: '/listings/new'
@@ -173,11 +192,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedListingsNewRoute: typeof AuthenticatedListingsNewRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
+  AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedListingsNewRoute: AuthenticatedListingsNewRoute,
 }
 

@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const NAV = [
   { to: "/", label: "Marketplace" },
   { to: "/listings/new", label: "Create Offer" },
+  { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
   { to: "/profile", label: "Profile" },
 ] as const;

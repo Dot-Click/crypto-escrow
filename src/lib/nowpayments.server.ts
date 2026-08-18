@@ -126,6 +126,7 @@ export async function createPayout(params: {
   const authRes = await fetch(`${npBase()}/auth`, {
     method: "POST",
     headers: { "content-type": "application/json" },
+    signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({ email, password }),
   });
   if (!authRes.ok) throw new Error("Provider authentication failed");
@@ -139,6 +140,7 @@ export async function createPayout(params: {
       Authorization: `Bearer ${token}`,
       "content-type": "application/json",
     },
+    signal: AbortSignal.timeout(12_000),
     body: JSON.stringify({
       ipn_callback_url: process.env["NOWPAYMENTS_PAYOUT_CALLBACK_URL"] ?? undefined,
       withdrawals: [

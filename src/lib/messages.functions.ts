@@ -22,7 +22,7 @@ export const listMessages = createServerFn({ method: "POST" })
 
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { tradeId: string; content?: string; attachmentUrl?: string }) => {
+  .inputValidator((input: { tradeId: string; content?: string | undefined; attachmentUrl?: string | undefined }) => {
     if (!UUID.test(input.tradeId)) throw new Error("Invalid trade id");
     const content = (input.content ?? "").trim();
     if (!content && !input.attachmentUrl) throw new Error("Write a message or attach a file");

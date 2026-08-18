@@ -27,7 +27,7 @@ export function SiteHeader() {
   };
 
   const links = (onClick?: () => void) =>
-    NAV.map((item) => (
+    nav.map((item) => (
       <Link
         key={item.to}
         to={item.to}

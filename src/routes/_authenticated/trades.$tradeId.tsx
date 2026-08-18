@@ -176,6 +176,12 @@ function TradeRoom() {
         </CardContent>
       </Card>
 
+      <TradeChat
+        tradeId={t.id}
+        counterpartyName={counterparty?.display_name ?? "Trader"}
+        disabled={!active && t.status !== "disputed"}
+      />
+
       {d.dispute ? (
         <Card className="mb-4 border-destructive/50">
           <CardHeader className="pb-2">

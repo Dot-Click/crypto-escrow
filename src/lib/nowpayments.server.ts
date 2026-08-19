@@ -1,13 +1,12 @@
 // NOWPayments (sandbox/testnet) helpers. Server-only.
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SANDBOX_BASE = "https://api-sandbox.nowpayments.io/v1";
+const SANDBOX_BASE = "https://api.nowpayments.io/v1";
 
 /** Sandbox by default; override with NOWPAYMENTS_API_BASE when needed. */
 function npBase(): string {
   return process.env["NOWPAYMENTS_API_BASE"] || SANDBOX_BASE;
 }
-
 
 export function npApiKey(): string | undefined {
   return process.env["NOWPAYMENTS_API_KEY"] || undefined;
@@ -106,7 +105,6 @@ export async function createDepositAddress(params: {
     simulated: false,
   };
 }
-
 
 type PayoutResult = { providerPayoutId: string | null; simulated: boolean };
 

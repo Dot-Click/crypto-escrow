@@ -120,6 +120,10 @@ function WalletPage() {
 
       {overview.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading balances…</p>
+      ) : overview.isError ? (
+        <p className="text-sm text-destructive">
+          Couldn't load your wallet balances: {overview.error.message}
+        </p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">

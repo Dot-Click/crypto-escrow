@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    server: {
+      // Allow Cloudflare/ngrok tunnel hostnames through Vite's dev-server host check
+      // (temporary, for local NOWPayments webhook testing — safe to remove afterward).
+      allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.app"],
+    },
+  },
 });

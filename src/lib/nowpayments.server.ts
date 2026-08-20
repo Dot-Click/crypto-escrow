@@ -1,11 +1,13 @@
 // NOWPayments (sandbox/testnet) helpers. Server-only.
 import { createHmac, timingSafeEqual } from "crypto";
 
-const SANDBOX_BASE = "https://api.nowpayments.io/v1";
+const SANDBOX_BASE = "https://api-sandbox.nowpayments.io/v1";
+const PRODUCTION_BASE = "https://api.nowpayments.io/v1";
 
-/** Sandbox by default; override with NOWPAYMENTS_API_BASE when needed. */
+/** Defaults to sandbox; set NOWPAYMENTS_ENV=production to hit the live API. */
 function npBase(): string {
-  return process.env["NOWPAYMENTS_API_BASE"] || SANDBOX_BASE;
+  if (process.env["NOWPAYMENTS_API_BASE"]) return process.env["NOWPAYMENTS_API_BASE"];
+  return process.env["NOWPAYMENTS_ENV"] === "production" ? PRODUCTION_BASE : SANDBOX_BASE;
 }
 
 export function npApiKey(): string | undefined {

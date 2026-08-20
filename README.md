@@ -2,7 +2,7 @@
 
 Context: I've attached 4 reference files — PROJECT_CONTEXT.md, ARCHITECTURE.md, REQUIREMENTS.md, COLOR_SCHEME.md. Read all of them before building anything. Follow the data model and escrow logic in ARCHITECTURE.md exactly — especially the wallet-level escrow model (escrow is an internal balance hold, not a new blockchain transaction per trade). Use COLOR_SCHEME.md for all UI. Build responsive for both desktop and mobile from Phase 1 onward — don't leave this for the end.
 
-Build in phases. Confirm each phase is working before moving to the next.
+Build in phases. Confirm each phase is working before.
 
 Phase 1 — Foundation: Auth, Profiles, Listings, Search
 

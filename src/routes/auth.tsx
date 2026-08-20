@@ -93,107 +93,142 @@ function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
-        <Link to="/" className="mb-6 flex items-center justify-center gap-2 font-semibold">
-          <ShieldCheck className="size-5 text-primary" />
-          EscrowP2P
-        </Link>
-        <Card>
-          <CardHeader>
-            <CardTitle>Welcome</CardTitle>
-            <CardDescription>
-              Testnet only — no real funds are held on this platform.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign in</TabsTrigger>
-                <TabsTrigger value="signup">Sign up</TabsTrigger>
-              </TabsList>
+    <div className="flex min-h-screen bg-background">
+      {/* Left panel — illustration, hidden on mobile */}
+      <div
+        className="relative hidden lg:block lg:w-1/2"
+        style={{
+          backgroundImage: "url(/auth.jfif)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        {/* flat dark tint over the whole image so it reads as background, not foreground */}
+        <div aria-hidden className="absolute inset-0 bg-background/50" />
+        {/* extra gradient darkening for contrast against the logo/tagline */}
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to top, var(--background) 0%, transparent 45%), linear-gradient(to right, var(--background) 0%, transparent 15%)",
+            opacity: 0.85,
+          }}
+        />
+        <div className="absolute bottom-10 left-10 right-10">
+          <span className="flex items-center gap-2 text-lg font-semibold text-foreground">
+            <ShieldCheck className="size-6 text-primary" />
+            EscrowP2P
+          </span>
+          <p className="mt-2 max-w-sm text-sm text-foreground/80">
+            Trade crypto safely, peer-to-peer.
+          </p>
+        </div>
+      </div>
 
-              <TabsContent value="signin" className="mt-5 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="si-email">Email</Label>
-                  <Input
-                    id="si-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="si-pw">Password</Label>
-                  <Input
-                    id="si-pw"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button className="w-full" disabled={busy} onClick={signIn}>
-                  Sign in
-                </Button>
-              </TabsContent>
+      {/* Right panel — auth form */}
+      <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
+        <div className="w-full max-w-md">
+          <Link to="/" className="mb-6 flex items-center justify-center gap-2 font-semibold lg:hidden">
+            <ShieldCheck className="size-5 text-primary" />
+            EscrowP2P
+          </Link>
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome back</CardTitle>
+              <CardDescription>
+                Testnet only — no real funds are held on this platform.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="signin">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="signin">Sign in</TabsTrigger>
+                  <TabsTrigger value="signup">Sign up</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="signup" className="mt-5 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="su-name">Display name</Label>
-                  <Input
-                    id="su-name"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="satoshi_trader"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-email">Email</Label>
-                  <Input
-                    id="su-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="su-pw">Password</Label>
-                  <Input
-                    id="su-pw"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>I want to</Label>
-                  <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="buyer">Buy crypto</SelectItem>
-                      <SelectItem value="seller">Sell crypto</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="w-full" disabled={busy} onClick={signUp}>
-                  Create account
-                </Button>
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="signin" className="mt-5 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="si-email">Email</Label>
+                    <Input
+                      id="si-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="si-pw">Password</Label>
+                    <Input
+                      id="si-pw"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <Button className="w-full rounded-full" disabled={busy} onClick={signIn}>
+                    Sign in
+                  </Button>
+                </TabsContent>
 
-            <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />
-              OR
-              <span className="h-px flex-1 bg-border" />
-            </div>
-            <Button variant="outline" className="w-full" onClick={google}>
-              Continue with Google
-            </Button>
-          </CardContent>
-        </Card>
+                <TabsContent value="signup" className="mt-5 space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="su-name">Display name</Label>
+                    <Input
+                      id="su-name"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="satoshi_trader"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-email">Email</Label>
+                    <Input
+                      id="su-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-pw">Password</Label>
+                    <Input
+                      id="su-pw"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>I want to</Label>
+                    <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyer">Buy crypto</SelectItem>
+                        <SelectItem value="seller">Sell crypto</SelectItem>
+                        <SelectItem value="both">Both</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full rounded-full" disabled={busy} onClick={signUp}>
+                    Create account
+                  </Button>
+                </TabsContent>
+              </Tabs>
+
+              <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />
+                OR
+                <span className="h-px flex-1 bg-border" />
+              </div>
+              <Button variant="outline" className="w-full rounded-full" onClick={google}>
+                Continue with Google
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

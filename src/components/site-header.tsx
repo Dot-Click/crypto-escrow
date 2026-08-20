@@ -40,7 +40,13 @@ export function SiteHeader() {
     ));
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <header
+      className={
+        user
+          ? "sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur"
+          : "absolute inset-x-0 top-0 z-40 border-b border-transparent bg-transparent"
+      }
+    >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">
         <Link to="/" className="flex items-center gap-2 font-semibold">
           <ShieldCheck className="size-5 text-primary" />

@@ -4,7 +4,7 @@ Context: I've attached 4 reference files — PROJECT_CONTEXT.md, ARCHITECTURE.md
 
 Build in phases. Confirm each phase is working before.
 
-Phase 1 — Foundation: Auth, Profiles, Listings, Search
+Phase 1 — Foundation: Auth, Profiles, Listing.
 
 Supabase schema: User/Profile, Wallet, Listing, Trade, Message, Transaction, Dispute — exactly as defined in ARCHITECTURE.md
 

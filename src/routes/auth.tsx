@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -116,10 +115,7 @@ function AuthPage() {
           }}
         />
         <div className="absolute bottom-10 left-10 right-10">
-          <span className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <ShieldCheck className="size-6 text-primary" />
-            EscrowP2P
-          </span>
+          <img src="/logo.svg" alt="EscrowP2P" className="h-8 w-auto" />
           <p className="mt-2 max-w-sm text-sm text-foreground/80">
             Trade crypto safely, peer-to-peer.
           </p>
@@ -129,9 +125,8 @@ function AuthPage() {
       {/* Right panel — auth form */}
       <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md">
-          <Link to="/" className="mb-6 flex items-center justify-center gap-2 font-semibold lg:hidden">
-            <ShieldCheck className="size-5 text-primary" />
-            EscrowP2P
+          <Link to="/" className="mb-6 flex items-center justify-center lg:hidden">
+            <img src="/logo.svg" alt="EscrowP2P" className="h-6 w-auto" />
           </Link>
           <Card>
             <CardHeader>

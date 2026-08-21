@@ -10,12 +10,13 @@ type TradeRow = {
   crypto_type: string;
   amount: number;
   status: string;
+  updated_at: string;
 };
 
 async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
   const { data, error } = await supabaseAdmin
     .from("trades")
-    .select("id, buyer_id, seller_id, crypto_type, amount, status")
+    .select("id, buyer_id, seller_id, crypto_type, amount, status, updated_at")
     .eq("id", tradeId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -25,6 +26,8 @@ async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
   }
   return { ...data, amount: Number(data.amount) };
 }
+
+const BUYER_DISPUTE_WAIT_MS = 30 * 60 * 1000;
 
 async function ensureWallet(userId: string, cryptoType: string) {
   const { data } = await supabaseAdmin
@@ -223,6 +226,7 @@ export async function releaseHold(params: { tradeId: string; userId: string }) {
 
 export async function cancelAndRefund(params: { tradeId: string; userId: string }) {
   const trade = await loadTrade(params.tradeId, params.userId);
+  if (trade.buyer_id !== params.userId) throw new Error("Only the buyer can cancel a trade");
   if (trade.status !== "escrow_funded" && trade.status !== "pending") {
     throw new Error("This trade can no longer be cancelled");
   }
@@ -261,8 +265,20 @@ export async function cancelAndRefund(params: { tradeId: string; userId: string 
 
 export async function raiseDispute(params: { tradeId: string; reason: string; userId: string }) {
   const trade = await loadTrade(params.tradeId, params.userId);
-  if (trade.status !== "escrow_funded" && trade.status !== "payment_claimed") {
-    throw new Error("Only an active escrow trade can be disputed");
+  if (trade.status !== "payment_claimed") {
+    throw new Error("A dispute can only be opened after the buyer has marked payment as sent");
+  }
+
+  // Seller can dispute the moment payment is claimed; the buyer must wait 30
+  // minutes (giving the seller a fair window to confirm) before disputing.
+  if (params.userId === trade.buyer_id) {
+    const elapsedMs = Date.now() - new Date(trade.updated_at).getTime();
+    if (elapsedMs < BUYER_DISPUTE_WAIT_MS) {
+      const minutesLeft = Math.ceil((BUYER_DISPUTE_WAIT_MS - elapsedMs) / 60_000);
+      throw new Error(
+        `You can open a dispute in ${minutesLeft} more minute${minutesLeft === 1 ? "" : "s"} — this gives the seller time to confirm your payment.`,
+      );
+    }
   }
 
   await enforceRateLimit({

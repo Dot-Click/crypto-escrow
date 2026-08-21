@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, ShieldCheck } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -48,9 +48,8 @@ export function SiteHeader() {
       }
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <ShieldCheck className="size-5 text-primary" />
-          <span>EscrowP2P</span>
+        <Link to="/" className="flex items-center">
+          <img src="/logo.svg" alt="EscrowP2P" className="h-6 w-auto" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{user ? links() : null}</nav>

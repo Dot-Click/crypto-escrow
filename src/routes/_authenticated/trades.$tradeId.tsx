@@ -107,6 +107,17 @@ function TradeRoom() {
   const stepIndex = STEPS.indexOf(t.status as TradeStatus);
   const active = t.status === "escrow_funded" || t.status === "payment_claimed";
 
+  // Dispute rules: only once the buyer has marked payment as sent. The seller
+  // can dispute immediately at that point; the buyer must wait 30 minutes
+  // from when they claimed payment, giving the seller time to confirm.
+  const canOpenDispute = t.status === "payment_claimed";
+  const buyerWaitMs =
+    canOpenDispute && isBuyer
+      ? 30 * 60 * 1000 - (Date.now() - new Date(t.updated_at).getTime())
+      : 0;
+  const buyerMustWait = isBuyer && buyerWaitMs > 0;
+  const buyerWaitMinutes = Math.ceil(buyerWaitMs / 60_000);
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2">
@@ -223,7 +234,7 @@ function TradeRoom() {
                   Release escrow to buyer
                 </Button>
               )}
-              {t.status === "escrow_funded" ? (
+              {isBuyer && t.status === "escrow_funded" ? (
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto"
@@ -239,16 +250,30 @@ function TradeRoom() {
 
             <div className="space-y-2">
               <p className="text-sm font-medium">Something wrong? Open a dispute</p>
+              {!canOpenDispute ? (
+                <p className="text-xs text-muted-foreground">
+                  Disputes open once the buyer has marked payment as sent.
+                </p>
+              ) : buyerMustWait ? (
+                <p className="text-xs text-muted-foreground">
+                  You can open a dispute in {buyerWaitMinutes} more minute
+                  {buyerWaitMinutes === 1 ? "" : "s"} — this gives the seller time to confirm your
+                  payment.
+                </p>
+              ) : null}
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Describe what happened (payment not received, wrong amount…)"
                 rows={3}
+                disabled={!canOpenDispute || buyerMustWait}
               />
               <Button
                 variant="destructive"
                 size="sm"
-                disabled={reason.trim().length < 10 || dispute.isPending}
+                disabled={
+                  !canOpenDispute || buyerMustWait || reason.trim().length < 10 || dispute.isPending
+                }
                 onClick={() => dispute.mutate()}
               >
                 Open dispute

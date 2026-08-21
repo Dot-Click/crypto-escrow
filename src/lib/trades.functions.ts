@@ -33,7 +33,7 @@ export const getTrade = createServerFn({ method: "POST" })
     const { data: trade, error } = await supabaseAdmin
       .from("trades")
       .select(
-        "id, listing_id, crypto_type, amount, price, fiat_currency, payment_method, status, created_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
+        "id, listing_id, crypto_type, amount, price, fiat_currency, payment_method, status, created_at, updated_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
       )
       .eq("id", data.tradeId)
       .maybeSingle();

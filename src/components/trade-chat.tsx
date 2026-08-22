@@ -4,7 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Loader2, Paperclip, Send, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { listMessages, sendMessage } from "@/lib/messages.functions";
+import { playMessageSound } from "@/lib/notification-sound";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +54,7 @@ export function TradeChat({
   disabled?: boolean;
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const fetchMessages = useServerFn(listMessages);
   const sendFn = useServerFn(sendMessage);
   const [text, setText] = useState("");
@@ -73,7 +76,11 @@ export function TradeChat({
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `trade_id=eq.${tradeId}` },
-        () => {
+        (payload) => {
+          const row = payload.new as { sender_id?: string };
+          if (row.sender_id && row.sender_id !== user?.id) {
+            playMessageSound();
+          }
           void qc.invalidateQueries({ queryKey });
         },
       )
@@ -81,7 +88,7 @@ export function TradeChat({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [tradeId, qc, queryKey]);
+  }, [tradeId, qc, queryKey, user?.id]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "nearest" });

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Lock, ShieldAlert } from "lucide-react";
 import {
@@ -11,6 +11,10 @@ import {
   openDispute,
   releaseEscrow,
 } from "@/lib/trades.functions";
+import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
+import { RAIL_DETAIL_FIELDS } from "@/lib/payment-method-fields";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { currencySymbol } from "@/lib/currencies";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,26 @@ export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
 
 const STEPS: TradeStatus[] = ["escrow_funded", "payment_claimed", "released"];
 
+function PaymentCountdown({ expiresAt }: { expiresAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const msLeft = new Date(expiresAt).getTime() - now;
+  if (msLeft <= 0) return <p className="text-xs text-muted-foreground">Payment window expired — cancelling…</p>;
+
+  const minutes = Math.floor(msLeft / 60_000);
+  const seconds = Math.floor((msLeft % 60_000) / 1000);
+  return (
+    <p className="text-xs text-muted-foreground">
+      Payment window: {minutes}:{String(seconds).padStart(2, "0")} left — escrow auto-refunds to the
+      seller if payment isn't marked sent in time
+    </p>
+  );
+}
+
 function TradeRoom() {
   const { tradeId } = Route.useParams();
   const qc = useQueryClient();
@@ -45,6 +69,12 @@ function TradeRoom() {
     queryKey: ["trade", tradeId],
     queryFn: () => fetchTrade({ data: { tradeId } }),
     refetchInterval: 8000,
+  });
+
+  const fetchPaymentDetails = useServerFn(getTradePaymentDetails);
+  const paymentDetails = useQuery({
+    queryKey: ["trade-payment-details", tradeId],
+    queryFn: () => fetchPaymentDetails({ data: { tradeId } }),
   });
 
   const onSettled = (success: string) => ({
@@ -137,9 +167,19 @@ function TradeRoom() {
           <Badge variant="outline">You are the {d.role}</Badge>
         </div>
         <p className="mono text-sm text-muted-foreground">
-          ${Number(t.price).toLocaleString()} per {t.crypto_type} · total $
+          {currencySymbol(t.fiat_currency)}
+          {Number(t.price).toLocaleString()} per {t.crypto_type} · total {currencySymbol(t.fiat_currency)}
           {(t.amount * t.price).toLocaleString()} {t.fiat_currency} · {t.payment_method}
         </p>
+        {t.fee_amount > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Buyer receives {t.payout_amount} {t.crypto_type} after the {t.fee_amount.toFixed(8)}{" "}
+            {t.crypto_type} platform fee
+          </p>
+        ) : null}
+        {t.status === "escrow_funded" && t.expires_at ? (
+          <PaymentCountdown expiresAt={t.expires_at} />
+        ) : null}
         <p className="text-xs text-muted-foreground">
           Trading with {counterparty?.display_name ?? "Trader"} ·{" "}
           {counterparty?.trades_completed ?? 0} completed trades
@@ -187,6 +227,33 @@ function TradeRoom() {
           ) : null}
         </CardContent>
       </Card>
+
+      {paymentDetails.data ? (
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Payment details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5 text-sm">
+            {paymentDetails.data.label ? (
+              <p className="font-medium">{paymentDetails.data.label}</p>
+            ) : null}
+            {(RAIL_DETAIL_FIELDS[railKeyForMethod(paymentDetails.data.method) ?? ""] ?? []).map((f) => {
+              const value = (paymentDetails.data!.details as Record<string, string>)[f.key];
+              if (!value) return null;
+              return (
+                <p key={f.key} className="text-muted-foreground">
+                  <span className="text-foreground">{f.label}:</span> {value}
+                </p>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ) : active ? (
+        <p className="mb-4 text-xs text-muted-foreground">
+          The seller hasn't attached saved payment details to this offer — coordinate payment in the
+          chat below.
+        </p>
+      ) : null}
 
       <TradeChat
         tradeId={t.id}

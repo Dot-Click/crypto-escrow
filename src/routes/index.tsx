@@ -23,7 +23,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CRYPTO_TYPES, PAYMENT_METHODS } from "@/lib/constants";
+import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
+import { currencySymbol } from "@/lib/currencies";
+import { PAYMENT_RAILS, railLabelForMethod } from "@/lib/payment-taxonomy";
+import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
+import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,6 +74,22 @@ function Marketplace() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
 
+  const fetchPrices = useServerFn(getMarketPrices);
+  const marketPrices = useQuery({
+    queryKey: ["market-prices"],
+    enabled: !!user,
+    queryFn: () => fetchPrices(),
+    refetchInterval: 30_000,
+  });
+
+  const fetchFxRates = useServerFn(getFxRates);
+  const fxRates = useQuery({
+    queryKey: ["fx-rates"],
+    enabled: !!user,
+    queryFn: () => fetchFxRates(),
+    refetchInterval: 5 * 60_000,
+  });
+
   const listings = useQuery({
     queryKey: ["listings"],
     enabled: !!user,
@@ -84,12 +104,23 @@ function Marketplace() {
     },
   });
 
+  const priceOf = (l: ListingRow) => resolveListingPrice(l, marketPrices.data, fxRates.data) ?? Number(l.price);
+
   const rows = useMemo(() => {
+    const prices = marketPrices.data;
+    const fx = fxRates.data;
+    // Listings can be denominated in different currencies, so filtering/sorting
+    // by price compares USD-equivalent values — display still uses each
+    // listing's own currency via priceOf.
+    const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
+
     let out = (listings.data ?? []).filter((l) => l.side === side);
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
-    if (method !== "all") out = out.filter((l) => l.accepted_payment_methods.includes(method));
-    if (minPrice) out = out.filter((l) => Number(l.price) >= Number(minPrice));
-    if (maxPrice) out = out.filter((l) => Number(l.price) <= Number(maxPrice));
+    if (method !== "all") {
+      out = out.filter((l) => l.accepted_payment_methods.some((m) => railLabelForMethod(m) === method));
+    }
+    if (minPrice) out = out.filter((l) => usdPriceOf(l) >= Number(minPrice));
+    if (maxPrice) out = out.filter((l) => usdPriceOf(l) <= Number(maxPrice));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -99,10 +130,10 @@ function Marketplace() {
           (l.terms ?? "").toLowerCase().includes(q),
       );
     }
-    if (sort === "price_asc") out = [...out].sort((a, b) => Number(a.price) - Number(b.price));
-    if (sort === "price_desc") out = [...out].sort((a, b) => Number(b.price) - Number(a.price));
+    if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
+    if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [listings.data, side, crypto, method, minPrice, maxPrice, search, sort]);
+  }, [listings.data, marketPrices.data, fxRates.data, side, crypto, method, minPrice, maxPrice, search, sort]);
 
   if (!user) return <LandingHero />;
 
@@ -180,9 +211,9 @@ function Marketplace() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Any method</SelectItem>
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
+                  {PAYMENT_RAILS.map((r) => (
+                    <SelectItem key={r.key} value={r.label}>
+                      {r.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -190,7 +221,7 @@ function Marketplace() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="min">Min price</Label>
+                <Label htmlFor="min">Min price (USD equiv.)</Label>
                 <Input
                   id="min"
                   inputMode="decimal"
@@ -199,7 +230,7 @@ function Marketplace() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="max">Max price</Label>
+                <Label htmlFor="max">Max price (USD equiv.)</Label>
                 <Input
                   id="max"
                   inputMode="decimal"
@@ -238,6 +269,9 @@ function Marketplace() {
               const counterparty = (
                 l as unknown as { profiles: { display_name: string; trades_completed: number } | null }
               ).profiles;
+              const price = priceOf(l);
+              const symbol = currencySymbol(l.fiat_currency);
+              const margin = Number(l.margin_percent);
               return (
                 <Card key={l.id}>
                   <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
@@ -252,9 +286,27 @@ function Marketplace() {
                         </span>
                       </div>
                       <p className="mono text-sm text-muted-foreground">
-                        ${Number(l.price).toLocaleString()} per {l.crypto_type} · total $
-                        {(Number(l.price) * Number(l.amount)).toLocaleString()}
+                        {symbol}
+                        {price.toLocaleString()} per {l.crypto_type}
+                        {l.fixed_price != null ? (
+                          <span className="text-muted-foreground"> (fixed)</span>
+                        ) : margin !== 0 ? (
+                          <span className={margin < 0 ? "text-green-600" : "text-muted-foreground"}>
+                            {" "}
+                            ({margin > 0 ? "+" : ""}
+                            {margin}%)
+                          </span>
+                        ) : null}{" "}
+                        · total {symbol}
+                        {(price * Number(l.amount)).toLocaleString()}
                       </p>
+                      {l.min_amount != null && l.max_amount != null ? (
+                        <p className="text-xs text-muted-foreground">
+                          Range: {symbol}
+                          {Number(l.min_amount).toLocaleString()} – {symbol}
+                          {Number(l.max_amount).toLocaleString()}
+                        </p>
+                      ) : null}
                       <div className="flex flex-wrap gap-1.5">
                         {l.accepted_payment_methods.map((m) => (
                           <Badge key={m} variant="secondary" className="font-normal">
@@ -277,7 +329,13 @@ function Marketplace() {
         </div>
       </div>
 
-      <StartTradeDialog listing={activeListing} onClose={() => setActive(null)} />
+      <StartTradeDialog
+        listing={activeListing}
+        marketPrices={marketPrices.data}
+        marketPricesError={marketPrices.error as Error | null}
+        fxRates={fxRates.data}
+        onClose={() => setActive(null)}
+      />
     </div>
   );
 }
@@ -288,32 +346,53 @@ type ListingRow = {
   crypto_type: string;
   amount: number | string;
   price: number | string;
+  margin_percent: number | string;
+  fixed_price: number | string | null;
+  min_amount: number | string | null;
+  max_amount: number | string | null;
+  payment_window_minutes: number | string | null;
+  fiat_currency: string;
   accepted_payment_methods: string[];
 };
 
 function StartTradeDialog({
   listing,
+  marketPrices,
+  marketPricesError,
+  fxRates,
   onClose,
 }: {
   listing: ListingRow | null;
+  marketPrices: Record<string, number> | undefined;
+  marketPricesError?: Error | null;
+  fxRates: Record<string, number> | undefined;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const create = useServerFn(createTrade);
-  const [amount, setAmount] = useState("");
+  const [fiatAmount, setFiatAmount] = useState("");
   const [payment, setPayment] = useState("");
 
-  const max = Number(listing?.amount ?? 0);
-  const price = Number(listing?.price ?? 0);
-  const parsed = Number(amount);
-  const valid = listing && payment && parsed > 0 && parsed <= max;
+  const cryptoAvailable = Number(listing?.amount ?? 0);
+  const price = listing ? resolveListingPrice(listing, marketPrices, fxRates) : null;
+  const symbol = currencySymbol(listing?.fiat_currency ?? "USD");
+  const listingMax = price ? cryptoAvailable * price : 0;
+  const min = listing?.min_amount != null ? Number(listing.min_amount) : 0;
+  const max = listing?.max_amount != null ? Math.min(Number(listing.max_amount), listingMax) : listingMax;
+
+  const parsed = Number(fiatAmount);
+  const rangeError =
+    fiatAmount && (parsed < min || parsed > max) ? `Value must be between ${min} and ${max}` : null;
+  const valid = !!listing && !!payment && !!price && parsed > 0 && !rangeError;
+
+  const receive = price ? computeReceiveAmount(parsed, price, PLATFORM_FEE_PERCENT) : null;
 
   const start = useMutation({
     mutationFn: async () => {
       if (!listing) throw new Error("No offer selected");
       return create({
-        data: { listingId: listing.id, amount: parsed, paymentMethod: payment },
+        data: { listingId: listing.id, fiatAmount: parsed, paymentMethod: payment },
       });
     },
     onSuccess: (res) => {
@@ -321,7 +400,7 @@ function StartTradeDialog({
       void qc.invalidateQueries({ queryKey: ["trades"] });
       void qc.invalidateQueries({ queryKey: ["wallet"] });
       onClose();
-      setAmount("");
+      setFiatAmount("");
       setPayment("");
       navigate({ to: "/trades/$tradeId", params: { tradeId: res.tradeId } });
     },
@@ -329,7 +408,16 @@ function StartTradeDialog({
   });
 
   return (
-    <Dialog open={!!listing} onOpenChange={(o) => (o ? null : onClose())}>
+    <Dialog
+      open={!!listing}
+      onOpenChange={(o) => {
+        if (!o) {
+          onClose();
+          setFiatAmount("");
+          setPayment("");
+        }
+      }}
+    >
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -344,22 +432,56 @@ function StartTradeDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="trade-amount">
-              Amount ({listing?.crypto_type}) · max {max}
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="trade-amount">
+                Pay ({listing?.fiat_currency ?? "USD"}) · range {symbol}
+                {min} – {symbol}
+                {max.toLocaleString()}
+              </Label>
+              <button
+                type="button"
+                className="text-xs font-medium text-primary hover:underline"
+                onClick={() => setFiatAmount(String(max))}
+              >
+                MAX
+              </button>
+            </div>
             <Input
               id="trade-amount"
               inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder={String(max)}
+              value={fiatAmount}
+              onChange={(e) => setFiatAmount(e.target.value)}
+              placeholder={String(min || 50)}
             />
-            {parsed > 0 ? (
-              <p className="mono text-xs text-muted-foreground">
-                ≈ ${(parsed * price).toLocaleString()} total
-              </p>
-            ) : null}
+            {rangeError ? <p className="text-xs text-destructive">{rangeError}</p> : null}
           </div>
+
+          {price ? (
+            <div className="space-y-1 rounded-md border border-border bg-muted/30 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Receive</span>
+                <span className="mono font-medium">
+                  {receive ? receive.netCrypto.toFixed(8) : "0"} {listing?.crypto_type}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Rate {symbol}
+                {price.toFixed(2)} per {listing?.crypto_type} · {PLATFORM_FEE_PERCENT}% fee included
+              </p>
+              {listing?.payment_window_minutes ? (
+                <p className="text-xs text-muted-foreground">
+                  You'll have {listing.payment_window_minutes} minutes to pay once escrow opens.
+                </p>
+              ) : null}
+            </div>
+          ) : marketPricesError ? (
+            <p className="text-xs text-destructive">
+              Couldn't load the live market price: {marketPricesError.message}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Loading live market price…</p>
+          )}
+
           <div className="space-y-2">
             <Label>Payment method</Label>
             <Select value={payment} onValueChange={setPayment}>

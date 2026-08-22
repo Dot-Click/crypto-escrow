@@ -49,5 +49,9 @@ export const sendMessage = createServerFn({ method: "POST" })
       .select("id, sender_id, content, attachment_url, created_at")
       .single();
     if (error) throw new Error(error.message);
+
+    const { notifyNewMessage } = await import("@/lib/message-notify.server");
+    await notifyNewMessage({ tradeId: data.tradeId, senderId: context.userId, content: data.content });
+
     return { ...row, mine: true };
   });

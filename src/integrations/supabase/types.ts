@@ -69,7 +69,12 @@ export type Database = {
           created_at: string
           crypto_type: string
           fiat_currency: string
+          fixed_price: number | null
           id: string
+          margin_percent: number
+          max_amount: number | null
+          min_amount: number | null
+          payment_window_minutes: number | null
           price: number
           seller_id: string
           side: Database["public"]["Enums"]["listing_side"]
@@ -83,7 +88,12 @@ export type Database = {
           created_at?: string
           crypto_type: string
           fiat_currency?: string
+          fixed_price?: number | null
           id?: string
+          margin_percent?: number
+          max_amount?: number | null
+          min_amount?: number | null
+          payment_window_minutes?: number | null
           price: number
           seller_id: string
           side?: Database["public"]["Enums"]["listing_side"]
@@ -97,7 +107,12 @@ export type Database = {
           created_at?: string
           crypto_type?: string
           fiat_currency?: string
+          fixed_price?: number | null
           id?: string
+          margin_percent?: number
+          max_amount?: number | null
+          min_amount?: number | null
+          payment_window_minutes?: number | null
           price?: number
           seller_id?: string
           side?: Database["public"]["Enums"]["listing_side"]
@@ -111,6 +126,42 @@ export type Database = {
             columns: ["seller_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing_payment_methods: {
+        Row: {
+          id: string
+          listing_id: string
+          method: string
+          payment_method_id: string
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          method: string
+          payment_method_id: string
+        }
+        Update: {
+          id?: string
+          listing_id?: string
+          method?: string
+          payment_method_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_payment_methods_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_payment_methods_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -153,6 +204,41 @@ export type Database = {
             columns: ["trade_id"]
             isOneToOne: false
             referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_methods: {
+        Row: {
+          created_at: string
+          details: Json
+          id: string
+          label: string | null
+          method: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          id?: string
+          label?: string | null
+          method: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          id?: string
+          label?: string | null
+          method?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -214,10 +300,13 @@ export type Database = {
           buyer_id: string
           created_at: string
           crypto_type: string
+          expires_at: string | null
+          fee_amount: number
           fiat_currency: string
           id: string
           listing_id: string | null
           payment_method: string | null
+          payout_amount: number
           price: number
           seller_id: string
           status: Database["public"]["Enums"]["trade_status"]
@@ -228,10 +317,13 @@ export type Database = {
           buyer_id: string
           created_at?: string
           crypto_type: string
+          expires_at?: string | null
+          fee_amount?: number
           fiat_currency?: string
           id?: string
           listing_id?: string | null
           payment_method?: string | null
+          payout_amount?: number
           price: number
           seller_id: string
           status?: Database["public"]["Enums"]["trade_status"]
@@ -242,10 +334,13 @@ export type Database = {
           buyer_id?: string
           created_at?: string
           crypto_type?: string
+          expires_at?: string | null
+          fee_amount?: number
           fiat_currency?: string
           id?: string
           listing_id?: string | null
           payment_method?: string | null
+          payout_amount?: number
           price?: number
           seller_id?: string
           status?: Database["public"]["Enums"]["trade_status"]

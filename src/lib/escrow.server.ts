@@ -2,6 +2,10 @@
 // wallet balance (balance -> held_balance), never a new blockchain transaction.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { enforceRateLimit } from "@/lib/rate-limit.server";
+import { getMarketPrice } from "@/lib/market-price.server";
+import { getFxRate } from "@/lib/fx-rate.server";
+import { computeEffectivePrice, computeReceiveAmount } from "@/lib/pricing";
+import { PLATFORM_FEE_PERCENT } from "@/lib/constants";
 
 type TradeRow = {
   id: string;
@@ -9,14 +13,17 @@ type TradeRow = {
   seller_id: string;
   crypto_type: string;
   amount: number;
+  payout_amount: number;
   status: string;
   updated_at: string;
 };
 
 async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
+  await expireStaleTrades({ tradeId });
+
   const { data, error } = await supabaseAdmin
     .from("trades")
-    .select("id, buyer_id, seller_id, crypto_type, amount, status, updated_at")
+    .select("id, buyer_id, seller_id, crypto_type, amount, payout_amount, status, updated_at")
     .eq("id", tradeId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -24,7 +31,7 @@ async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
   if (data.buyer_id !== userId && data.seller_id !== userId) {
     throw new Error("You are not a party to this trade");
   }
-  return { ...data, amount: Number(data.amount) };
+  return { ...data, amount: Number(data.amount), payout_amount: Number(data.payout_amount) };
 }
 
 const BUYER_DISPUTE_WAIT_MS = 30 * 60 * 1000;
@@ -47,6 +54,64 @@ async function ensureWallet(userId: string, cryptoType: string) {
   return { ...created, balance: Number(created.balance), held_balance: Number(created.held_balance) };
 }
 
+async function refundEscrow(trade: { id: string; seller_id: string; crypto_type: string; amount: number }) {
+  const sellerWallet = await ensureWallet(trade.seller_id, trade.crypto_type);
+  await supabaseAdmin
+    .from("wallets")
+    .update({
+      balance: sellerWallet.balance + trade.amount,
+      held_balance: Math.max(0, sellerWallet.held_balance - trade.amount),
+    })
+    .eq("id", sellerWallet.id);
+
+  await supabaseAdmin.from("transactions").insert({
+    wallet_id: sellerWallet.id,
+    user_id: trade.seller_id,
+    trade_id: trade.id,
+    type: "escrow_refund",
+    amount: trade.amount,
+    crypto_type: trade.crypto_type,
+    status: "completed",
+  });
+}
+
+/**
+ * Cancels and refunds any trade still waiting on the buyer past its payment
+ * window, so escrow never stays locked forever just because nobody acted on
+ * it. Called lazily whenever a trade is read or acted on — no cron needed for
+ * correctness, though one can be added as a belt-and-suspenders sweep.
+ */
+export async function expireStaleTrades(params?: { tradeId?: string; userId?: string }) {
+  let query = supabaseAdmin
+    .from("trades")
+    .select("id, seller_id, crypto_type, amount")
+    .eq("status", "escrow_funded")
+    .lt("expires_at", new Date().toISOString());
+
+  if (params?.tradeId) query = query.eq("id", params.tradeId);
+  if (params?.userId) query = query.or(`buyer_id.eq.${params.userId},seller_id.eq.${params.userId}`);
+
+  const { data: expired, error } = await query;
+  if (error) throw new Error(error.message);
+  if (!expired || expired.length === 0) return { expiredCount: 0 };
+
+  for (const trade of expired) {
+    // Claim the transition first so a concurrent action on the same trade can't double-refund.
+    const { data: claimed } = await supabaseAdmin
+      .from("trades")
+      .update({ status: "cancelled" })
+      .eq("id", trade.id)
+      .eq("status", "escrow_funded")
+      .select("id")
+      .maybeSingle();
+    if (!claimed) continue;
+
+    await refundEscrow({ ...trade, amount: Number(trade.amount) });
+  }
+
+  return { expiredCount: expired.length };
+}
+
 async function bumpTradesCompleted(userIds: string[]) {
   const { data } = await supabaseAdmin
     .from("profiles")
@@ -64,7 +129,7 @@ async function bumpTradesCompleted(userIds: string[]) {
 
 export async function openTrade(params: {
   listingId: string;
-  amount: number;
+  fiatAmount: number;
   paymentMethod: string;
   userId: string;
 }) {
@@ -77,17 +142,45 @@ export async function openTrade(params: {
 
   const { data: listing, error } = await supabaseAdmin
     .from("listings")
-    .select("id, seller_id, side, crypto_type, amount, price, fiat_currency, accepted_payment_methods, status")
+    .select(
+      "id, seller_id, side, crypto_type, amount, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status",
+    )
     .eq("id", params.listingId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!listing || listing.status !== "active") throw new Error("This offer is no longer available");
   if (listing.seller_id === params.userId) throw new Error("You cannot trade with your own offer");
-  if (params.amount > Number(listing.amount)) {
-    throw new Error(`This offer covers at most ${listing.amount} ${listing.crypto_type}`);
-  }
   if (!listing.accepted_payment_methods.includes(params.paymentMethod)) {
     throw new Error("That payment method is not accepted on this offer");
+  }
+  if (listing.min_amount != null && params.fiatAmount < Number(listing.min_amount)) {
+    throw new Error(`This offer requires at least $${listing.min_amount}`);
+  }
+  if (listing.max_amount != null && params.fiatAmount > Number(listing.max_amount)) {
+    throw new Error(`This offer covers at most $${listing.max_amount}`);
+  }
+
+  // Price and fee are computed and locked in now — later market or fee changes
+  // must never affect an already-open trade. Fixed-rate listings skip the
+  // live feed entirely (their price is already in the listing's currency);
+  // margin listings need a fresh market price converted into that currency.
+  const effectivePrice =
+    listing.fixed_price != null
+      ? Number(listing.fixed_price)
+      : computeEffectivePrice(
+          await getMarketPrice(listing.crypto_type),
+          Number(listing.margin_percent),
+          await getFxRate(listing.fiat_currency),
+        );
+  const { grossCrypto, feeCrypto, netCrypto } = computeReceiveAmount(
+    params.fiatAmount,
+    effectivePrice,
+    PLATFORM_FEE_PERCENT,
+  );
+  if (grossCrypto > Number(listing.amount)) {
+    throw new Error(
+      `This offer covers at most ${listing.amount} ${listing.crypto_type} (~$${(Number(listing.amount) * effectivePrice).toFixed(2)})`,
+    );
   }
 
   // On a "sell" offer the lister sells crypto; on a "buy" offer the visitor sells.
@@ -95,10 +188,10 @@ export async function openTrade(params: {
   const buyerId = listing.side === "sell" ? params.userId : listing.seller_id;
 
   const wallet = await ensureWallet(sellerId, listing.crypto_type);
-  if (wallet.balance < params.amount) {
+  if (wallet.balance < grossCrypto) {
     throw new Error(
       sellerId === params.userId
-        ? `You need ${params.amount} ${listing.crypto_type} available in your wallet to sell.`
+        ? `You need ${grossCrypto.toFixed(8)} ${listing.crypto_type} available in your wallet to sell.`
         : "The seller does not have enough available balance to fund escrow right now.",
     );
   }
@@ -107,11 +200,11 @@ export async function openTrade(params: {
   const { data: held, error: holdErr } = await supabaseAdmin
     .from("wallets")
     .update({
-      balance: wallet.balance - params.amount,
-      held_balance: wallet.held_balance + params.amount,
+      balance: wallet.balance - grossCrypto,
+      held_balance: wallet.held_balance + grossCrypto,
     })
     .eq("id", wallet.id)
-    .gte("balance", params.amount)
+    .gte("balance", grossCrypto)
     .select("id")
     .maybeSingle();
   if (holdErr) throw new Error(holdErr.message);
@@ -124,8 +217,13 @@ export async function openTrade(params: {
       buyer_id: buyerId,
       seller_id: sellerId,
       crypto_type: listing.crypto_type,
-      amount: params.amount,
-      price: Number(listing.price),
+      amount: grossCrypto,
+      price: effectivePrice,
+      fee_amount: feeCrypto,
+      payout_amount: netCrypto,
+      expires_at: listing.payment_window_minutes
+        ? new Date(Date.now() + listing.payment_window_minutes * 60_000).toISOString()
+        : null,
       fiat_currency: listing.fiat_currency,
       payment_method: params.paymentMethod,
       status: "escrow_funded",
@@ -147,7 +245,7 @@ export async function openTrade(params: {
     user_id: sellerId,
     trade_id: trade.id,
     type: "escrow_hold",
-    amount: params.amount,
+    amount: grossCrypto,
     crypto_type: listing.crypto_type,
     status: "completed",
   });
@@ -190,13 +288,15 @@ export async function releaseHold(params: { tradeId: string; userId: string }) {
   const sellerWallet = await ensureWallet(trade.seller_id, trade.crypto_type);
   const buyerWallet = await ensureWallet(trade.buyer_id, trade.crypto_type);
 
+  // The full held amount leaves the seller's hold; the buyer receives it minus
+  // the platform fee that was locked in when the trade opened.
   await supabaseAdmin
     .from("wallets")
     .update({ held_balance: Math.max(0, sellerWallet.held_balance - trade.amount) })
     .eq("id", sellerWallet.id);
   await supabaseAdmin
     .from("wallets")
-    .update({ balance: buyerWallet.balance + trade.amount })
+    .update({ balance: buyerWallet.balance + trade.payout_amount })
     .eq("id", buyerWallet.id);
 
   await supabaseAdmin.from("transactions").insert([
@@ -214,7 +314,7 @@ export async function releaseHold(params: { tradeId: string; userId: string }) {
       user_id: trade.buyer_id,
       trade_id: trade.id,
       type: "escrow_release",
-      amount: trade.amount,
+      amount: trade.payout_amount,
       crypto_type: trade.crypto_type,
       status: "completed",
     },
@@ -241,24 +341,7 @@ export async function cancelAndRefund(params: { tradeId: string; userId: string 
   if (claimErr) throw new Error(claimErr.message);
   if (!claimed) throw new Error("This trade was already settled");
 
-  const sellerWallet = await ensureWallet(trade.seller_id, trade.crypto_type);
-  await supabaseAdmin
-    .from("wallets")
-    .update({
-      balance: sellerWallet.balance + trade.amount,
-      held_balance: Math.max(0, sellerWallet.held_balance - trade.amount),
-    })
-    .eq("id", sellerWallet.id);
-
-  await supabaseAdmin.from("transactions").insert({
-    wallet_id: sellerWallet.id,
-    user_id: trade.seller_id,
-    trade_id: trade.id,
-    type: "escrow_refund",
-    amount: trade.amount,
-    crypto_type: trade.crypto_type,
-    status: "completed",
-  });
+  await refundEscrow(trade);
 
   return { status: "cancelled" as const };
 }

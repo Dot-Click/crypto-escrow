@@ -5,16 +5,8 @@ export const CRYPTO_TYPES = [
   { code: "LTC", label: "Litecoin (testnet)" },
 ] as const;
 
-export const PAYMENT_METHODS = [
-  "Bank Transfer",
-  "Gift Card",
-  "Cash App",
-  "PayPal",
-  "Wise",
-  "Zelle",
-  "Revolut",
-  "Cash in Person",
-] as const;
+/** Deducted from the buyer's crypto payout when escrow releases; locked into trade.fee_amount at open time. */
+export const PLATFORM_FEE_PERCENT = 1;
 
 export type TradeStatus =
   | "pending"

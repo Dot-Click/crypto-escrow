@@ -5,10 +5,13 @@ export const listMyTrades = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { expireStaleTrades } = await import("@/lib/escrow.server");
+    await expireStaleTrades({ userId: context.userId });
+
     const { data, error } = await supabaseAdmin
       .from("trades")
       .select(
-        "id, crypto_type, amount, price, fiat_currency, payment_method, status, created_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name), seller:profiles!trades_seller_id_fkey(display_name)",
+        "id, crypto_type, amount, price, expires_at, fiat_currency, payment_method, status, created_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name), seller:profiles!trades_seller_id_fkey(display_name)",
       )
       .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
       .order("created_at", { ascending: false })
@@ -30,10 +33,13 @@ export const getTrade = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { expireStaleTrades } = await import("@/lib/escrow.server");
+    await expireStaleTrades({ tradeId: data.tradeId });
+
     const { data: trade, error } = await supabaseAdmin
       .from("trades")
       .select(
-        "id, listing_id, crypto_type, amount, price, fiat_currency, payment_method, status, created_at, updated_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
+        "id, listing_id, crypto_type, amount, price, fee_amount, payout_amount, expires_at, fiat_currency, payment_method, status, created_at, updated_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
       )
       .eq("id", data.tradeId)
       .maybeSingle();
@@ -66,6 +72,8 @@ export const getTrade = createServerFn({ method: "POST" })
         ...trade,
         amount: Number(trade.amount),
         price: Number(trade.price),
+        fee_amount: Number(trade.fee_amount),
+        payout_amount: Number(trade.payout_amount),
       },
       terms,
       dispute,
@@ -76,9 +84,11 @@ export const getTrade = createServerFn({ method: "POST" })
 /** Opens a trade room and immediately places the internal escrow hold on the seller's wallet. */
 export const createTrade = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string; amount: number; paymentMethod: string }) => {
+  .inputValidator((input: { listingId: string; fiatAmount: number; paymentMethod: string }) => {
     if (!/^[0-9a-f-]{36}$/i.test(input.listingId)) throw new Error("Invalid listing id");
-    if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Enter a valid amount");
+    if (!Number.isFinite(input.fiatAmount) || input.fiatAmount <= 0) {
+      throw new Error("Enter a valid amount");
+    }
     if (!input.paymentMethod) throw new Error("Choose a payment method");
     return input;
   })

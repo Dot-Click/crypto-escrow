@@ -50,7 +50,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">
         <Link to="/" className="flex items-center">
-          <img src="/logo.svg" alt="EscrowP2P" className="h-6 w-auto" />
+          <img src="/logo.svg" alt="FOMN" className="h-6 w-auto" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{user ? links() : null}</nav>

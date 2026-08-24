@@ -20,7 +20,7 @@ async function ensureConfigured(): Promise<WebPushModule | null> {
   const webpush = await loadWebPush();
   if (!configured) {
     webpush.setVapidDetails(
-      process.env["VAPID_CONTACT_EMAIL"] || "mailto:support@escrowp2p.test",
+      process.env["VAPID_CONTACT_EMAIL"] || "mailto:support@fomn.test",
       publicKey,
       privateKey,
     );

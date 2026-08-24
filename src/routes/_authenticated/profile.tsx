@@ -24,12 +24,12 @@ import {
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — EscrowP2P" },
+      { title: "Your profile — FOMN" },
       {
         name: "description",
-        content: "Manage your EscrowP2P trader profile, display name, trading role and offers.",
+        content: "Manage your FOMN trader profile, display name, trading role and offers.",
       },
-      { property: "og:title", content: "Your profile — EscrowP2P" },
+      { property: "og:title", content: "Your profile — FOMN" },
       {
         property: "og:description",
         content: "Manage your trader profile and your published offers.",

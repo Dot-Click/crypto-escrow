@@ -24,9 +24,9 @@ import { TradeChat } from "@/components/trade-chat";
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
     meta: [
-      { title: "Trade room — EscrowP2P" },
+      { title: "Trade room — FOMN" },
       { name: "description", content: "Escrow-protected trade room: fund, pay, release." },
-      { property: "og:title", content: "Trade room — EscrowP2P" },
+      { property: "og:title", content: "Trade room — FOMN" },
       { property: "og:description", content: "Escrow-protected trade room: fund, pay, release." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

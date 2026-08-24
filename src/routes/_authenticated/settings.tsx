@@ -19,12 +19,12 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "Notification settings — EscrowP2P" },
+      { title: "Notification settings — FOMN" },
       {
         name: "description",
-        content: "Manage email and push notifications for trade activity on EscrowP2P.",
+        content: "Manage email and push notifications for trade activity on FOMN.",
       },
-      { property: "og:title", content: "Notification settings — EscrowP2P" },
+      { property: "og:title", content: "Notification settings — FOMN" },
       {
         property: "og:description",
         content: "Choose how you're notified about new trade messages and updates.",
@@ -105,7 +105,7 @@ function SettingsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Choose how EscrowP2P notifies you about trade activity.
+          Choose how FOMN notifies you about trade activity.
         </p>
       </div>
 

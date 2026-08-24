@@ -5,11 +5,11 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: "EscrowP2P", body: event.data ? event.data.text() : "" };
+    data = { title: "FOMN", body: event.data ? event.data.text() : "" };
   }
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "EscrowP2P", {
+    self.registration.showNotification(data.title || "FOMN", {
       body: data.body || "",
       icon: "/logo.svg",
       badge: "/logo.svg",

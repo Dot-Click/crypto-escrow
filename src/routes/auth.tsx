@@ -20,13 +20,13 @@ import {
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — EscrowP2P Trading" },
+      { title: "Sign in — FOMN Trading" },
       {
         name: "description",
         content:
-          "Sign in or create an EscrowP2P account to trade crypto peer-to-peer with escrow protection.",
+          "Sign in or create an FOMN account to trade crypto peer-to-peer with escrow protection.",
       },
-      { property: "og:title", content: "Sign in — EscrowP2P Trading" },
+      { property: "og:title", content: "Sign in — FOMN Trading" },
       {
         property: "og:description",
         content: "Create an account to buy and sell crypto with escrow protection.",
@@ -115,7 +115,7 @@ function AuthPage() {
           }}
         />
         <div className="absolute bottom-10 left-10 right-10">
-          <img src="/logo.svg" alt="EscrowP2P" className="h-8 w-auto" />
+          <img src="/logo.svg" alt="FOMN" className="h-8 w-auto" />
           <p className="mt-2 max-w-sm text-sm text-foreground/80">
             Trade crypto safely, peer-to-peer.
           </p>
@@ -126,7 +126,7 @@ function AuthPage() {
       <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md">
           <Link to="/" className="mb-6 flex items-center justify-center lg:hidden">
-            <img src="/logo.svg" alt="EscrowP2P" className="h-6 w-auto" />
+            <img src="/logo.svg" alt="FOMN" className="h-6 w-auto" />
           </Link>
           <Card>
             <CardHeader>

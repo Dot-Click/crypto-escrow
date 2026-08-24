@@ -44,13 +44,13 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "EscrowP2P — Peer-to-peer crypto trading with escrow" },
+      { title: "FOMN — Peer-to-peer crypto trading with escrow" },
       {
         name: "description",
         content:
           "Browse buy and sell crypto offers, trade with any payment method, and settle safely with platform-held escrow. Testnet demo.",
       },
-      { property: "og:title", content: "EscrowP2P — Peer-to-peer crypto trading with escrow" },
+      { property: "og:title", content: "FOMN — Peer-to-peer crypto trading with escrow" },
       {
         property: "og:description",
         content:

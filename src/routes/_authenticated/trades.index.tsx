@@ -20,9 +20,9 @@ import {
 export const Route = createFileRoute("/_authenticated/trades/")({
   head: () => ({
     meta: [
-      { title: "My trades — EscrowP2P" },
+      { title: "My trades — FOMN" },
       { name: "description", content: "Track your escrow-protected P2P crypto trades." },
-      { property: "og:title", content: "My trades — EscrowP2P" },
+      { property: "og:title", content: "My trades — FOMN" },
       { property: "og:description", content: "Track your escrow-protected P2P crypto trades." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

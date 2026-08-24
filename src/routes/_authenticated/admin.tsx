@@ -39,15 +39,15 @@ import {
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Admin dashboard — EscrowP2P" },
+      { title: "Admin dashboard — FOMN" },
       {
         name: "description",
-        content: "Monitor escrow holds, trades and disputes across the EscrowP2P testnet marketplace.",
+        content: "Monitor escrow holds, trades and disputes across the FOMN testnet marketplace.",
       },
-      { property: "og:title", content: "Admin dashboard — EscrowP2P" },
+      { property: "og:title", content: "Admin dashboard — FOMN" },
       {
         property: "og:description",
-        content: "Monitor escrow holds, trades and disputes across the EscrowP2P testnet marketplace.",
+        content: "Monitor escrow holds, trades and disputes across the FOMN testnet marketplace.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

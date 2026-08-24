@@ -12,6 +12,7 @@ const NAV = [
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
   { to: "/profile", label: "Profile" },
+  { to: "/settings", label: "Settings" },
 ] as const;
 
 

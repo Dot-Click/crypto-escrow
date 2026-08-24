@@ -107,6 +107,9 @@ export async function expireStaleTrades(params?: { tradeId?: string; userId?: st
     if (!claimed) continue;
 
     await refundEscrow({ ...trade, amount: Number(trade.amount) });
+
+    const { notifyTradeEnded } = await import("@/lib/trade-notify.server");
+    await notifyTradeEnded({ tradeId: trade.id, outcome: "cancelled" });
   }
 
   return { expiredCount: expired.length };
@@ -258,6 +261,19 @@ export async function claimPayment(params: { tradeId: string; userId: string }) 
   if (trade.buyer_id !== params.userId) throw new Error("Only the buyer can confirm payment");
   if (trade.status !== "escrow_funded") throw new Error("Payment can only be confirmed while in escrow");
 
+  // Require proof of payment (an attachment from the buyer in the trade chat)
+  // before allowing the buyer to mark the trade as paid.
+  const { count, error: proofErr } = await supabaseAdmin
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("trade_id", trade.id)
+    .eq("sender_id", params.userId)
+    .not("attachment_url", "is", null);
+  if (proofErr) throw new Error(proofErr.message);
+  if (!count) {
+    throw new Error("Attach proof of payment in the chat before marking the trade as paid.");
+  }
+
   const { error } = await supabaseAdmin
     .from("trades")
     .update({ status: "payment_claimed" })
@@ -321,6 +337,10 @@ export async function releaseHold(params: { tradeId: string; userId: string }) {
   ]);
 
   await bumpTradesCompleted([trade.buyer_id, trade.seller_id]);
+
+  const { notifyTradeEnded } = await import("@/lib/trade-notify.server");
+  await notifyTradeEnded({ tradeId: trade.id, outcome: "released" });
+
   return { status: "released" as const };
 }
 
@@ -342,6 +362,9 @@ export async function cancelAndRefund(params: { tradeId: string; userId: string 
   if (!claimed) throw new Error("This trade was already settled");
 
   await refundEscrow(trade);
+
+  const { notifyTradeEnded } = await import("@/lib/trade-notify.server");
+  await notifyTradeEnded({ tradeId: trade.id, outcome: "cancelled" });
 
   return { status: "cancelled" as const };
 }

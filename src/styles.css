@@ -121,6 +121,28 @@
     font-weight: 600;
     letter-spacing: -0.01em;
   }
+
+  /* Thin scrollbars everywhere — Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  /* Thin scrollbars everywhere — WebKit/Blink (Chrome, Edge, Safari) */
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted-foreground);
+  }
 }
 
 @utility mono {

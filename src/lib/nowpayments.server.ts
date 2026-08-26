@@ -47,67 +47,6 @@ export function verifyIpnSignature(rawBody: string, signature: string | null): b
   return timingSafeEqual(a, b);
 }
 
-type DepositAddress = { address: string; providerPaymentId: string | null; simulated: boolean };
-
-/**
- * Creates a provider payment so the user gets an external deposit address for
- * one wallet. Falls back to a clearly-labelled demo address when the sandbox
- * key is not configured, so the testnet demo still works end to end.
- */
-export async function createDepositAddress(params: {
-  cryptoType: string;
-  walletId: string;
-  callbackUrl: string;
-}): Promise<DepositAddress> {
-  const key = npApiKey();
-  if (!key) {
-    return {
-      address: `TESTNET-DEMO-${params.cryptoType}-${params.walletId.slice(0, 8)}`,
-      providerPaymentId: null,
-      simulated: true,
-    };
-  }
-
-  const demo = {
-    address: `TESTNET-DEMO-${params.cryptoType}-${params.walletId.slice(0, 8)}`,
-    providerPaymentId: null,
-    simulated: true,
-  };
-
-  let res: Response;
-  try {
-    res = await fetch(`${npBase()}/payment`, {
-      method: "POST",
-      headers: { "x-api-key": key, "content-type": "application/json" },
-      signal: AbortSignal.timeout(12_000),
-      body: JSON.stringify({
-        price_amount: 100,
-        price_currency: "usd",
-        pay_currency: params.cryptoType.toLowerCase(),
-        order_id: params.walletId,
-        order_description: `Wallet top-up (${params.cryptoType})`,
-        ipn_callback_url: params.callbackUrl,
-      }),
-    });
-  } catch (e) {
-    // Provider unreachable (sandbox outage/network) — keep the demo usable.
-    console.error("[nowpayments] deposit address request failed", e);
-    return demo;
-  }
-
-  if (!res.ok) {
-    console.error("[nowpayments] deposit rejected", res.status, await res.text().catch(() => ""));
-    return demo;
-  }
-  const json = (await res.json()) as { pay_address?: string; payment_id?: number | string };
-  if (!json.pay_address) return demo;
-  return {
-    address: json.pay_address,
-    providerPaymentId: json.payment_id ? String(json.payment_id) : null,
-    simulated: false,
-  };
-}
-
 type PayoutResult = { providerPayoutId: string | null; simulated: boolean };
 
 export async function createPayout(params: {

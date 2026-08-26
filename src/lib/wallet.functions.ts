@@ -21,7 +21,7 @@ export const getWalletOverview = createServerFn({ method: "GET" })
     const [{ data: wallets }, { data: txs }] = await Promise.all([
       supabaseAdmin
         .from("wallets")
-        .select("id, crypto_type, balance, held_balance, external_deposit_address")
+        .select("id, crypto_type, balance, held_balance")
         .eq("user_id", userId)
         .order("crypto_type"),
       supabaseAdmin
@@ -41,52 +41,6 @@ export const getWalletOverview = createServerFn({ method: "GET" })
       transactions: (txs ?? []).map((t) => ({ ...t, amount: Number(t.amount) })),
       providerConfigured: !!process.env["NOWPAYMENTS_API_KEY"],
     };
-  });
-
-export const getDepositAddress = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { cryptoType: string }) => {
-    if (!CODES.includes(input.cryptoType)) throw new Error("Unsupported coin");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { enforceRateLimit } = await import("@/lib/rate-limit.server");
-    const { createDepositAddress } = await import("@/lib/nowpayments.server");
-    const { getRequest } = await import("@tanstack/react-start/server");
-
-    await enforceRateLimit({
-      userId: context.userId,
-      action: "deposit_address",
-      limit: 10,
-      windowSeconds: 3600,
-    });
-
-    const { data: wallet, error } = await supabaseAdmin
-      .from("wallets")
-      .select("id, external_deposit_address")
-      .eq("user_id", context.userId)
-      .eq("crypto_type", data.cryptoType)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!wallet) throw new Error("Wallet not found");
-    if (wallet.external_deposit_address) {
-      return { address: wallet.external_deposit_address, simulated: false };
-    }
-
-    const origin = new URL(getRequest().url).origin;
-    const created = await createDepositAddress({
-      cryptoType: data.cryptoType,
-      walletId: wallet.id,
-      callbackUrl: `${origin}/api/public/webhooks/nowpayments/deposit`,
-    });
-
-    await supabaseAdmin
-      .from("wallets")
-      .update({ external_deposit_address: created.address })
-      .eq("id", wallet.id);
-
-    return { address: created.address, simulated: created.simulated };
   });
 
 export const requestWithdrawal = createServerFn({ method: "POST" })

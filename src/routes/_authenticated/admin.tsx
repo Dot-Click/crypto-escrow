@@ -6,10 +6,16 @@ import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 import {
   getAdminOverview,
+  getDepositClaimLog,
   getDisputeThread,
   listAllTrades,
+  listDepositClaims,
   listDisputes,
+  listMasterWallets,
+  rejectDepositClaim,
   resolveDispute,
+  reverifyDepositClaim,
+  upsertMasterWallet,
 } from "@/lib/admin.functions";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -96,6 +103,8 @@ function AdminPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="disputes">Disputes</TabsTrigger>
           <TabsTrigger value="trades">All trades</TabsTrigger>
+          <TabsTrigger value="deposits">Deposits</TabsTrigger>
+          <TabsTrigger value="wallets">Wallet addresses</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
           <Overview />
@@ -105,6 +114,12 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="trades" className="mt-4">
           <AllTrades />
+        </TabsContent>
+        <TabsContent value="deposits" className="mt-4">
+          <DepositClaims />
+        </TabsContent>
+        <TabsContent value="wallets" className="mt-4">
+          <MasterWallets />
         </TabsContent>
       </Tabs>
     </div>
@@ -461,5 +476,345 @@ function AllTrades() {
         </div>
       )}
     </div>
+  );
+}
+
+function claimStatusVariant(status: string) {
+  if (status === "verified") return "default" as const;
+  if (status === "rejected") return "destructive" as const;
+  return "secondary" as const;
+}
+
+type DepositClaimRow = Awaited<ReturnType<typeof listDepositClaims>>[number];
+
+function DepositClaims() {
+  const queryClient = useQueryClient();
+  const fetchClaims = useServerFn(listDepositClaims);
+  const [status, setStatus] = useState<"pending" | "verified" | "rejected" | "all">("pending");
+  const q = useQuery({
+    queryKey: ["admin", "deposit-claims", status],
+    queryFn: () => fetchClaims({ data: { status } }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Label className="text-sm">Status</Label>
+        <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {q.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading deposit claims…</p>
+      ) : (q.data ?? []).length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            No deposit claims in this view.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {(q.data ?? []).map((c) => (
+            <DepositClaimCard key={c.id} claim={c} onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin", "deposit-claims"] })} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChanged: () => void }) {
+  const reject = useServerFn(rejectDepositClaim);
+  const recheck = useServerFn(reverifyDepositClaim);
+  const fetchLog = useServerFn(getDepositClaimLog);
+  const [reason, setReason] = useState("");
+  const [logOpen, setLogOpen] = useState(false);
+
+  const user = claim.user as { display_name: string; email: string } | null;
+
+  const log = useQuery({
+    queryKey: ["admin", "deposit-claim-log", claim.id],
+    queryFn: () => fetchLog({ data: { claimId: claim.id } }),
+    enabled: logOpen,
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => reject({ data: { claimId: claim.id, reason } }),
+    onSuccess: () => {
+      toast.success("Claim rejected");
+      setReason("");
+      onChanged();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const recheckMutation = useMutation({
+    mutationFn: () => recheck({ data: { claimId: claim.id } }),
+    onSuccess: (res) => {
+      toast.success(`Re-check complete — status: ${res.status}`);
+      onChanged();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={claimStatusVariant(claim.status)}>{claim.status}</Badge>
+          <span className="mono text-sm font-semibold">
+            {claim.claimed_amount} {claim.crypto_type} <span className="text-xs font-normal text-muted-foreground">via {claim.network}</span>
+          </span>
+          {claim.verified_amount != null ? (
+            <span className="text-xs text-muted-foreground">verified: {claim.verified_amount}</span>
+          ) : null}
+        </div>
+
+        <div className="text-sm text-muted-foreground">
+          <p>{user?.display_name ?? "—"} ({user?.email ?? "—"})</p>
+          <p className="mono text-xs">{claim.tx_hash}</p>
+          <p className="text-xs">
+            Submitted {new Date(claim.created_at).toLocaleString()} · {claim.attempt_count} check(s)
+            {claim.last_checked_at ? ` · last checked ${new Date(claim.last_checked_at).toLocaleString()}` : ""}
+          </p>
+        </div>
+
+        {claim.rejection_reason ? (
+          <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+            {claim.rejection_reason}
+          </p>
+        ) : null}
+
+        <div className="flex flex-wrap gap-2">
+          <Dialog open={logOpen} onOpenChange={setLogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                View verification log
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Verification log</DialogTitle>
+                <DialogDescription>Every automated check run against this claim.</DialogDescription>
+              </DialogHeader>
+              {log.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (log.data ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No log entries yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {(log.data ?? []).map((entry) => (
+                    <div key={entry.id} className="rounded-md border border-border p-2 text-xs">
+                      <p className="font-medium">
+                        {entry.result} <span className="font-normal text-muted-foreground">· {new Date(entry.attempt_at).toLocaleString()}</span>
+                      </p>
+                      <pre className="mono mt-1 whitespace-pre-wrap break-all text-muted-foreground">
+                        {JSON.stringify(entry.details, null, 2)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {claim.status === "pending" ? (
+            <Button variant="outline" size="sm" disabled={recheckMutation.isPending} onClick={() => recheckMutation.mutate()}>
+              {recheckMutation.isPending ? "Checking…" : "Re-check now"}
+            </Button>
+          ) : null}
+        </div>
+
+        {claim.status === "pending" ? (
+          <div className="flex flex-col gap-2 rounded-md border border-border p-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-sm">Rejection reason</Label>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why this claim is being rejected" />
+            </div>
+            <Button variant="destructive" size="sm" disabled={rejectMutation.isPending} onClick={() => rejectMutation.mutate()}>
+              Reject
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+type MasterWalletRow = Awaited<ReturnType<typeof listMasterWallets>>[number];
+
+function MasterWallets() {
+  const queryClient = useQueryClient();
+  const fetchWallets = useServerFn(listMasterWallets);
+  const q = useQuery({ queryKey: ["admin", "master-wallets"], queryFn: () => fetchWallets() });
+
+  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading wallet addresses…</p>;
+
+  const onSaved = () => void queryClient.invalidateQueries({ queryKey: ["admin", "master-wallets"] });
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        The platform-owned addresses users deposit to. Add one row per coin/network pair before enabling deposits for it.
+      </p>
+      {(q.data ?? []).map((w) => (
+        <MasterWalletCard key={w.id} wallet={w} onSaved={onSaved} />
+      ))}
+      <AddMasterWalletCard onSaved={onSaved} />
+    </div>
+  );
+}
+
+const EMPTY_WALLET_FORM = {
+  cryptoType: "",
+  network: "",
+  label: "",
+  address: "",
+  tokenContractAddress: "",
+  warningMessage: "",
+  minConfirmations: 1,
+  active: false,
+};
+
+function AddMasterWalletCard({ onSaved }: { onSaved: () => void }) {
+  const save = useServerFn(upsertMasterWallet);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_WALLET_FORM);
+
+  const mutation = useMutation({
+    mutationFn: () => save({ data: { ...form, minConfirmations: Number(form.minConfirmations) } }),
+    onSuccess: () => {
+      toast.success("Wallet address added");
+      setForm(EMPTY_WALLET_FORM);
+      setOpen(false);
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (!open) {
+    return (
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        + Add coin/network
+      </Button>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm">Coin (e.g. USDT)</Label>
+            <Input value={form.cryptoType} onChange={(e) => setForm({ ...form, cryptoType: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Network code (e.g. USDT_TRC20)</Label>
+            <Input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Label (shown to users)</Label>
+            <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Address</Label>
+            <Input className="mono" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "Adding…" : "Add"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSaved: () => void }) {
+  const save = useServerFn(upsertMasterWallet);
+  const [form, setForm] = useState({
+    cryptoType: wallet.crypto_type,
+    network: wallet.network,
+    label: wallet.label,
+    address: wallet.address,
+    tokenContractAddress: wallet.token_contract_address ?? "",
+    warningMessage: wallet.warning_message,
+    minConfirmations: wallet.min_confirmations,
+    active: wallet.active,
+  });
+
+  const mutation = useMutation({
+    mutationFn: () => save({ data: { id: wallet.id, ...form, minConfirmations: Number(form.minConfirmations) } }),
+    onSuccess: () => {
+      toast.success("Wallet address saved");
+      onSaved();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-sm">Coin</Label>
+            <Input value={form.cryptoType} onChange={(e) => setForm({ ...form, cryptoType: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Network code</Label>
+            <Input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Label (shown to users)</Label>
+            <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Address</Label>
+            <Input className="mono" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Token contract address (leave blank for a native coin)</Label>
+            <Input
+              className="mono"
+              value={form.tokenContractAddress}
+              onChange={(e) => setForm({ ...form, tokenContractAddress: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-sm">Warning shown in the deposit dialog</Label>
+            <Textarea rows={2} value={form.warningMessage} onChange={(e) => setForm({ ...form, warningMessage: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Min confirmations</Label>
+            <Input
+              type="number"
+              min={0}
+              value={form.minConfirmations}
+              onChange={(e) => setForm({ ...form, minConfirmations: Number(e.target.value) })}
+            />
+          </div>
+          <div className="flex items-center gap-2 pt-6">
+            <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+            <Label className="text-sm">Active (visible to users)</Label>
+          </div>
+        </div>
+        <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Saving…" : "Save"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

@@ -138,3 +138,143 @@ export const resolveDispute = createServerFn({ method: "POST" })
       adminId: context.userId,
     });
   });
+
+export const listDepositClaims = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { status?: "pending" | "verified" | "rejected" | "all" }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let query = supabaseAdmin
+      .from("deposit_claims")
+      .select(
+        "id, crypto_type, network, claimed_amount, verified_amount, tx_hash, status, rejection_reason, confirmations, attempt_count, created_at, last_checked_at, user:profiles!deposit_claims_user_id_fkey(display_name, email)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (data.status && data.status !== "all") query = query.eq("status", data.status);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const getDepositClaimLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { claimId: string }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(input.claimId)) throw new Error("Invalid claim id");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("deposit_verification_log")
+      .select("id, attempt_at, result, details")
+      .eq("deposit_claim_id", data.claimId)
+      .order("attempt_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const rejectDepositClaim = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { claimId: string; reason: string }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(input.claimId)) throw new Error("Invalid claim id");
+    if (!input.reason || input.reason.trim().length < 3) throw new Error("Add a short rejection reason");
+    if (input.reason.length > 1000) throw new Error("Reason is too long");
+    return { claimId: input.claimId, reason: input.reason.trim() };
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdmin, rejectDepositClaimServer } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    return rejectDepositClaimServer(data);
+  });
+
+export const reverifyDepositClaim = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { claimId: string }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(input.claimId)) throw new Error("Invalid claim id");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { runVerificationAndMaybeCredit } = await import("@/lib/deposit-verification.server");
+    return runVerificationAndMaybeCredit(data.claimId);
+  });
+
+export const listMasterWallets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data, error } = await supabaseAdmin
+      .from("master_wallets")
+      .select("id, crypto_type, network, label, address, token_contract_address, warning_message, min_confirmations, active")
+      .order("crypto_type")
+      .order("network");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const upsertMasterWallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: {
+    id?: string;
+    cryptoType: string;
+    network: string;
+    label: string;
+    address: string;
+    tokenContractAddress?: string | null;
+    warningMessage: string;
+    minConfirmations: number;
+    active: boolean;
+  }) => {
+    if (!input.cryptoType.trim()) throw new Error("Coin is required");
+    if (!input.network.trim()) throw new Error("Network is required");
+    if (!input.label.trim()) throw new Error("Label is required");
+    const address = input.address.trim();
+    if (address.length < 10 || address.length > 120) throw new Error("Enter a valid wallet address");
+    const minConfirmations = Number(input.minConfirmations);
+    if (!Number.isFinite(minConfirmations) || minConfirmations < 0) throw new Error("Enter a valid confirmation count");
+    return {
+      id: input.id,
+      cryptoType: input.cryptoType.trim().toUpperCase(),
+      network: input.network.trim(),
+      label: input.label.trim(),
+      address,
+      tokenContractAddress: input.tokenContractAddress?.trim() || null,
+      warningMessage: input.warningMessage.trim(),
+      minConfirmations,
+      active: !!input.active,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const row = {
+      crypto_type: data.cryptoType,
+      network: data.network,
+      label: data.label,
+      address: data.address,
+      token_contract_address: data.tokenContractAddress,
+      warning_message: data.warningMessage,
+      min_confirmations: data.minConfirmations,
+      active: data.active,
+    };
+
+    const { data: saved, error } = data.id
+      ? await supabaseAdmin.from("master_wallets").update(row).eq("id", data.id).select().single()
+      : await supabaseAdmin.from("master_wallets").insert(row).select().single();
+    if (error) throw new Error(error.message);
+    return saved;
+  });

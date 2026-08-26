@@ -1,14 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowDownToLine, ArrowUpFromLine, Copy, Lock } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Lock, RefreshCw } from "lucide-react";
+import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import {
-  getDepositAddress,
-  getWalletOverview,
-  requestWithdrawal,
-} from "@/lib/wallet.functions";
+  getDepositNetworks,
+  listMyDepositClaims,
+  recheckDepositClaim,
+  submitDepositClaim,
+} from "@/lib/deposit-claims.functions";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,13 +63,25 @@ const TYPE_LABEL: Record<string, string> = {
   escrow_refund: "Escrow refund",
 };
 
+const CLAIM_STATUS_LABEL: Record<string, string> = {
+  pending: "Checking…",
+  verified: "Credited",
+  rejected: "Rejected",
+};
+
 function WalletPage() {
   const qc = useQueryClient();
   const fetchOverview = useServerFn(getWalletOverview);
-  const fetchAddress = useServerFn(getDepositAddress);
   const submitWithdrawal = useServerFn(requestWithdrawal);
+  const fetchDepositNetworks = useServerFn(getDepositNetworks);
+  const fetchMyClaims = useServerFn(listMyDepositClaims);
+  const submitClaim = useServerFn(submitDepositClaim);
+  const recheckClaim = useServerFn(recheckDepositClaim);
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
+  const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
+  const [claimAmount, setClaimAmount] = useState("");
+  const [claimTxHash, setClaimTxHash] = useState("");
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
@@ -76,10 +91,63 @@ function WalletPage() {
     queryFn: () => fetchOverview(),
   });
 
-  const depositMutation = useMutation({
-    mutationFn: (cryptoType: string) => fetchAddress({ data: { cryptoType } }),
-    onSuccess: () => {
+  const depositNetworks = useQuery({
+    queryKey: ["deposit-networks"],
+    queryFn: () => fetchDepositNetworks(),
+  });
+
+  const myClaims = useQuery({
+    queryKey: ["deposit-claims"],
+    queryFn: () => fetchMyClaims(),
+    refetchInterval: (query) => (query.state.data?.some((c) => c.status === "pending") ? 15_000 : false),
+  });
+
+  const networksForCoin = (depositNetworks.data ?? []).filter((n) => n.crypto_type === depositCoin);
+  const selectedMasterWallet = networksForCoin.find((n) => n.network === depositNetwork) ?? null;
+
+  useEffect(() => {
+    if (!depositCoin) {
+      setDepositNetwork(null);
+      return;
+    }
+    if (networksForCoin.length === 1 && networksForCoin[0]) {
+      setDepositNetwork(networksForCoin[0].network);
+    } else if (!networksForCoin.some((n) => n.network === depositNetwork)) {
+      setDepositNetwork(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depositCoin, depositNetworks.data]);
+
+  const claimMutation = useMutation({
+    mutationFn: () =>
+      submitClaim({
+        data: {
+          cryptoType: depositCoin!,
+          network: depositNetwork!,
+          amount: Number(claimAmount),
+          txHash: claimTxHash.trim(),
+        },
+      }),
+    onSuccess: (res) => {
+      setClaimAmount("");
+      setClaimTxHash("");
+      void qc.invalidateQueries({ queryKey: ["deposit-claims"] });
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
+      if (res.status === "verified") toast.success(`Deposit credited: ${res.verified_amount} ${res.crypto_type}`);
+      else if (res.status === "rejected") toast.error(res.rejection_reason ?? "Deposit claim rejected");
+      else toast.info("Claim submitted — checking the network for confirmation.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const recheckMutation = useMutation({
+    mutationFn: (claimId: string) => recheckClaim({ data: { claimId } }),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: ["deposit-claims"] });
+      void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
+      if (res.status === "verified") toast.success("Deposit credited");
+      else if (res.status === "rejected") toast.error(res.rejection_reason ?? "Deposit claim rejected");
+      else toast.info("Still waiting for on-chain confirmation.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -103,7 +171,6 @@ function WalletPage() {
   });
 
   const wallets = overview.data?.wallets ?? [];
-  const activeWallet = wallets.find((w) => w.crypto_type === depositCoin);
   const withdrawWallet = wallets.find((w) => w.crypto_type === withdrawCoin);
   const availableToWithdraw = withdrawWallet
     ? withdrawWallet.balance - withdrawWallet.held_balance
@@ -151,7 +218,8 @@ function WalletPage() {
                       className="w-full"
                       onClick={() => {
                         setDepositCoin(w.crypto_type);
-                        if (!w.external_deposit_address) depositMutation.mutate(w.crypto_type);
+                        setClaimAmount("");
+                        setClaimTxHash("");
                       }}
                     >
                       <ArrowDownToLine className="size-4" /> Deposit {w.crypto_type}
@@ -231,6 +299,53 @@ function WalletPage() {
 
           <Card className="mt-6">
             <CardHeader>
+              <CardTitle className="text-base">Deposit claims</CardTitle>
+              <CardDescription>Every manual deposit you've submitted, and its verification status.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(myClaims.data ?? []).length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">No deposit claims yet.</p>
+              ) : (
+                (myClaims.data ?? []).map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex flex-col gap-1 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">
+                        {c.claimed_amount} {c.crypto_type}{" "}
+                        <span className="text-xs font-normal text-muted-foreground">via {c.network}</span>
+                      </p>
+                      <p className="mono text-xs text-muted-foreground">
+                        {c.tx_hash.slice(0, 18)}… · {new Date(c.created_at).toLocaleString()}
+                      </p>
+                      {c.status === "rejected" && c.rejection_reason ? (
+                        <p className="text-xs text-destructive">{c.rejection_reason}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={c.status === "verified" ? "secondary" : c.status === "rejected" ? "destructive" : "outline"}>
+                        {CLAIM_STATUS_LABEL[c.status] ?? c.status}
+                      </Badge>
+                      {c.status === "pending" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={recheckMutation.isPending}
+                          onClick={() => recheckMutation.mutate(c.id)}
+                        >
+                          <RefreshCw className="size-3.5" /> Check status
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="mt-6">
+            <CardHeader>
               <CardTitle className="text-base">Transaction ledger</CardTitle>
               <CardDescription>Every balance change is logged here.</CardDescription>
             </CardHeader>
@@ -268,44 +383,113 @@ function WalletPage() {
         </>
       )}
 
-      <Dialog open={!!depositCoin} onOpenChange={(o) => !o && setDepositCoin(null)}>
-        <DialogContent className="max-w-md">
+      <Dialog
+        open={!!depositCoin}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDepositCoin(null);
+            setDepositNetwork(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Deposit {depositCoin}</DialogTitle>
             <DialogDescription>
-              Send testnet {depositCoin} to this address. Your balance updates automatically once
-              the network confirms the transfer.
+              Send testnet {depositCoin} to our wallet, then submit the transaction hash below.
+              Your balance updates once we verify it on-chain.
             </DialogDescription>
           </DialogHeader>
-          {depositMutation.isPending ? (
-            <p className="text-sm text-muted-foreground">Generating address…</p>
-          ) : activeWallet?.external_deposit_address ? (
-            <div className="space-y-3">
-              <p className="mono break-all rounded-md border border-border bg-muted/40 p-3 text-sm">
-                {activeWallet.external_deposit_address}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void navigator.clipboard.writeText(activeWallet.external_deposit_address!);
-                  toast.success("Address copied");
-                }}
-              >
-                <Copy className="size-4" /> Copy address
-              </Button>
-              {activeWallet.external_deposit_address.startsWith("TESTNET-DEMO-") ? (
-                <p className="text-xs text-muted-foreground">
-                  Demo placeholder address — the testnet provider is unreachable right now, so
-                  no live address could be issued. Deposit crediting still works via webhook.
-                </p>
-              ) : null}
-            </div>
+
+          {depositNetworks.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading deposit addresses…</p>
+          ) : networksForCoin.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Deposits for {depositCoin} aren't configured yet — check back later.
+            </p>
           ) : (
-            <Button onClick={() => depositCoin && depositMutation.mutate(depositCoin)}>
-              Generate deposit address
-            </Button>
+            <div className="space-y-4">
+              {networksForCoin.length > 1 ? (
+                <div className="space-y-2">
+                  <Label>Network</Label>
+                  <Select value={depositNetwork ?? ""} onValueChange={(v) => setDepositNetwork(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose the network you're sending on" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {networksForCoin.map((n) => (
+                        <SelectItem key={n.network} value={n.network}>
+                          {n.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+
+              {selectedMasterWallet ? (
+                <>
+                  {selectedMasterWallet.warning_message ? (
+                    <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                      {selectedMasterWallet.warning_message}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
+                    <QRCodeSVG value={selectedMasterWallet.address} size={160} />
+                    <p className="mono break-all text-center text-sm">{selectedMasterWallet.address}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(selectedMasterWallet.address);
+                        toast.success("Address copied");
+                      }}
+                    >
+                      <Copy className="size-4" /> Copy address
+                    </Button>
+                  </div>
+
+                  <form
+                    className="space-y-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      claimMutation.mutate();
+                    }}
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="claim-amount">Amount sent</Label>
+                      <Input
+                        id="claim-amount"
+                        inputMode="decimal"
+                        value={claimAmount}
+                        onChange={(e) => setClaimAmount(e.target.value)}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="claim-txhash">Transaction hash (TxID)</Label>
+                      <Input
+                        id="claim-txhash"
+                        value={claimTxHash}
+                        onChange={(e) => setClaimTxHash(e.target.value)}
+                        placeholder="Paste the TxID from your wallet/exchange"
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={claimMutation.isPending}>
+                      {claimMutation.isPending ? "Verifying…" : "Submit deposit claim"}
+                    </Button>
+                  </form>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Choose a network above to see the deposit address.</p>
+              )}
+            </div>
           )}
+
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDepositCoin(null)}>
               Close

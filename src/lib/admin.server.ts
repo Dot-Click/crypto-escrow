@@ -135,3 +135,18 @@ export async function resolveDisputeServer(params: {
 
   return { status: nextStatus as "released" | "cancelled" };
 }
+
+export async function rejectDepositClaimServer(params: { claimId: string; reason: string }) {
+  // Claim the transition so a double submit can't clobber a claim that has
+  // since been auto-verified by the background check.
+  const { data, error } = await supabaseAdmin
+    .from("deposit_claims")
+    .update({ status: "rejected", rejection_reason: params.reason, last_checked_at: new Date().toISOString() })
+    .eq("id", params.claimId)
+    .eq("status", "pending")
+    .select()
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("This claim is no longer pending");
+  return data;
+}

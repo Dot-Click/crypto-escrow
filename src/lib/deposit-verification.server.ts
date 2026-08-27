@@ -3,6 +3,7 @@
 // balance and transactions ledger are only ever touched from here, and only
 // off explorer-confirmed data — the user's claimed amount is never trusted.
 import { fetchBscTx, fetchBtcTx, fetchEthTx, fetchLtcTx, fetchTronTx, type ExplorerCheckResult } from "@/lib/block-explorers.server";
+import { isSignatureNetwork } from "@/lib/address-signature.server";
 import type { Database, Json } from "@/integrations/supabase/types";
 
 type DepositClaimRow = Database["public"]["Tables"]["deposit_claims"]["Row"];
@@ -34,7 +35,7 @@ async function fetchOnChain(network: string, txHash: string, masterWallet: Maste
     case "LTC_TESTNET":
       return fetchLtcTx({ txHash, masterAddress: masterWallet.address });
     default:
-      return { found: false, confirmed: false, confirmations: 0, toAddress: null, amount: null, error: `Unsupported network: ${network}` };
+      return { found: false, confirmed: false, confirmations: 0, toAddress: null, fromAddress: null, amount: null, error: `Unsupported network: ${network}` };
   }
 }
 
@@ -114,6 +115,56 @@ export async function runVerificationAndMaybeCredit(claimId: string): Promise<De
     );
   }
 
+  // Anti-race-condition guard: the master wallet address is public, so
+  // anyone can spot a real deposit on an explorer and try to claim it before
+  // the actual depositor does. We can't verify who submitted first, but we
+  // can verify whose wallet the funds actually came FROM.
+  //
+  // For networks with a signature verifier wired up (see
+  // address-signature.server.ts), a first-time sender must have already
+  // proven ownership of that address via deposit-address.functions.ts
+  // *before* we'll credit anything sent from it — otherwise this whole guard
+  // is a no-op on exactly the claim it's meant to stop (a stranger's very
+  // first claim from an address nobody has registered yet). Other networks
+  // (currently just USDT_TRC20) fall back to binding-on-first-deposit, which
+  // only protects repeat deposits, not that first one.
+  const requiresSignature = isSignatureNetwork(claim.network);
+  const fromAddress = check.fromAddress?.toLowerCase() ?? null;
+
+  if (!fromAddress) {
+    if (requiresSignature) {
+      return reject(
+        "Couldn't determine the sending address for this transaction, so it can't be verified automatically. Contact support.",
+        "sender_address_undeterminable",
+        check.raw,
+      );
+    }
+  } else {
+    const { data: binding, error: bindingErr } = await supabaseAdmin
+      .from("deposit_source_addresses")
+      .select("user_id")
+      .eq("network", claim.network)
+      .eq("address", fromAddress)
+      .maybeSingle();
+    if (bindingErr) throw new Error(bindingErr.message);
+
+    if (binding && binding.user_id !== claim.user_id) {
+      return reject(
+        "This deposit's sending address is already registered to another account.",
+        "sender_address_mismatch",
+        { fromAddress },
+      );
+    }
+
+    if (!binding && requiresSignature) {
+      return reject(
+        "This sending address hasn't been verified on your account yet. Go to Wallet -> Deposit -> Verify sending address, sign the message with the wallet you sent from, then submit this claim again.",
+        "sender_address_unverified",
+        { fromAddress },
+      );
+    }
+  }
+
   if (!check.confirmed || check.confirmations < masterWallet.min_confirmations) {
     await log("found_pending", { confirmations: check.confirmations, required: masterWallet.min_confirmations });
     await supabaseAdmin
@@ -137,6 +188,28 @@ export async function runVerificationAndMaybeCredit(claimId: string): Promise<De
     .insert({ network: claim.network, tx_hash: claim.tx_hash, deposit_claim_id: claimId });
   if (usedErr) {
     return reject("This transaction ID has already been used for a deposit.", "already_used", { code: usedErr.code });
+  }
+
+  if (fromAddress && !requiresSignature) {
+    // Fallback binding for networks with no signature verifier: the first
+    // successful deposit from this address binds it to this user. A
+    // unique-violation here just means it's already bound (to this same
+    // user, from an earlier deposit) — harmless, not an error. Networks that
+    // require a signature never reach this: they're only credited once
+    // deposit-address.functions.ts has already created the binding.
+    const { error: bindInsertErr } = await supabaseAdmin
+      .from("deposit_source_addresses")
+      .insert({
+        crypto_type: claim.crypto_type,
+        network: claim.network,
+        address: fromAddress,
+        user_id: claim.user_id,
+        verification_method: "first_deposit",
+        first_deposit_claim_id: claimId,
+      });
+    if (bindInsertErr && bindInsertErr.code !== "23505") {
+      console.error("[deposit-verification] failed to record source-address binding", bindInsertErr);
+    }
   }
 
   const { data: wallet, error: walletErr } = await supabaseAdmin

@@ -151,6 +151,104 @@ export type Database = {
           },
         ]
       }
+      deposit_address_challenges: {
+        Row: {
+          address: string
+          consumed_at: string | null
+          created_at: string
+          crypto_type: string
+          expires_at: string
+          id: string
+          message: string
+          network: string
+          nonce: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          consumed_at?: string | null
+          created_at?: string
+          crypto_type: string
+          expires_at: string
+          id?: string
+          message: string
+          network: string
+          nonce: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          consumed_at?: string | null
+          created_at?: string
+          crypto_type?: string
+          expires_at?: string
+          id?: string
+          message?: string
+          network?: string
+          nonce?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_address_challenges_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deposit_source_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          crypto_type: string
+          first_deposit_claim_id: string | null
+          id: string
+          network: string
+          user_id: string
+          verification_method: string
+          verified_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          crypto_type: string
+          first_deposit_claim_id?: string | null
+          id?: string
+          network: string
+          user_id: string
+          verification_method?: string
+          verified_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          crypto_type?: string
+          first_deposit_claim_id?: string | null
+          id?: string
+          network?: string
+          user_id?: string
+          verification_method?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_source_addresses_first_deposit_claim_id_fkey"
+            columns: ["first_deposit_claim_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_source_addresses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_verification_log: {
         Row: {
           attempt_at: string

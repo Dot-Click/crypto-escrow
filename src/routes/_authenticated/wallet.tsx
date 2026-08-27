@@ -12,9 +12,15 @@ import {
   recheckDepositClaim,
   submitDepositClaim,
 } from "@/lib/deposit-claims.functions";
-import { CRYPTO_TYPES } from "@/lib/constants";
+import {
+  listMyDepositSourceAddresses,
+  requestAddressChallenge,
+  submitAddressSignature,
+} from "@/lib/deposit-address.functions";
+import { CRYPTO_TYPES, SIGNATURE_REQUIRED_NETWORKS } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,11 +83,17 @@ function WalletPage() {
   const fetchMyClaims = useServerFn(listMyDepositClaims);
   const submitClaim = useServerFn(submitDepositClaim);
   const recheckClaim = useServerFn(recheckDepositClaim);
+  const fetchSourceAddresses = useServerFn(listMyDepositSourceAddresses);
+  const requestChallenge = useServerFn(requestAddressChallenge);
+  const verifySignature = useServerFn(submitAddressSignature);
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [claimAmount, setClaimAmount] = useState("");
   const [claimTxHash, setClaimTxHash] = useState("");
+  const [sendingAddress, setSendingAddress] = useState("");
+  const [challenge, setChallenge] = useState<{ id: string; message: string } | null>(null);
+  const [signatureInput, setSignatureInput] = useState("");
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
@@ -102,8 +114,18 @@ function WalletPage() {
     refetchInterval: (query) => (query.state.data?.some((c) => c.status === "pending") ? 15_000 : false),
   });
 
+  const sourceAddresses = useQuery({
+    queryKey: ["deposit-source-addresses"],
+    queryFn: () => fetchSourceAddresses(),
+    enabled: !!depositCoin,
+  });
+
   const networksForCoin = (depositNetworks.data ?? []).filter((n) => n.crypto_type === depositCoin);
   const selectedMasterWallet = networksForCoin.find((n) => n.network === depositNetwork) ?? null;
+  const needsAddressVerification =
+    !!depositNetwork &&
+    SIGNATURE_REQUIRED_NETWORKS.has(depositNetwork) &&
+    !(sourceAddresses.data ?? []).some((a) => a.network === depositNetwork);
 
   useEffect(() => {
     if (!depositCoin) {
@@ -117,6 +139,12 @@ function WalletPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depositCoin, depositNetworks.data]);
+
+  useEffect(() => {
+    setSendingAddress("");
+    setChallenge(null);
+    setSignatureInput("");
+  }, [depositNetwork]);
 
   const claimMutation = useMutation({
     mutationFn: () =>
@@ -136,6 +164,26 @@ function WalletPage() {
       if (res.status === "verified") toast.success(`Deposit credited: ${res.verified_amount} ${res.crypto_type}`);
       else if (res.status === "rejected") toast.error(res.rejection_reason ?? "Deposit claim rejected");
       else toast.info("Claim submitted — checking the network for confirmation.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const challengeMutation = useMutation({
+    mutationFn: () =>
+      requestChallenge({
+        data: { cryptoType: depositCoin!, network: depositNetwork!, address: sendingAddress.trim() },
+      }),
+    onSuccess: (res) => setChallenge({ id: res.id, message: res.message }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const verifyAddressMutation = useMutation({
+    mutationFn: () => verifySignature({ data: { challengeId: challenge!.id, signature: signatureInput.trim() } }),
+    onSuccess: () => {
+      toast.success("Address verified — you can now submit your deposit claim.");
+      setChallenge(null);
+      setSignatureInput("");
+      void qc.invalidateQueries({ queryKey: ["deposit-source-addresses"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -427,7 +475,85 @@ function WalletPage() {
                 </div>
               ) : null}
 
-              {selectedMasterWallet ? (
+              {selectedMasterWallet && needsAddressVerification ? (
+                <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4">
+                  <p className="text-sm font-medium">Verify the address you're sending from</p>
+                  <p className="text-xs text-muted-foreground">
+                    Anyone can see deposits to our address on a public block explorer, so we require proof you
+                    control the wallet you're sending from before crediting a new address. This is a one-time step
+                    per address.
+                  </p>
+
+                  {!challenge ? (
+                    <form
+                      className="space-y-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        challengeMutation.mutate();
+                      }}
+                    >
+                      <Label htmlFor="sending-address">Your sending address</Label>
+                      <Input
+                        id="sending-address"
+                        className="mono"
+                        value={sendingAddress}
+                        onChange={(e) => setSendingAddress(e.target.value)}
+                        placeholder={`The ${depositCoin} address you'll send from`}
+                        required
+                      />
+                      <Button type="submit" size="sm" disabled={challengeMutation.isPending}>
+                        {challengeMutation.isPending ? "Generating…" : "Get message to sign"}
+                      </Button>
+                    </form>
+                  ) : (
+                    <form
+                      className="space-y-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        verifyAddressMutation.mutate();
+                      }}
+                    >
+                      <Label>Message to sign</Label>
+                      <div className="flex items-start gap-2 rounded-md border border-border bg-background p-2">
+                        <pre className="mono flex-1 whitespace-pre-wrap break-all text-xs">{challenge.message}</pre>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(challenge.message);
+                            toast.success("Message copied");
+                          }}
+                        >
+                          <Copy className="size-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Sign this exact message with your wallet's "Sign Message" feature, using the address above,
+                        then paste the signature below.
+                      </p>
+                      <Label htmlFor="address-signature">Signature</Label>
+                      <Textarea
+                        id="address-signature"
+                        className="mono text-xs"
+                        rows={3}
+                        value={signatureInput}
+                        onChange={(e) => setSignatureInput(e.target.value)}
+                        placeholder="Paste the signature your wallet produced"
+                        required
+                      />
+                      <div className="flex gap-2">
+                        <Button type="submit" size="sm" disabled={verifyAddressMutation.isPending}>
+                          {verifyAddressMutation.isPending ? "Verifying…" : "Verify address"}
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setChallenge(null)}>
+                          Start over
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : selectedMasterWallet ? (
                 <>
                   {selectedMasterWallet.warning_message ? (
                     <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">

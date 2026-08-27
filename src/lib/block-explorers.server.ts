@@ -17,6 +17,8 @@ export type ExplorerCheckResult = {
   confirmations: number;
   /** Destination address the funds actually landed on, if any. */
   toAddress: string | null;
+  /** Address that actually sent the funds (primary/first input for UTXO chains), if determinable. */
+  fromAddress: string | null;
   /** Human-readable amount (already divided by the coin/token's decimals). */
   amount: number | null;
   error?: string;
@@ -28,6 +30,7 @@ const NOT_FOUND: ExplorerCheckResult = {
   confirmed: false,
   confirmations: 0,
   toAddress: null,
+  fromAddress: null,
   amount: null,
 };
 
@@ -84,6 +87,7 @@ export async function fetchTronTx(params: {
         confirmed: confirmed && !failed,
         confirmations: confirmed ? 1 : 0,
         toAddress: String(match["to_address"]),
+        fromAddress: match["from_address"] ? String(match["from_address"]) : null,
         amount,
         raw: json,
       };
@@ -99,6 +103,7 @@ export async function fetchTronTx(params: {
       confirmed: confirmed && !failed,
       confirmations: confirmed ? 1 : 0,
       toAddress,
+      fromAddress: contractData?.["owner_address"] ? String(contractData["owner_address"]) : null,
       amount,
       raw: json,
     };
@@ -135,6 +140,7 @@ async function evmTokenTransfer(params: {
       confirmed: confirmations > 0,
       confirmations,
       toAddress: String(match["to"] ?? ""),
+      fromAddress: match["from"] ? String(match["from"]) : null,
       amount,
       raw: json,
     };
@@ -170,6 +176,7 @@ async function evmNativeTx(params: {
       confirmed: confirmations > 0,
       confirmations,
       toAddress: String(tx["to"]),
+      fromAddress: tx["from"] ? String(tx["from"]) : null,
       amount,
       raw: txRes.json,
     };
@@ -216,11 +223,20 @@ export async function fetchBtcTx(params: { txHash: string; masterAddress: string
     const { ok, status, json } = await fetchJson(`https://blockstream.info/testnet/api/tx/${params.txHash}`);
     if (status === 404) return NOT_FOUND;
     if (!ok || !json || typeof json !== "object") return { ...NOT_FOUND, raw: json ?? undefined };
-    const data = json as { vout?: { scriptpubkey_address?: string; value?: number }[]; status?: { confirmed?: boolean; block_height?: number } };
+    const data = json as {
+      vin?: { prevout?: { scriptpubkey_address?: string } }[];
+      vout?: { scriptpubkey_address?: string; value?: number }[];
+      status?: { confirmed?: boolean; block_height?: number };
+    };
     const vout = data.vout ?? [];
     const toMaster = vout.filter((o) => o.scriptpubkey_address?.toLowerCase() === params.masterAddress.toLowerCase());
     if (toMaster.length === 0) return { ...NOT_FOUND, raw: json };
     const amount = toMaster.reduce((sum, o) => sum + Number(o.value ?? 0), 0) / 1e8;
+    // Primary sender = first input's previous-output address. Good enough for
+    // the common single-signer wallet case; a multi-input tx pooling several
+    // signers' UTXOs would only bind the first one, which is an acceptable
+    // simplification for this anti-race-condition check.
+    const fromAddress = data.vin?.[0]?.prevout?.scriptpubkey_address ?? null;
 
     let confirmations = 0;
     if (data.status?.confirmed && data.status.block_height) {
@@ -234,6 +250,7 @@ export async function fetchBtcTx(params: { txHash: string; masterAddress: string
       confirmed: !!data.status?.confirmed,
       confirmations,
       toAddress: toMaster[0]?.scriptpubkey_address ?? null,
+      fromAddress,
       amount,
       raw: json,
     };
@@ -251,17 +268,24 @@ export async function fetchLtcTx(params: { txHash: string; masterAddress: string
     const { ok, status, json } = await fetchJson(url);
     if (status === 404) return NOT_FOUND;
     if (!ok || !json || typeof json !== "object") return { ...NOT_FOUND, raw: json ?? undefined };
-    const data = json as { confirmations?: number; outputs?: { addresses?: string[]; value?: number }[] };
+    const data = json as {
+      confirmations?: number;
+      inputs?: { addresses?: string[] }[];
+      outputs?: { addresses?: string[]; value?: number }[];
+    };
     const outputs = data.outputs ?? [];
     const toMaster = outputs.filter((o) => (o.addresses ?? []).some((a) => a.toLowerCase() === params.masterAddress.toLowerCase()));
     if (toMaster.length === 0) return { ...NOT_FOUND, raw: json };
     const amount = toMaster.reduce((sum, o) => sum + Number(o.value ?? 0), 0) / 1e8;
     const confirmations = Number(data.confirmations ?? 0);
+    // Primary sender = first input's first address (see BTC comment above).
+    const fromAddress = data.inputs?.[0]?.addresses?.[0] ?? null;
     return {
       found: true,
       confirmed: confirmations > 0,
       confirmations,
       toAddress: params.masterAddress,
+      fromAddress,
       amount,
       raw: json,
     };

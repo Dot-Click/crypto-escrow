@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CRYPTO_TYPES } from "@/lib/constants";
+import { CRYPTO_TO_NETWORK, withdrawalError } from "@/lib/withdrawal-validation";
 
 const CODES = CRYPTO_TYPES.map((c) => c.code) as readonly string[];
 
@@ -39,10 +40,15 @@ export const getWalletOverview = createServerFn({ method: "GET" })
         held_balance: Number(w.held_balance),
       })),
       transactions: (txs ?? []).map((t) => ({ ...t, amount: Number(t.amount) })),
-      providerConfigured: !!process.env["NOWPAYMENTS_API_KEY"],
     };
   });
 
+/**
+ * Queue an outbound withdrawal. Debits the user's wallet immediately and
+ * inserts a pending `withdrawals` row for the broadcast-withdrawals Edge
+ * Function to pick up. On broadcast failure the balance is refunded by
+ * the broadcaster.
+ */
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { cryptoType: string; amount: number; address: string }) => {
@@ -50,13 +56,13 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     const amount = Number(input.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
     const address = String(input.address ?? "").trim();
-    if (address.length < 12 || address.length > 120) throw new Error("Enter a valid wallet address");
+    const err = withdrawalError(input.cryptoType, amount, address);
+    if (err) throw new Error(err);
     return { cryptoType: input.cryptoType, amount, address };
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { enforceRateLimit } = await import("@/lib/rate-limit.server");
-    const { createPayout } = await import("@/lib/nowpayments.server");
 
     await enforceRateLimit({
       userId: context.userId,
@@ -79,44 +85,51 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       throw new Error(`Available balance is ${available} ${data.cryptoType}`);
     }
 
-    // Debit first so a concurrent request cannot double-spend the same balance.
-    const { error: debitError } = await supabaseAdmin
+    // Optimistic debit — a concurrent request will fail the CAS on `balance`
+    // and never both drain the same balance.
+    const { error: debitError, count } = await supabaseAdmin
       .from("wallets")
-      .update({ balance: Number(wallet.balance) - data.amount })
+      .update({ balance: Number(wallet.balance) - data.amount }, { count: "exact" })
       .eq("id", wallet.id)
       .eq("balance", wallet.balance);
     if (debitError) throw new Error(debitError.message);
+    if (count === 0) throw new Error("Balance changed while submitting — try again.");
 
-    let providerPayoutId: string | null = null;
-    let simulated = false;
-    try {
-      const payout = await createPayout({
-        cryptoType: data.cryptoType,
+    const network = CRYPTO_TO_NETWORK[data.cryptoType];
+
+    const { data: tx, error: txErr } = await supabaseAdmin
+      .from("transactions")
+      .insert({
+        wallet_id: wallet.id,
+        user_id: context.userId,
+        type: "withdrawal",
         amount: data.amount,
-        address: data.address,
-      });
-      providerPayoutId = payout.providerPayoutId;
-      simulated = payout.simulated;
-    } catch (e) {
-      // Refund on provider failure, then surface a clean message.
-      await supabaseAdmin
-        .from("wallets")
-        .update({ balance: Number(wallet.balance) })
-        .eq("id", wallet.id);
-      console.error("[withdrawal] provider error", e);
-      throw new Error("Withdrawal could not be submitted right now. Your balance was not changed.");
+        crypto_type: data.cryptoType,
+        external_address: data.address,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (txErr) {
+      await supabaseAdmin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
+      throw new Error(txErr.message);
     }
 
-    await supabaseAdmin.from("transactions").insert({
-      wallet_id: wallet.id,
+    const { error: wErr } = await supabaseAdmin.from("withdrawals").insert({
       user_id: context.userId,
-      type: "withdrawal",
-      amount: data.amount,
+      wallet_id: wallet.id,
+      transaction_id: tx.id,
       crypto_type: data.cryptoType,
-      external_address: data.address,
+      network,
+      destination_address: data.address,
+      amount: data.amount,
       status: "pending",
-      provider_payment_id: providerPayoutId,
     });
+    if (wErr) {
+      await supabaseAdmin.from("wallets").update({ balance: Number(wallet.balance) }).eq("id", wallet.id);
+      await supabaseAdmin.from("transactions").update({ status: "failed" }).eq("id", tx.id);
+      throw new Error(wErr.message);
+    }
 
-    return { ok: true as const, pendingManualReview: simulated };
+    return { ok: true as const, queued: true };
   });

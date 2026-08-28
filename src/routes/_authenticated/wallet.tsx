@@ -1,26 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Lock, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Lock } from "lucide-react";
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
-import {
-  getDepositNetworks,
-  listMyDepositClaims,
-  recheckDepositClaim,
-  submitDepositClaim,
-} from "@/lib/deposit-claims.functions";
-import {
-  listMyDepositSourceAddresses,
-  requestAddressChallenge,
-  submitAddressSignature,
-} from "@/lib/deposit-address.functions";
-import { CRYPTO_TYPES, SIGNATURE_REQUIRED_NETWORKS } from "@/lib/constants";
+import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
+import { CRYPTO_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,12 +36,12 @@ export const Route = createFileRoute("/_authenticated/wallet")({
       {
         name: "description",
         content:
-          "Fund your FOMN testnet wallet from an external blockchain address, withdraw free balance, and track every escrow hold in the ledger.",
+          "Fund your FOMN wallet from an external blockchain address, withdraw free balance, and track every escrow hold in the ledger.",
       },
       { property: "og:title", content: "Wallet — deposits, withdrawals & escrow holds" },
       {
         property: "og:description",
-        content: "Fund your testnet wallet, withdraw free balance, and track escrow holds.",
+        content: "Fund your wallet, withdraw free balance, and track escrow holds.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -70,7 +59,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const CLAIM_STATUS_LABEL: Record<string, string> = {
-  pending: "Checking…",
+  pending: "Confirming…",
   verified: "Credited",
   rejected: "Rejected",
 };
@@ -79,21 +68,11 @@ function WalletPage() {
   const qc = useQueryClient();
   const fetchOverview = useServerFn(getWalletOverview);
   const submitWithdrawal = useServerFn(requestWithdrawal);
-  const fetchDepositNetworks = useServerFn(getDepositNetworks);
+  const fetchDepositAddresses = useServerFn(getMyDepositAddresses);
   const fetchMyClaims = useServerFn(listMyDepositClaims);
-  const submitClaim = useServerFn(submitDepositClaim);
-  const recheckClaim = useServerFn(recheckDepositClaim);
-  const fetchSourceAddresses = useServerFn(listMyDepositSourceAddresses);
-  const requestChallenge = useServerFn(requestAddressChallenge);
-  const verifySignature = useServerFn(submitAddressSignature);
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
-  const [claimAmount, setClaimAmount] = useState("");
-  const [claimTxHash, setClaimTxHash] = useState("");
-  const [sendingAddress, setSendingAddress] = useState("");
-  const [challenge, setChallenge] = useState<{ id: string; message: string } | null>(null);
-  const [signatureInput, setSignatureInput] = useState("");
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
@@ -103,9 +82,11 @@ function WalletPage() {
     queryFn: () => fetchOverview(),
   });
 
-  const depositNetworks = useQuery({
-    queryKey: ["deposit-networks"],
-    queryFn: () => fetchDepositNetworks(),
+  const depositAddresses = useQuery({
+    queryKey: ["deposit-addresses"],
+    queryFn: () => fetchDepositAddresses(),
+    enabled: !!depositCoin,
+    staleTime: 5 * 60_000,
   });
 
   const myClaims = useQuery({
@@ -114,106 +95,19 @@ function WalletPage() {
     refetchInterval: (query) => (query.state.data?.some((c) => c.status === "pending") ? 15_000 : false),
   });
 
-  const sourceAddresses = useQuery({
-    queryKey: ["deposit-source-addresses"],
-    queryFn: () => fetchSourceAddresses(),
-    enabled: !!depositCoin,
-  });
-
-  const networksForCoin = (depositNetworks.data ?? []).filter((n) => n.crypto_type === depositCoin);
-  const selectedMasterWallet = networksForCoin.find((n) => n.network === depositNetwork) ?? null;
-  const needsAddressVerification =
-    !!depositNetwork &&
-    SIGNATURE_REQUIRED_NETWORKS.has(depositNetwork) &&
-    !(sourceAddresses.data ?? []).some((a) => a.network === depositNetwork);
-
-  useEffect(() => {
-    if (!depositCoin) {
-      setDepositNetwork(null);
-      return;
-    }
-    if (networksForCoin.length === 1 && networksForCoin[0]) {
-      setDepositNetwork(networksForCoin[0].network);
-    } else if (!networksForCoin.some((n) => n.network === depositNetwork)) {
-      setDepositNetwork(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depositCoin, depositNetworks.data]);
-
-  useEffect(() => {
-    setSendingAddress("");
-    setChallenge(null);
-    setSignatureInput("");
-  }, [depositNetwork]);
-
-  const claimMutation = useMutation({
-    mutationFn: () =>
-      submitClaim({
-        data: {
-          cryptoType: depositCoin!,
-          network: depositNetwork!,
-          amount: Number(claimAmount),
-          txHash: claimTxHash.trim(),
-        },
-      }),
-    onSuccess: (res) => {
-      setClaimAmount("");
-      setClaimTxHash("");
-      void qc.invalidateQueries({ queryKey: ["deposit-claims"] });
-      void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
-      if (res.status === "verified") toast.success(`Deposit credited: ${res.verified_amount} ${res.crypto_type}`);
-      else if (res.status === "rejected") toast.error(res.rejection_reason ?? "Deposit claim rejected");
-      else toast.info("Claim submitted — checking the network for confirmation.");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const challengeMutation = useMutation({
-    mutationFn: () =>
-      requestChallenge({
-        data: { cryptoType: depositCoin!, network: depositNetwork!, address: sendingAddress.trim() },
-      }),
-    onSuccess: (res) => setChallenge({ id: res.id, message: res.message }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const verifyAddressMutation = useMutation({
-    mutationFn: () => verifySignature({ data: { challengeId: challenge!.id, signature: signatureInput.trim() } }),
-    onSuccess: () => {
-      toast.success("Address verified — you can now submit your deposit claim.");
-      setChallenge(null);
-      setSignatureInput("");
-      void qc.invalidateQueries({ queryKey: ["deposit-source-addresses"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const recheckMutation = useMutation({
-    mutationFn: (claimId: string) => recheckClaim({ data: { claimId } }),
-    onSuccess: (res) => {
-      void qc.invalidateQueries({ queryKey: ["deposit-claims"] });
-      void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
-      if (res.status === "verified") toast.success("Deposit credited");
-      else if (res.status === "rejected") toast.error(res.rejection_reason ?? "Deposit claim rejected");
-      else toast.info("Still waiting for on-chain confirmation.");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const networksForCoin = (depositAddresses.data ?? []).filter((n) => n.crypto_type === depositCoin);
+  const selectedAddress = networksForCoin.find((n) => n.network === depositNetwork) ?? null;
 
   const withdrawMutation = useMutation({
     mutationFn: () =>
       submitWithdrawal({
         data: { cryptoType: withdrawCoin, amount: Number(amount), address: address.trim() },
       }),
-    onSuccess: (res) => {
+    onSuccess: () => {
       setAmount("");
       setAddress("");
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
-      toast.success(
-        res.pendingManualReview
-          ? "Withdrawal queued — it will settle once payouts are enabled."
-          : "Withdrawal submitted to the network.",
-      );
+      toast.success("Withdrawal queued — it will broadcast within a few minutes.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -229,7 +123,7 @@ function WalletPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Wallet</h1>
         <p className="text-sm text-muted-foreground">
-          Testnet balances. Escrow holds lock part of your balance until a trade resolves.
+          Escrow holds lock part of your balance until a trade resolves.
         </p>
       </div>
 
@@ -264,11 +158,7 @@ function WalletPage() {
                       variant="outline"
                       size="sm"
                       className="w-full"
-                      onClick={() => {
-                        setDepositCoin(w.crypto_type);
-                        setClaimAmount("");
-                        setClaimTxHash("");
-                      }}
+                      onClick={() => setDepositCoin(w.crypto_type)}
                     >
                       <ArrowDownToLine className="size-4" /> Deposit {w.crypto_type}
                     </Button>
@@ -316,7 +206,7 @@ function WalletPage() {
                     id="wd-address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="tb1q…"
+                    placeholder="bc1q…"
                     required
                   />
                 </div>
@@ -347,12 +237,14 @@ function WalletPage() {
 
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle className="text-base">Deposit claims</CardTitle>
-              <CardDescription>Every manual deposit you've submitted, and its verification status.</CardDescription>
+              <CardTitle className="text-base">Deposits</CardTitle>
+              <CardDescription>
+                Detected automatically once your transaction has enough confirmations.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {(myClaims.data ?? []).length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">No deposit claims yet.</p>
+                <p className="py-6 text-center text-sm text-muted-foreground">No deposits yet.</p>
               ) : (
                 (myClaims.data ?? []).map((c) => (
                   <div
@@ -366,26 +258,15 @@ function WalletPage() {
                       </p>
                       <p className="mono text-xs text-muted-foreground">
                         {c.tx_hash.slice(0, 18)}… · {new Date(c.created_at).toLocaleString()}
+                        {c.confirmations != null ? ` · ${c.confirmations} conf` : ""}
                       </p>
                       {c.status === "rejected" && c.rejection_reason ? (
                         <p className="text-xs text-destructive">{c.rejection_reason}</p>
                       ) : null}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={c.status === "verified" ? "secondary" : c.status === "rejected" ? "destructive" : "outline"}>
-                        {CLAIM_STATUS_LABEL[c.status] ?? c.status}
-                      </Badge>
-                      {c.status === "pending" ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={recheckMutation.isPending}
-                          onClick={() => recheckMutation.mutate(c.id)}
-                        >
-                          <RefreshCw className="size-3.5" /> Check status
-                        </Button>
-                      ) : null}
-                    </div>
+                    <Badge variant={c.status === "verified" ? "secondary" : c.status === "rejected" ? "destructive" : "outline"}>
+                      {CLAIM_STATUS_LABEL[c.status] ?? c.status}
+                    </Badge>
                   </div>
                 ))
               )}
@@ -444,13 +325,17 @@ function WalletPage() {
           <DialogHeader>
             <DialogTitle>Deposit {depositCoin}</DialogTitle>
             <DialogDescription>
-              Send testnet {depositCoin} to our wallet, then submit the transaction hash below.
-              Your balance updates once we verify it on-chain.
+              Send {depositCoin} to your unique address below. Your balance updates automatically
+              once the transaction has enough confirmations on-chain.
             </DialogDescription>
           </DialogHeader>
 
-          {depositNetworks.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading deposit addresses…</p>
+          {depositAddresses.isLoading ? (
+            <p className="text-sm text-muted-foreground">Loading your deposit address…</p>
+          ) : depositAddresses.isError ? (
+            <p className="text-sm text-destructive">
+              Couldn't load your deposit address: {depositAddresses.error.message}
+            </p>
           ) : networksForCoin.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Deposits for {depositCoin} aren't configured yet — check back later.
@@ -475,143 +360,44 @@ function WalletPage() {
                 </div>
               ) : null}
 
-              {selectedMasterWallet && needsAddressVerification ? (
-                <div className="space-y-3 rounded-md border border-border bg-muted/40 p-4">
-                  <p className="text-sm font-medium">Verify the address you're sending from</p>
-                  <p className="text-xs text-muted-foreground">
-                    Anyone can see deposits to our address on a public block explorer, so we require proof you
-                    control the wallet you're sending from before crediting a new address. This is a one-time step
-                    per address.
-                  </p>
+              {selectedAddress || networksForCoin.length === 1 ? (
+                (() => {
+                  const shown = selectedAddress ?? networksForCoin[0];
+                  return (
+                    <>
+                      {shown.warning_message ? (
+                        <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                          {shown.warning_message}
+                        </p>
+                      ) : null}
 
-                  {!challenge ? (
-                    <form
-                      className="space-y-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        challengeMutation.mutate();
-                      }}
-                    >
-                      <Label htmlFor="sending-address">Your sending address</Label>
-                      <Input
-                        id="sending-address"
-                        className="mono"
-                        value={sendingAddress}
-                        onChange={(e) => setSendingAddress(e.target.value)}
-                        placeholder={`The ${depositCoin} address you'll send from`}
-                        required
-                      />
-                      <Button type="submit" size="sm" disabled={challengeMutation.isPending}>
-                        {challengeMutation.isPending ? "Generating…" : "Get message to sign"}
-                      </Button>
-                    </form>
-                  ) : (
-                    <form
-                      className="space-y-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        verifyAddressMutation.mutate();
-                      }}
-                    >
-                      <Label>Message to sign</Label>
-                      <div className="flex items-start gap-2 rounded-md border border-border bg-background p-2">
-                        <pre className="mono flex-1 whitespace-pre-wrap break-all text-xs">{challenge.message}</pre>
+                      <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
+                        <QRCodeSVG value={shown.address} size={160} />
+                        <p className="mono break-all text-center text-sm">{shown.address}</p>
                         <Button
-                          type="button"
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => {
-                            void navigator.clipboard.writeText(challenge.message);
-                            toast.success("Message copied");
+                            void navigator.clipboard.writeText(shown.address);
+                            toast.success("Address copied");
                           }}
                         >
-                          <Copy className="size-4" />
+                          <Copy className="size-4" /> Copy address
                         </Button>
                       </div>
+
                       <p className="text-xs text-muted-foreground">
-                        Sign this exact message with your wallet's "Sign Message" feature, using the address above,
-                        then paste the signature below.
+                        This address is unique to you. Send only {shown.crypto_type} on the {shown.label} network —
+                        anything else sent to this address will be lost. Deposits are credited automatically after{" "}
+                        {shown.min_confirmations} confirmation
+                        {shown.min_confirmations === 1 ? "" : "s"}.
                       </p>
-                      <Label htmlFor="address-signature">Signature</Label>
-                      <Textarea
-                        id="address-signature"
-                        className="mono text-xs"
-                        rows={3}
-                        value={signatureInput}
-                        onChange={(e) => setSignatureInput(e.target.value)}
-                        placeholder="Paste the signature your wallet produced"
-                        required
-                      />
-                      <div className="flex gap-2">
-                        <Button type="submit" size="sm" disabled={verifyAddressMutation.isPending}>
-                          {verifyAddressMutation.isPending ? "Verifying…" : "Verify address"}
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setChallenge(null)}>
-                          Start over
-                        </Button>
-                      </div>
-                    </form>
-                  )}
-                </div>
-              ) : selectedMasterWallet ? (
-                <>
-                  {selectedMasterWallet.warning_message ? (
-                    <p className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                      {selectedMasterWallet.warning_message}
-                    </p>
-                  ) : null}
-
-                  <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
-                    <QRCodeSVG value={selectedMasterWallet.address} size={160} />
-                    <p className="mono break-all text-center text-sm">{selectedMasterWallet.address}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        void navigator.clipboard.writeText(selectedMasterWallet.address);
-                        toast.success("Address copied");
-                      }}
-                    >
-                      <Copy className="size-4" /> Copy address
-                    </Button>
-                  </div>
-
-                  <form
-                    className="space-y-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      claimMutation.mutate();
-                    }}
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="claim-amount">Amount sent</Label>
-                      <Input
-                        id="claim-amount"
-                        inputMode="decimal"
-                        value={claimAmount}
-                        onChange={(e) => setClaimAmount(e.target.value)}
-                        placeholder="0.00"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="claim-txhash">Transaction hash (TxID)</Label>
-                      <Input
-                        id="claim-txhash"
-                        value={claimTxHash}
-                        onChange={(e) => setClaimTxHash(e.target.value)}
-                        placeholder="Paste the TxID from your wallet/exchange"
-                        required
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={claimMutation.isPending}>
-                      {claimMutation.isPending ? "Verifying…" : "Submit deposit claim"}
-                    </Button>
-                  </form>
-                </>
+                    </>
+                  );
+                })()
               ) : (
-                <p className="text-sm text-muted-foreground">Choose a network above to see the deposit address.</p>
+                <p className="text-sm text-muted-foreground">Choose a network above to see your deposit address.</p>
               )}
             </div>
           )}

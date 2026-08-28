@@ -195,18 +195,13 @@ export const rejectDepositClaim = createServerFn({ method: "POST" })
     return rejectDepositClaimServer(data);
   });
 
-export const reverifyDepositClaim = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { claimId: string }) => {
-    if (!/^[0-9a-f-]{36}$/i.test(input.claimId)) throw new Error("Invalid claim id");
-    return input;
-  })
-  .handler(async ({ data, context }) => {
-    const { assertAdmin } = await import("@/lib/admin.server");
-    await assertAdmin(context.supabase, context.userId);
-    const { runVerificationAndMaybeCredit } = await import("@/lib/deposit-verification.server");
-    return runVerificationAndMaybeCredit(data.claimId);
-  });
+// Reverify was the "run verification-and-credit-if-confirmed" button on
+// the admin dashboard back when deposits were user-submitted claims. Under
+// the per-user HD address model the watcher Edge Function is authoritative
+// and auto-credits, so admins have nothing to re-run — the button and this
+// server fn have been removed. If a stuck claim needs a hand, admins can
+// manually reject via rejectDepositClaim; the watcher will re-detect and
+// re-credit on the next tick if the tx is still on-chain.
 
 export const listMasterWallets = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

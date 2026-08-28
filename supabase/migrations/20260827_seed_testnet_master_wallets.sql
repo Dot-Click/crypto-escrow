@@ -1,5 +1,17 @@
+-- ============================================================
+-- SUPERSEDED by 20260828_add_hd_deposit_addresses.sql
+-- ============================================================
+-- These testnet master wallets are auto-deactivated by the
+-- mainnet HD migration (which sets active=false on every row
+-- before re-seeding the mainnet collector wallets). Left in
+-- place for git history and for projects still on testnet.
+-- Do NOT re-enable these rows on a mainnet project — the
+-- watcher/sweeper Edge Functions only know the mainnet codes
+-- (BTC_MAINNET / LTC_MAINNET / ETH_MAINNET / BSC_MAINNET).
+-- ============================================================
+
 -- Seed the platform-owned testnet deposit addresses. Network codes must match
--- the switch in src/lib/deposit-verification.server.ts exactly.
+-- the switch in the (removed) src/lib/deposit-verification.server.ts.
 INSERT INTO public.master_wallets
   (crypto_type, network, label, address, token_contract_address, min_confirmations, active)
 VALUES

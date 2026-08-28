@@ -71,7 +71,8 @@ export type Database = {
           crypto_type: string
           id: string
           last_checked_at: string | null
-          master_wallet_id: string
+          master_wallet_id: string | null
+          user_deposit_address_id: string | null
           network: string
           rejection_reason: string | null
           status: string
@@ -90,7 +91,8 @@ export type Database = {
           crypto_type: string
           id?: string
           last_checked_at?: string | null
-          master_wallet_id: string
+          master_wallet_id?: string | null
+          user_deposit_address_id?: string | null
           network: string
           rejection_reason?: string | null
           status?: string
@@ -109,7 +111,8 @@ export type Database = {
           crypto_type?: string
           id?: string
           last_checked_at?: string | null
-          master_wallet_id?: string
+          master_wallet_id?: string | null
+          user_deposit_address_id?: string | null
           network?: string
           rejection_reason?: string | null
           status?: string
@@ -126,6 +129,13 @@ export type Database = {
             columns: ["master_wallet_id"]
             isOneToOne: false
             referencedRelation: "master_wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_claims_uda_fkey"
+            columns: ["user_deposit_address_id"]
+            isOneToOne: false
+            referencedRelation: "user_deposit_addresses"
             referencedColumns: ["id"]
           },
           {
@@ -151,46 +161,37 @@ export type Database = {
           },
         ]
       }
-      deposit_address_challenges: {
+      user_deposit_addresses: {
         Row: {
-          address: string
-          consumed_at: string | null
-          created_at: string
-          crypto_type: string
-          expires_at: string
           id: string
-          message: string
-          network: string
-          nonce: string
           user_id: string
+          crypto_type: string
+          network: string
+          address: string
+          derivation_index: number
+          created_at: string
         }
         Insert: {
-          address: string
-          consumed_at?: string | null
-          created_at?: string
-          crypto_type: string
-          expires_at: string
           id?: string
-          message: string
-          network: string
-          nonce: string
           user_id: string
+          crypto_type: string
+          network: string
+          address: string
+          derivation_index: number
+          created_at?: string
         }
         Update: {
-          address?: string
-          consumed_at?: string | null
-          created_at?: string
-          crypto_type?: string
-          expires_at?: string
           id?: string
-          message?: string
-          network?: string
-          nonce?: string
           user_id?: string
+          crypto_type?: string
+          network?: string
+          address?: string
+          derivation_index?: number
+          created_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "deposit_address_challenges_user_id_fkey"
+            foreignKeyName: "user_deposit_addresses_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -198,53 +199,161 @@ export type Database = {
           },
         ]
       }
-      deposit_source_addresses: {
+      hd_wallet_state: {
         Row: {
-          address: string
-          created_at: string
-          crypto_type: string
-          first_deposit_claim_id: string | null
-          id: string
           network: string
-          user_id: string
-          verification_method: string
-          verified_at: string
+          next_index: number
+          last_scanned_block: number | null
+          last_scanned_txid: string | null
+          updated_at: string
         }
         Insert: {
-          address: string
-          created_at?: string
-          crypto_type: string
-          first_deposit_claim_id?: string | null
-          id?: string
           network: string
-          user_id: string
-          verification_method?: string
-          verified_at?: string
+          next_index?: number
+          last_scanned_block?: number | null
+          last_scanned_txid?: string | null
+          updated_at?: string
         }
         Update: {
-          address?: string
+          network?: string
+          next_index?: number
+          last_scanned_block?: number | null
+          last_scanned_txid?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      deposit_sweeps: {
+        Row: {
+          id: string
+          network: string
+          crypto_type: string
+          user_deposit_address_id: string
+          from_address: string
+          to_address: string
+          amount: number
+          fee: number | null
+          tx_hash: string | null
+          status: string
+          error_message: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          network: string
+          crypto_type: string
+          user_deposit_address_id: string
+          from_address: string
+          to_address: string
+          amount: number
+          fee?: number | null
+          tx_hash?: string | null
+          status?: string
+          error_message?: string | null
           created_at?: string
-          crypto_type?: string
-          first_deposit_claim_id?: string | null
+          updated_at?: string
+        }
+        Update: {
           id?: string
           network?: string
-          user_id?: string
-          verification_method?: string
-          verified_at?: string
+          crypto_type?: string
+          user_deposit_address_id?: string
+          from_address?: string
+          to_address?: string
+          amount?: number
+          fee?: number | null
+          tx_hash?: string | null
+          status?: string
+          error_message?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "deposit_source_addresses_first_deposit_claim_id_fkey"
-            columns: ["first_deposit_claim_id"]
+            foreignKeyName: "deposit_sweeps_uda_fkey"
+            columns: ["user_deposit_address_id"]
             isOneToOne: false
-            referencedRelation: "deposit_claims"
+            referencedRelation: "user_deposit_addresses"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      withdrawals: {
+        Row: {
+          id: string
+          user_id: string
+          wallet_id: string
+          transaction_id: string | null
+          crypto_type: string
+          network: string
+          destination_address: string
+          amount: number
+          fee: number | null
+          tx_hash: string | null
+          status: string
+          error_message: string | null
+          attempt_count: number
+          last_attempt_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          wallet_id: string
+          transaction_id?: string | null
+          crypto_type: string
+          network: string
+          destination_address: string
+          amount: number
+          fee?: number | null
+          tx_hash?: string | null
+          status?: string
+          error_message?: string | null
+          attempt_count?: number
+          last_attempt_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          wallet_id?: string
+          transaction_id?: string | null
+          crypto_type?: string
+          network?: string
+          destination_address?: string
+          amount?: number
+          fee?: number | null
+          tx_hash?: string | null
+          status?: string
+          error_message?: string | null
+          attempt_count?: number
+          last_attempt_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "deposit_source_addresses_user_id_fkey"
+            foreignKeyName: "withdrawals_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawals_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "withdrawals_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -291,6 +400,7 @@ export type Database = {
           label: string
           min_confirmations: number
           network: string
+          purpose: string
           token_contract_address: string | null
           updated_at: string
           warning_message: string
@@ -304,6 +414,7 @@ export type Database = {
           label: string
           min_confirmations?: number
           network: string
+          purpose?: string
           token_contract_address?: string | null
           updated_at?: string
           warning_message?: string
@@ -317,6 +428,7 @@ export type Database = {
           label?: string
           min_confirmations?: number
           network?: string
+          purpose?: string
           token_contract_address?: string | null
           updated_at?: string
           warning_message?: string
@@ -325,21 +437,21 @@ export type Database = {
       }
       used_tx_hashes: {
         Row: {
-          deposit_claim_id: string
+          deposit_claim_id: string | null
           id: string
           network: string
           tx_hash: string
           used_at: string
         }
         Insert: {
-          deposit_claim_id: string
+          deposit_claim_id?: string | null
           id?: string
           network: string
           tx_hash: string
           used_at?: string
         }
         Update: {
-          deposit_claim_id?: string
+          deposit_claim_id?: string | null
           id?: string
           network?: string
           tx_hash?: string
@@ -845,6 +957,10 @@ export type Database = {
       is_trade_party: {
         Args: { _trade_id: string; _user_id: string }
         Returns: boolean
+      }
+      allocate_deposit_index: {
+        Args: { _network: string }
+        Returns: number
       }
     }
     Enums: {

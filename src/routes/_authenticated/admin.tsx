@@ -14,7 +14,6 @@ import {
   listMasterWallets,
   rejectDepositClaim,
   resolveDispute,
-  reverifyDepositClaim,
   upsertMasterWallet,
 } from "@/lib/admin.functions";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
@@ -534,7 +533,6 @@ function DepositClaims() {
 
 function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChanged: () => void }) {
   const reject = useServerFn(rejectDepositClaim);
-  const recheck = useServerFn(reverifyDepositClaim);
   const fetchLog = useServerFn(getDepositClaimLog);
   const [reason, setReason] = useState("");
   const [logOpen, setLogOpen] = useState(false);
@@ -552,15 +550,6 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
     onSuccess: () => {
       toast.success("Claim rejected");
       setReason("");
-      onChanged();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const recheckMutation = useMutation({
-    mutationFn: () => recheck({ data: { claimId: claim.id } }),
-    onSuccess: (res) => {
-      toast.success(`Re-check complete — status: ${res.status}`);
       onChanged();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -627,11 +616,6 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
             </DialogContent>
           </Dialog>
 
-          {claim.status === "pending" ? (
-            <Button variant="outline" size="sm" disabled={recheckMutation.isPending} onClick={() => recheckMutation.mutate()}>
-              {recheckMutation.isPending ? "Checking…" : "Re-check now"}
-            </Button>
-          ) : null}
         </div>
 
         {claim.status === "pending" ? (

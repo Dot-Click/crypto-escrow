@@ -1,3 +1,13 @@
+-- ============================================================
+-- SUPERSEDED by 20260828_add_hd_deposit_addresses.sql
+-- ============================================================
+-- The tables created here (deposit_source_addresses,
+-- deposit_address_challenges) are DROPPED by the HD migration.
+-- Kept for history so the migration chain is monotonic; a
+-- fresh project applies both migrations in order and ends up
+-- without these tables, which is correct.
+-- ============================================================
+
 -- Anti-race-condition guard for manual deposit crediting: an on-chain sending
 -- address, once bound to a user, permanently "belongs" to them — any claim
 -- (even for a different TxID) whose on-chain sender resolves to an

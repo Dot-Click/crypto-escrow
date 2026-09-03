@@ -4,9 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Lock } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Loader2, Lock, Zap } from "lucide-react";
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
+import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,12 +71,24 @@ function WalletPage() {
   const submitWithdrawal = useServerFn(requestWithdrawal);
   const fetchDepositAddresses = useServerFn(getMyDepositAddresses);
   const fetchMyClaims = useServerFn(listMyDepositClaims);
+  const startLightningDeposit = useServerFn(createLightningDeposit);
+  const recheckLightning = useServerFn(recheckLightningDeposit);
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+
+  const [lightningOpen, setLightningOpen] = useState(false);
+  const [lnAmountSats, setLnAmountSats] = useState("");
+  const [lnInvoice, setLnInvoice] = useState<{
+    id: string;
+    bolt11: string;
+    amount_btc: number;
+    status: string;
+    expires_at: string;
+  } | null>(null);
 
   const overview = useQuery({
     queryKey: ["wallet-overview"],
@@ -111,6 +124,35 @@ function WalletPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const lightningMutation = useMutation({
+    mutationFn: () => startLightningDeposit({ data: { amountSats: Number(lnAmountSats) } }),
+    onSuccess: (row) => setLnInvoice(row),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  useQuery({
+    queryKey: ["lightning-deposit-status", lnInvoice?.id],
+    queryFn: async () => {
+      const row = await recheckLightning({ data: { id: lnInvoice!.id } });
+      setLnInvoice(row);
+      if (row.status === "settled") {
+        toast.success(`Lightning payment received — ${row.amount_btc} BTC credited.`);
+        void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
+      } else if (row.status === "expired") {
+        toast.error("This Lightning invoice expired before payment arrived.");
+      }
+      return row;
+    },
+    enabled: !!lnInvoice && lnInvoice.status === "pending",
+    refetchInterval: 4_000,
+  });
+
+  const closeLightningDialog = () => {
+    setLightningOpen(false);
+    setLnAmountSats("");
+    setLnInvoice(null);
+  };
 
   const wallets = overview.data?.wallets ?? [];
   const withdrawWallet = wallets.find((w) => w.crypto_type === withdrawCoin);
@@ -162,6 +204,16 @@ function WalletPage() {
                     >
                       <ArrowDownToLine className="size-4" /> Deposit {w.crypto_type}
                     </Button>
+                    {w.crypto_type === "BTC" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setLightningOpen(true)}
+                      >
+                        <Zap className="size-4" /> Deposit BTC via Lightning
+                      </Button>
+                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -404,6 +456,86 @@ function WalletPage() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDepositCoin(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={lightningOpen} onOpenChange={(o) => (o ? setLightningOpen(true) : closeLightningDialog())}>
+        <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="size-4" /> Deposit BTC via Lightning
+            </DialogTitle>
+            <DialogDescription>
+              Instant BTC deposit over the Lightning Network. Pay the invoice from any Lightning
+              wallet and your balance updates as soon as it settles.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!lnInvoice ? (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                lightningMutation.mutate();
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="ln-amount">Amount (sats)</Label>
+                <Input
+                  id="ln-amount"
+                  inputMode="numeric"
+                  value={lnAmountSats}
+                  onChange={(e) => setLnAmountSats(e.target.value)}
+                  placeholder="50000"
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={lightningMutation.isPending}>
+                {lightningMutation.isPending ? "Creating invoice…" : "Create Lightning invoice"}
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-4">
+              {lnInvoice.status === "pending" ? (
+                <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
+                  <QRCodeSVG value={lnInvoice.bolt11} size={200} />
+                  <p className="mono max-h-24 w-full overflow-y-auto break-all text-center text-xs">
+                    {lnInvoice.bolt11}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(lnInvoice.bolt11);
+                      toast.success("Invoice copied");
+                    }}
+                  >
+                    <Copy className="size-4" /> Copy invoice
+                  </Button>
+                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" /> Waiting for payment — {lnInvoice.amount_btc} BTC
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Expires {new Date(lnInvoice.expires_at).toLocaleTimeString()}
+                  </p>
+                </div>
+              ) : lnInvoice.status === "settled" ? (
+                <p className="rounded-md border border-border bg-muted/40 p-4 text-center text-sm">
+                  Paid — {lnInvoice.amount_btc} BTC credited to your wallet.
+                </p>
+              ) : (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
+                  This invoice expired before payment arrived. Close and create a new one.
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeLightningDialog}>
               Close
             </Button>
           </DialogFooter>

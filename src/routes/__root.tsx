@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -151,6 +152,7 @@ function RootComponent() {
             {/* Required: nested routes render here. */}
             <Outlet />
           </main>
+          {hideHeader ? null : <SiteFooter />}
         </div>
         <Toaster />
       </AuthProvider>

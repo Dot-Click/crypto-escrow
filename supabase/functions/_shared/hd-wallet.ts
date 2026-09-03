@@ -11,6 +11,7 @@
 // The exported helpers return addresses (public) or a signed transaction
 // hex (public) — never a private key.
 
+import { Buffer } from "node:buffer";
 import * as bip39 from "npm:bip39@3.1.0";
 import { BIP32Factory } from "npm:bip32@4.0.0";
 import * as ecc from "npm:tiny-secp256k1@2.2.3";

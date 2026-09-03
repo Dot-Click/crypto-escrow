@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
@@ -7,12 +8,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { RAIL_DETAIL_FIELDS, summarizeDetails } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { closeAccount } from "@/lib/account.functions";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
+import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -42,9 +56,17 @@ export const Route = createFileRoute("/_authenticated/profile")({
 function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"buyer" | "seller" | "both">("both");
   const [busy, setBusy] = useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordBusy, setPasswordBusy] = useState(false);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -148,6 +170,55 @@ function ProfilePage() {
     toast.success("Profile updated");
   };
 
+  const changePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords don't match");
+      return;
+    }
+    setPasswordBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPasswordBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setNewPassword("");
+    setConfirmPassword("");
+    toast.success("Password updated");
+  };
+
+  const changeEmail = async () => {
+    const trimmed = newEmail.trim();
+    if (!trimmed || !trimmed.includes("@")) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+    setEmailBusy(true);
+    const { error } = await supabase.auth.updateUser({ email: trimmed });
+    setEmailBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setNewEmail("");
+    toast.success(`Confirmation links sent to ${user?.email} and ${trimmed} — click both to finish the change.`);
+  };
+
+  const closeAccountFn = useServerFn(closeAccount);
+  const closeAccountMutation = useMutation({
+    mutationFn: () => closeAccountFn(),
+    onSuccess: async () => {
+      toast.success("Account closed");
+      await supabase.auth.signOut();
+      navigate({ to: "/auth", replace: true });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const setStatus = async (id: string, status: "active" | "paused") => {
     const { error } = await supabase.from("listings").update({ status }).eq("id", id);
     if (error) {
@@ -185,11 +256,79 @@ function ProfilePage() {
               </Select>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Completed trades: <span className="mono">{profile?.trades_completed ?? 0}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              Completed trades: <span className="mono">{profile?.trades_completed ?? 0}</span>
+            </span>
+            <TraderLevelBadge tradesCompleted={profile?.trades_completed ?? 0} />
+            {user ? (
+              <Link
+                to="/traders/$userId"
+                params={{ userId: user.id }}
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                View your public profile
+              </Link>
+            ) : null}
+          </div>
           <Button onClick={save} disabled={busy}>
             Save changes
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security</CardTitle>
+          <CardDescription>Change the email or password used to sign in.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2 border-b border-border pb-6">
+            <Label htmlFor="new-email">Email address</Label>
+            <p className="text-xs text-muted-foreground">Current: {user?.email}</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="new-email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="new@example.com"
+                className="sm:max-w-xs"
+              />
+              <Button variant="outline" onClick={changeEmail} disabled={emailBusy || !newEmail.trim()}>
+                {emailBusy ? "Sending…" : "Change email"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              We'll email confirmation links to both your current and new address — the change takes
+              effect once you click both.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm new password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <Button onClick={changePassword} disabled={passwordBusy || !newPassword || !confirmPassword}>
+            {passwordBusy ? "Updating…" : "Change password"}
           </Button>
         </CardContent>
       </Card>
@@ -334,6 +473,43 @@ function ProfilePage() {
               </div>
             ))
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger zone</CardTitle>
+          <CardDescription>
+            Close your account once no trade is open and every wallet balance is withdrawn.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={closeAccountMutation.isPending}>
+                Close account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Close your FOMN account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This signs you out and blocks future logins. It only works with no open trade and
+                  every wallet balance at zero — withdraw first if you haven't. This can't be undone
+                  from the app.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => closeAccountMutation.mutate()}
+                >
+                  Close account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>

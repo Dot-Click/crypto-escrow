@@ -12,14 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FeesRouteImport } from './routes/fees'
+import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
+import { Route as TradersUserIdRouteImport } from './routes/traders.$userId'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
 import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
 import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authenticated/trades.$tradeId'
-import { Route as ApiPublicWebhooksNowpaymentsPayoutRouteImport } from './routes/api/public/webhooks/nowpayments/payout'
+import { Route as ApiPublicWebhooksBtcpayRouteImport } from './routes/api/public/webhooks/btcpay'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,6 +36,16 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeesRoute = FeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TransparencyRoute = TransparencyRouteImport.update({
+  id: '/transparency',
+  path: '/transparency',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -55,6 +68,11 @@ const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const TradersUserIdRoute = TradersUserIdRouteImport.update({
+  id: '/traders/$userId',
+  path: '/traders/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedListingsNewRoute =
   AuthenticatedListingsNewRouteImport.update({
     id: '/listings/new',
@@ -73,96 +91,116 @@ const AuthenticatedTradesTradeIdRoute =
     path: '/trades/$tradeId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiPublicWebhooksNowpaymentsPayoutRoute =
-  ApiPublicWebhooksNowpaymentsPayoutRouteImport.update({
-    id: '/api/public/webhooks/nowpayments/payout',
-    path: '/api/public/webhooks/nowpayments/payout',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const ApiPublicWebhooksBtcpayRoute = ApiPublicWebhooksBtcpayRouteImport.update({
+  id: '/api/public/webhooks/btcpay',
+  path: '/api/public/webhooks/btcpay',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/fees': typeof FeesRoute
+  '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades/': typeof AuthenticatedTradesIndexRoute
-  '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
+  '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/fees': typeof FeesRoute
+  '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades': typeof AuthenticatedTradesIndexRoute
-  '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
+  '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/fees': typeof FeesRoute
+  '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
+  '/traders/$userId': typeof TradersUserIdRoute
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
   '/_authenticated/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
-  '/api/public/webhooks/nowpayments/payout': typeof ApiPublicWebhooksNowpaymentsPayoutRoute
+  '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/fees'
+    | '/transparency'
     | '/admin'
     | '/profile'
     | '/settings'
     | '/wallet'
+    | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades/'
-    | '/api/public/webhooks/nowpayments/payout'
+    | '/api/public/webhooks/btcpay'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/fees'
+    | '/transparency'
     | '/admin'
     | '/profile'
     | '/settings'
     | '/wallet'
+    | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades'
-    | '/api/public/webhooks/nowpayments/payout'
+    | '/api/public/webhooks/btcpay'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/fees'
+    | '/transparency'
     | '/_authenticated/admin'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/_authenticated/wallet'
+    | '/traders/$userId'
     | '/_authenticated/listings/new'
     | '/_authenticated/trades/$tradeId'
     | '/_authenticated/trades/'
-    | '/api/public/webhooks/nowpayments/payout'
+    | '/api/public/webhooks/btcpay'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  ApiPublicWebhooksNowpaymentsPayoutRoute: typeof ApiPublicWebhooksNowpaymentsPayoutRoute
+  FeesRoute: typeof FeesRoute
+  TransparencyRoute: typeof TransparencyRoute
+  TradersUserIdRoute: typeof TradersUserIdRoute
+  ApiPublicWebhooksBtcpayRoute: typeof ApiPublicWebhooksBtcpayRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -186,6 +224,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fees': {
+      id: '/fees'
+      path: '/fees'
+      fullPath: '/fees'
+      preLoaderRoute: typeof FeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transparency': {
+      id: '/transparency'
+      path: '/transparency'
+      fullPath: '/transparency'
+      preLoaderRoute: typeof TransparencyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -216,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWalletRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/traders/$userId': {
+      id: '/traders/$userId'
+      path: '/traders/$userId'
+      fullPath: '/traders/$userId'
+      preLoaderRoute: typeof TradersUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/listings/new': {
       id: '/_authenticated/listings/new'
       path: '/listings/new'
@@ -237,11 +296,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTradesTradeIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/webhooks/nowpayments/payout': {
-      id: '/api/public/webhooks/nowpayments/payout'
-      path: '/api/public/webhooks/nowpayments/payout'
-      fullPath: '/api/public/webhooks/nowpayments/payout'
-      preLoaderRoute: typeof ApiPublicWebhooksNowpaymentsPayoutRouteImport
+    '/api/public/webhooks/btcpay': {
+      id: '/api/public/webhooks/btcpay'
+      path: '/api/public/webhooks/btcpay'
+      fullPath: '/api/public/webhooks/btcpay'
+      preLoaderRoute: typeof ApiPublicWebhooksBtcpayRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -274,8 +333,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  ApiPublicWebhooksNowpaymentsPayoutRoute:
-    ApiPublicWebhooksNowpaymentsPayoutRoute,
+  FeesRoute: FeesRoute,
+  TransparencyRoute: TransparencyRoute,
+  TradersUserIdRoute: TradersUserIdRoute,
+  ApiPublicWebhooksBtcpayRoute: ApiPublicWebhooksBtcpayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

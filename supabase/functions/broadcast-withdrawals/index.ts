@@ -13,6 +13,7 @@
 //   - UTXO fee-vs-amount ratio capped at MAX_FEE_RATIO to refuse dust withdrawals.
 //   - attempt_count > 3 hard-fails the row and refunds.
 
+import { Buffer } from "node:buffer";
 import { getAdminDb, requireCronSecret } from "../_shared/db.ts";
 import {
   NETWORK_META,

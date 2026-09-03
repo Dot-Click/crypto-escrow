@@ -467,6 +467,76 @@ export type Database = {
           },
         ]
       }
+      lightning_deposit_invoices: {
+        Row: {
+          amount_btc: number
+          bolt11: string
+          btcpay_invoice_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          last_checked_at: string | null
+          payment_hash: string | null
+          status: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_btc: number
+          bolt11: string
+          btcpay_invoice_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_checked_at?: string | null
+          payment_hash?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_btc?: number
+          bolt11?: string
+          btcpay_invoice_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_checked_at?: string | null
+          payment_hash?: string | null
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightning_deposit_invoices_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightning_deposit_invoices_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightning_deposit_invoices_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           accepted_payment_methods: string[]
@@ -650,6 +720,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          closed_at: string | null
           created_at: string
           display_name: string
           email: string | null
@@ -660,6 +731,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          closed_at?: string | null
           created_at?: string
           display_name?: string
           email?: string | null
@@ -670,6 +742,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          closed_at?: string | null
           created_at?: string
           display_name?: string
           email?: string | null

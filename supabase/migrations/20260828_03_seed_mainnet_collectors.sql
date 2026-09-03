@@ -25,6 +25,7 @@ VALUES
    '0x55d398326f99059fF775485246999027B3197955', 15, false, 'collector')
 ON CONFLICT (crypto_type, network) DO UPDATE SET
   label = EXCLUDED.label,
+  address = EXCLUDED.address,
   token_contract_address = EXCLUDED.token_contract_address,
   min_confirmations = EXCLUDED.min_confirmations,
   purpose = EXCLUDED.purpose,

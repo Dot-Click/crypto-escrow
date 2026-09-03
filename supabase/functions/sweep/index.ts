@@ -19,6 +19,7 @@
 // value from env; EVM gas uses the RPC estimate. Validate on small
 // amounts before turning on for real user traffic.
 
+import { Buffer } from "node:buffer";
 import { getAdminDb, requireCronSecret } from "../_shared/db.ts";
 import {
   NETWORK_META,

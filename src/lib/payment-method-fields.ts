@@ -25,7 +25,9 @@ export const RAIL_DETAIL_FIELDS: Record<string, PaymentDetailField[]> = {
     { key: "wallet_address", label: "Wallet address", placeholder: "bc1q…" },
     { key: "network_note", label: "Network / memo note", placeholder: "TRC20, memo 12345", optional: true },
   ],
-  asset: [{ key: "instructions", label: "Transfer instructions", placeholder: "Broker, account, or contact details" }],
+  goods_services: [
+    { key: "instructions", label: "Transfer instructions", placeholder: "Broker, account, or contact details" },
+  ],
 };
 
 export function summarizeDetails(railKey: string, details: Record<string, string>): string {

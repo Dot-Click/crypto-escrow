@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { TradeChat } from "@/components/trade-chat";
+import { TraderLevelBadge } from "@/components/trader-level-badge";
 
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
@@ -168,6 +169,7 @@ function TradeRoom() {
   const t = d.trade;
   const isBuyer = d.role === "buyer";
   const counterparty = isBuyer ? t.seller : t.buyer;
+  const counterpartyId = isBuyer ? t.seller_id : t.buyer_id;
   const active = t.status === "escrow_funded" || t.status === "payment_claimed";
   const total = t.amount * t.price;
   const symbol = currencySymbol(t.fiat_currency);
@@ -463,7 +465,16 @@ function TradeRoom() {
                 {(counterparty?.display_name ?? "T").slice(0, 1).toUpperCase()}
               </span>
               <div>
-                <p className="text-sm font-medium">{counterparty?.display_name ?? "Trader"}</p>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/traders/$userId"
+                    params={{ userId: counterpartyId }}
+                    className="text-sm font-medium hover:underline"
+                  >
+                    {counterparty?.display_name ?? "Trader"}
+                  </Link>
+                  <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {counterparty?.trades_completed ?? 0} completed trades
                 </p>

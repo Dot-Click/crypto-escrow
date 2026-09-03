@@ -33,6 +33,7 @@ VALUES
    '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', 3, false, 'collector')
 ON CONFLICT (crypto_type, network) DO UPDATE SET
   label = EXCLUDED.label,
+  address = EXCLUDED.address,
   token_contract_address = EXCLUDED.token_contract_address,
   min_confirmations = EXCLUDED.min_confirmations,
   purpose = EXCLUDED.purpose,

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { currencySymbol } from "@/lib/currencies";
 import { PAYMENT_RAILS, railLabelForMethod } from "@/lib/payment-taxonomy";
@@ -280,7 +281,14 @@ function Marketplace() {
                         <span className="text-base font-semibold">
                           {l.amount} {l.crypto_type}
                         </span>
-                        <Badge variant="outline">{counterparty?.display_name ?? "Trader"}</Badge>
+                        <Link
+                          to="/traders/$userId"
+                          params={{ userId: l.seller_id }}
+                          className="transition-opacity hover:opacity-80"
+                        >
+                          <Badge variant="outline">{counterparty?.display_name ?? "Trader"}</Badge>
+                        </Link>
+                        <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
                         <span className="text-xs text-muted-foreground">
                           {counterparty?.trades_completed ?? 0} trades
                         </span>
@@ -342,6 +350,7 @@ function Marketplace() {
 
 type ListingRow = {
   id: string;
+  seller_id: string;
   side: string;
   crypto_type: string;
   amount: number | string;

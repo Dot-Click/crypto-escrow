@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
+import { COUNTRIES } from "@/lib/countries";
 import { computeEffectivePrice } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
@@ -64,6 +65,7 @@ function NewListing() {
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [cryptoType, setCryptoType] = useState<string>("BTC");
   const [currency, setCurrency] = useState<string>("USD");
+  const [country, setCountry] = useState<string>("");
   const [pricingMode, setPricingMode] = useState<"margin" | "fixed">("margin");
   const [margin, setMargin] = useState("0");
   const [fixedPrice, setFixedPrice] = useState("");
@@ -264,6 +266,7 @@ function NewListing() {
         side,
         crypto_type: cryptoType,
         fiat_currency: currency,
+        country: country || null,
         price: effectivePrice,
         margin_percent: pricingMode === "margin" ? marginNum : 0,
         fixed_price: pricingMode === "fixed" ? Number(fixedPrice) : null,
@@ -356,6 +359,25 @@ function NewListing() {
                         <span className="flex items-center gap-2">
                           <span className={`fi fi-${c.flagCode} text-base`} aria-hidden />
                           {c.code} — {c.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Country</Label>
+                <Select value={country || "__global"} onValueChange={(v) => setCountry(v === "__global" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__global">🌐 Global — any country</SelectItem>
+                    {COUNTRIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        <span className="flex items-center gap-2">
+                          <span className={`fi fi-${c.code.toLowerCase()} text-base`} aria-hidden />
+                          {c.name}
                         </span>
                       </SelectItem>
                     ))}
@@ -653,6 +675,16 @@ function NewListing() {
                   </div>
                   <div>
                     {timeLimitEnabled ? `${timeLimitMinutes || "0"} min payment window` : "No time limit"}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {country ? (
+                      <>
+                        <span className={`fi fi-${country.toLowerCase()} text-base`} aria-hidden />
+                        {COUNTRIES.find((c) => c.code === country)?.name ?? country}
+                      </>
+                    ) : (
+                      <>🌐 Global — any country</>
+                    )}
                   </div>
                   <div className="sm:col-span-2">
                     <span className="text-muted-foreground">Payment methods: </span>

@@ -541,6 +541,7 @@ export type Database = {
         Row: {
           accepted_payment_methods: string[]
           amount: number | null
+          country: string | null
           created_at: string
           crypto_type: string
           fiat_currency: string
@@ -560,6 +561,7 @@ export type Database = {
         Insert: {
           accepted_payment_methods?: string[]
           amount?: number | null
+          country?: string | null
           created_at?: string
           crypto_type: string
           fiat_currency?: string
@@ -579,6 +581,7 @@ export type Database = {
         Update: {
           accepted_payment_methods?: string[]
           amount?: number | null
+          country?: string | null
           created_at?: string
           crypto_type?: string
           fiat_currency?: string

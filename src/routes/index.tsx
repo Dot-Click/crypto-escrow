@@ -29,6 +29,7 @@ import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
+import { COUNTRIES } from "@/lib/countries";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
@@ -73,6 +74,7 @@ function Marketplace() {
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
   const [currency, setCurrency] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState<string | null>(null);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [minPrice, setMinPrice] = useState("");
@@ -124,6 +126,9 @@ function Marketplace() {
     let out = (listings.data ?? []).filter((l) => l.side === side);
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
     if (currency !== "all") out = out.filter((l) => l.fiat_currency === currency);
+    if (countryFilter !== "all") {
+      out = out.filter((l) => l.country === countryFilter || l.country == null);
+    }
     if (methodFilter) {
       out = out.filter((l) => l.accepted_payment_methods.includes(methodFilter));
     }
@@ -148,6 +153,7 @@ function Marketplace() {
     side,
     crypto,
     currency,
+    countryFilter,
     methodFilter,
     minPrice,
     maxPrice,
@@ -239,6 +245,25 @@ function Marketplace() {
                       <span className="flex items-center gap-2">
                         <span className={`fi fi-${c.flagCode}`} aria-hidden />
                         {c.code}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select value={countryFilter} onValueChange={setCountryFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any country</SelectItem>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="flex items-center gap-2">
+                        <span className={`fi fi-${c.code.toLowerCase()}`} aria-hidden />
+                        {c.name}
                       </span>
                     </SelectItem>
                   ))}
@@ -345,6 +370,16 @@ function Marketplace() {
                         <span className="text-xs text-muted-foreground">
                           {counterparty?.trades_completed ?? 0} trades
                         </span>
+                        {l.country ? (
+                          <Badge variant="outline" className="gap-1.5 font-normal">
+                            <span className={`fi fi-${l.country.toLowerCase()}`} aria-hidden />
+                            {COUNTRIES.find((c) => c.code === l.country)?.name ?? l.country}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="font-normal text-muted-foreground">
+                            🌐 Global
+                          </Badge>
+                        )}
                       </div>
                       <p className="mono text-sm text-muted-foreground">
                         {symbol}
@@ -420,6 +455,7 @@ type ListingRow = {
   max_amount: number | string | null;
   payment_window_minutes: number | string | null;
   fiat_currency: string;
+  country: string | null;
   accepted_payment_methods: string[];
 };
 

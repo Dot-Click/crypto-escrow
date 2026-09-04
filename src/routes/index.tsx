@@ -28,7 +28,7 @@ import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
-import { currencySymbol } from "@/lib/currencies";
+import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
@@ -72,6 +72,7 @@ function Marketplace() {
   const { user } = useAuth();
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
+  const [currency, setCurrency] = useState("all");
   const [methodFilter, setMethodFilter] = useState<string | null>(null);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [minPrice, setMinPrice] = useState("");
@@ -122,6 +123,7 @@ function Marketplace() {
 
     let out = (listings.data ?? []).filter((l) => l.side === side);
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
+    if (currency !== "all") out = out.filter((l) => l.fiat_currency === currency);
     if (methodFilter) {
       out = out.filter((l) => l.accepted_payment_methods.includes(methodFilter));
     }
@@ -145,6 +147,7 @@ function Marketplace() {
     fxRates.data,
     side,
     crypto,
+    currency,
     methodFilter,
     minPrice,
     maxPrice,
@@ -216,6 +219,25 @@ function Marketplace() {
                     <SelectItem key={c.code} value={c.code}>
                       <span className="flex items-center gap-2">
                         <CoinIcon code={c.code} className="size-4" />
+                        {c.code}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any currency</SelectItem>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="flex items-center gap-2">
+                        <span className={`fi fi-${c.flagCode}`} aria-hidden />
                         {c.code}
                       </span>
                     </SelectItem>

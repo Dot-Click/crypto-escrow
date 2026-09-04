@@ -44,12 +44,12 @@ import {
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
     meta: [
-      { title: "Your profile — FOMN" },
+      { title: "Your profile — CEMP" },
       {
         name: "description",
-        content: "Manage your FOMN trader profile, display name, trading role and offers.",
+        content: "Manage your CEMP trader profile, display name, trading role and offers.",
       },
-      { property: "og:title", content: "Your profile — FOMN" },
+      { property: "og:title", content: "Your profile — CEMP" },
       {
         property: "og:description",
         content: "Manage your trader profile and your published offers.",
@@ -608,7 +608,7 @@ function ProfilePage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Close your FOMN account?</AlertDialogTitle>
+                <AlertDialogTitle>Close your CEMP account?</AlertDialogTitle>
                 <AlertDialogDescription>
                   This signs you out and blocks future logins. It only works with no open trade and
                   every wallet balance at zero — withdraw first if you haven't. This can't be undone

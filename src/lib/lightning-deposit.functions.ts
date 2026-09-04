@@ -56,7 +56,7 @@ export const createLightningDeposit = createServerFn({ method: "POST" })
 
     const invoice = await createLightningInvoice({
       amountSats: data.amountSats,
-      description: `FOMN wallet deposit — user ${context.userId}`,
+      description: `CEMP wallet deposit — user ${context.userId}`,
       expirySeconds: INVOICE_EXPIRY_SECONDS,
     });
     if (!invoice.bolt11) throw new Error("BTCPay did not return a Lightning invoice");

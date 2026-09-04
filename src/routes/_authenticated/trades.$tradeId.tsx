@@ -30,9 +30,9 @@ import { PaymentRailIcon } from "@/components/payment-rail-icon";
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
     meta: [
-      { title: "Trade room — FOMN" },
+      { title: "Trade room — CEMP" },
       { name: "description", content: "Escrow-protected trade room: fund, pay, release." },
-      { property: "og:title", content: "Trade room — FOMN" },
+      { property: "og:title", content: "Trade room — CEMP" },
       { property: "og:description", content: "Escrow-protected trade room: fund, pay, release." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

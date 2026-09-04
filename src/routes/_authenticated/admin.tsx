@@ -48,15 +48,15 @@ import {
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Admin dashboard — FOMN" },
+      { title: "Admin dashboard — CEMP" },
       {
         name: "description",
-        content: "Monitor escrow holds, trades and disputes across the FOMN testnet marketplace.",
+        content: "Monitor escrow holds, trades and disputes across the CEMP testnet marketplace.",
       },
-      { property: "og:title", content: "Admin dashboard — FOMN" },
+      { property: "og:title", content: "Admin dashboard — CEMP" },
       {
         property: "og:description",
-        content: "Monitor escrow holds, trades and disputes across the FOMN testnet marketplace.",
+        content: "Monitor escrow holds, trades and disputes across the CEMP testnet marketplace.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

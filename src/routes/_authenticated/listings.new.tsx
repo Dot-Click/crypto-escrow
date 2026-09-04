@@ -37,13 +37,13 @@ import {
 export const Route = createFileRoute("/_authenticated/listings/new")({
   head: () => ({
     meta: [
-      { title: "Create an offer — FOMN" },
+      { title: "Create an offer — CEMP" },
       {
         name: "description",
         content:
           "Publish a peer-to-peer crypto offer: choose the coin, price and payment methods you accept.",
       },
-      { property: "og:title", content: "Create an offer — FOMN" },
+      { property: "og:title", content: "Create an offer — CEMP" },
       {
         property: "og:description",
         content: "Publish a peer-to-peer crypto offer with the payment methods you accept.",

@@ -6,7 +6,7 @@ export async function sendEmail(params: { to: string; subject: string; html: str
     return;
   }
 
-  const from = process.env['RESEND_FROM_EMAIL'] || 'FOMN <onboarding@resend.dev>';
+  const from = process.env['RESEND_FROM_EMAIL'] || 'CEMP <onboarding@resend.dev>';
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

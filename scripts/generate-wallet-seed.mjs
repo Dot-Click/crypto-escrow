@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// One-time offline seed generator for the FOMN hot HD wallet.
+// One-time offline seed generator for the CEMP hot HD wallet.
 //
 // **THIS SCRIPT MUST BE RUN OFFLINE** — ideally on an air-gapped machine, or
 // at minimum on a laptop with Wi-Fi disabled. It generates a BIP-39
@@ -91,7 +91,7 @@ function deriveEvm(seed, path, label) {
 
 function main() {
   console.log("=".repeat(72));
-  console.log("FOMN mainnet HD wallet seed generator — OFFLINE USE ONLY");
+  console.log("CEMP mainnet HD wallet seed generator — OFFLINE USE ONLY");
   console.log("=".repeat(72));
   console.log();
   console.log("Before continuing, confirm:");

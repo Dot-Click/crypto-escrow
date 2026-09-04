@@ -6,8 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export const Route = createFileRoute("/fees")({
   head: () => ({
     meta: [
-      { title: "Fees — FOMN" },
-      { name: "description", content: "What FOMN charges, who pays it, and when." },
+      { title: "Fees — CEMP" },
+      { name: "description", content: "What CEMP charges, who pays it, and when." },
     ],
   }),
   component: FeesPage,
@@ -58,7 +58,7 @@ function FeesPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight">Fees</h1>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-          What FOMN charges, who pays it, and when. No listing fees, no monthly fees, and nothing
+          What CEMP charges, who pays it, and when. No listing fees, no monthly fees, and nothing
           charged for having an account.
         </p>
       </div>

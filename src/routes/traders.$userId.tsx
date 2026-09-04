@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/traders/$userId")({
   head: () => ({
-    meta: [{ title: "Trader profile — FOMN" }],
+    meta: [{ title: "Trader profile — CEMP" }],
   }),
   component: TraderProfilePage,
 });

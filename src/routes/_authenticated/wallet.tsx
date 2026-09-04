@@ -34,11 +34,11 @@ import {
 export const Route = createFileRoute("/_authenticated/wallet")({
   head: () => ({
     meta: [
-      { title: "Wallet — deposits, withdrawals & escrow holds | FOMN" },
+      { title: "Wallet — deposits, withdrawals & escrow holds | CEMP" },
       {
         name: "description",
         content:
-          "Fund your FOMN wallet from an external blockchain address, withdraw free balance, and track every escrow hold in the ledger.",
+          "Fund your CEMP wallet from an external blockchain address, withdraw free balance, and track every escrow hold in the ledger.",
       },
       { property: "og:title", content: "Wallet — deposits, withdrawals & escrow holds" },
       {

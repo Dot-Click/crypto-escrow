@@ -83,13 +83,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "FOMN — Peer-to-peer crypto escrow" },
+      { title: "CEMP — Peer-to-peer crypto escrow" },
       {
         name: "description",
         content:
           "Peer-to-peer crypto trading with platform-held escrow, wallets and real-time trade rooms.",
       },
-      { property: "og:title", content: "FOMN — Peer-to-peer crypto escrow" },
+      { property: "og:title", content: "CEMP — Peer-to-peer crypto escrow" },
       {
         property: "og:description",
         content: "Trade crypto peer-to-peer with escrow protection and real-time trade rooms.",

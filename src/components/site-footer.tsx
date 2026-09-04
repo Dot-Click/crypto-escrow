@@ -18,7 +18,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-border">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <span>FOMN (C) {new Date().getFullYear()} · testnet demo, no real funds</span>
+        <span>CEMP (C) {new Date().getFullYear()} · testnet demo, no real funds</span>
         <nav className="flex flex-wrap gap-x-5 gap-y-2">
           {PUBLIC_PAGES.map((p) => (
             <Link key={p.to} to={p.to} className="transition-colors hover:text-foreground">

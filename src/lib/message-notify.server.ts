@@ -69,7 +69,7 @@ export async function notifyNewMessage(params: {
                 : ''
             }
             <p style="font-size: 12px; color: #999; margin-top: 24px;">
-              You're receiving this because you have an open trade on FOMN.
+              You're receiving this because you have an open trade on CEMP.
             </p>
           </div>
         `,

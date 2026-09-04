@@ -30,7 +30,7 @@ function emailShell(bodyHtml: string, tradeUrl: string | null): string {
           : ''
       }
       <p style="font-size: 12px; color: #999; margin-top: 24px;">
-        You're receiving this because you had a trade on FOMN.
+        You're receiving this because you had a trade on CEMP.
       </p>
     </div>
   `;
@@ -79,7 +79,7 @@ export async function notifyTradeEnded(params: {
           'Trade completed — funds released to your wallet',
           `<p style="font-size: 15px; color: #111;">Your trade is complete.</p>
            <p style="font-size: 14px; color: #444; background: #f5f5f5; border-radius: 8px; padding: 12px 14px;">
-             You received <strong>${escapeHtml(String(trade.payout_amount))} ${escapeHtml(trade.crypto_type)}</strong> into your FOMN wallet.
+             You received <strong>${escapeHtml(String(trade.payout_amount))} ${escapeHtml(trade.crypto_type)}</strong> into your CEMP wallet.
            </p>`,
         ),
         send(

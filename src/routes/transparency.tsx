@@ -11,10 +11,10 @@ import { CoinIcon } from "@/components/coin-icon";
 export const Route = createFileRoute("/transparency")({
   head: () => ({
     meta: [
-      { title: "Transparency — FOMN" },
+      { title: "Transparency — CEMP" },
       {
         name: "description",
-        content: "Live reserves, liabilities and dispute numbers for the FOMN escrow platform.",
+        content: "Live reserves, liabilities and dispute numbers for the CEMP escrow platform.",
       },
     ],
   }),

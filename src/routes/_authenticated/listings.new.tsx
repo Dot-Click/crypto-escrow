@@ -38,7 +38,7 @@ export const Route = createFileRoute("/_authenticated/listings/new")({
       {
         name: "description",
         content:
-          "Publish a peer-to-peer crypto offer: choose the coin, amount, price and payment methods you accept.",
+          "Publish a peer-to-peer crypto offer: choose the coin, price and payment methods you accept.",
       },
       { property: "og:title", content: "Create an offer — FOMN" },
       {
@@ -64,7 +64,6 @@ function NewListing() {
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [cryptoType, setCryptoType] = useState<string>("BTC");
   const [currency, setCurrency] = useState<string>("USD");
-  const [amount, setAmount] = useState("");
   const [pricingMode, setPricingMode] = useState<"margin" | "fixed">("margin");
   const [margin, setMargin] = useState("0");
   const [fixedPrice, setFixedPrice] = useState("");
@@ -125,7 +124,6 @@ function NewListing() {
       : marketPrice && fxRate
         ? computeEffectivePrice(marketPrice, marginNum, fxRate)
         : null;
-  const totalValue = effectivePrice && amount ? effectivePrice * Number(amount) : null;
   const symbol = currencySymbol(currency);
 
   const savedMethodsFor = (m: string) => (savedMethods.data ?? []).filter((pm) => pm.method === m);
@@ -175,10 +173,6 @@ function NewListing() {
   // Per-step validation — keeps "Next" from advancing on obviously broken
   // input, without repeating the full submit-time validation below.
   const stepError = (i: number): string | null => {
-    if (i === 0) {
-      if (!amount || Number(amount) <= 0) return "Enter an amount greater than zero";
-      return null;
-    }
     if (i === 1) {
       if (pricingMode === "margin" && (!Number.isFinite(marginNum) || marginNum < -50 || marginNum > 50)) {
         return "Margin must be between -50% and 50%";
@@ -190,9 +184,6 @@ function NewListing() {
       if (!minAmount || Number(minAmount) <= 0) return "Enter a minimum trade size greater than zero";
       if (!maxAmount || Number(maxAmount) < Number(minAmount)) {
         return "Max trade size must be at least the minimum";
-      }
-      if (Number(maxAmount) > effectivePrice * Number(amount)) {
-        return "Max trade size can't exceed the total value of this offer";
       }
       return null;
     }
@@ -273,7 +264,6 @@ function NewListing() {
         side,
         crypto_type: cryptoType,
         fiat_currency: currency,
-        amount: Number(amount),
         price: effectivePrice,
         margin_percent: pricingMode === "margin" ? marginNum : 0,
         fixed_price: pricingMode === "fixed" ? Number(fixedPrice) : null,
@@ -323,6 +313,7 @@ function NewListing() {
         </CardHeader>
         <CardContent className="space-y-6">
           {step === 0 ? (
+            <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Offer type</Label>
@@ -369,16 +360,12 @@ function NewListing() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="group space-y-1.5">
-                <Label htmlFor="amount">Amount ({cryptoType})</Label>
-                <Input
-                  id="amount"
-                  inputMode="decimal"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.05"
-                />
-              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              No need to declare a total amount — availability is checked against your wallet
+              balance whenever a buyer starts a trade. Set how big a single trade can be in the
+              next step.
+            </p>
             </div>
           ) : null}
 
@@ -647,7 +634,7 @@ function NewListing() {
                   <div className="flex items-center gap-2">
                     <CoinIcon code={cryptoType} className="size-4" />
                     <span>
-                      {side === "sell" ? "Selling" : "Buying"} {amount || "0"} {cryptoType}
+                      {side === "sell" ? "Selling" : "Buying"} {cryptoType}
                     </span>
                   </div>
                   <div>
@@ -693,19 +680,20 @@ function NewListing() {
         </CardContent>
       </Card>
 
-      {/* Sticky action bar — Total value + step navigation anchored so they
+      {/* Sticky action bar — Trade range + step navigation anchored so they
           never get lost in the scroll flow. */}
       <div className="sticky bottom-0 z-10 mt-4 border-t border-border bg-background/95 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Total value
+              Trade range
             </p>
             <p className="mono text-lg font-semibold text-foreground">
-              {totalValue ? (
+              {minAmount && maxAmount ? (
                 <>
                   {symbol}
-                  {totalValue.toLocaleString()}
+                  {Number(minAmount).toLocaleString()} – {symbol}
+                  {Number(maxAmount).toLocaleString()}
                 </>
               ) : (
                 <span className="text-muted-foreground">—</span>

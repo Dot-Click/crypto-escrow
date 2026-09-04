@@ -561,15 +561,18 @@ function ProfilePage() {
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1.5 font-medium">
                       <CoinIcon code={l.crypto_type} className="size-4" />
-                      {l.side === "sell" ? "Selling" : "Buying"} {l.amount} {l.crypto_type}
+                      {l.side === "sell" ? "Selling" : "Buying"} {l.crypto_type}
                     </span>
                     <Badge variant={l.status === "active" ? "default" : "secondary"}>
                       {l.status}
                     </Badge>
                   </div>
                   <p className="mono text-xs text-muted-foreground">
-                    ${Number(l.price).toLocaleString()} / {l.crypto_type} ·{" "}
-                    {l.accepted_payment_methods.join(", ")}
+                    ${Number(l.price).toLocaleString()} / {l.crypto_type}
+                    {l.min_amount != null && l.max_amount != null
+                      ? ` · $${Number(l.min_amount).toLocaleString()}–$${Number(l.max_amount).toLocaleString()}`
+                      : ""}{" "}
+                    · {l.accepted_payment_methods.join(", ")}
                   </p>
                 </div>
                 <div className="flex gap-2">

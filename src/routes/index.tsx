@@ -310,7 +310,7 @@ function Marketplace() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="flex items-center gap-1.5 text-base font-semibold">
                           <CoinIcon code={l.crypto_type} className="size-5" />
-                          {l.amount} {l.crypto_type}
+                          {COIN_FULL_NAME[l.crypto_type] ?? l.crypto_type}
                         </span>
                         <Link
                           to="/traders/$userId"
@@ -335,9 +335,7 @@ function Marketplace() {
                             ({margin > 0 ? "+" : ""}
                             {margin}%)
                           </span>
-                        ) : null}{" "}
-                        · total {symbol}
-                        {(price * Number(l.amount)).toLocaleString()}
+                        ) : null}
                       </p>
                       {l.min_amount != null && l.max_amount != null ? (
                         <p className="text-xs text-muted-foreground">
@@ -393,7 +391,6 @@ type ListingRow = {
   seller_id: string;
   side: string;
   crypto_type: string;
-  amount: number | string;
   price: number | string;
   margin_percent: number | string;
   fixed_price: number | string | null;
@@ -423,12 +420,13 @@ function StartTradeDialog({
   const [fiatAmount, setFiatAmount] = useState("");
   const [payment, setPayment] = useState("");
 
-  const cryptoAvailable = Number(listing?.amount ?? 0);
   const price = listing ? resolveListingPrice(listing, marketPrices, fxRates) : null;
   const symbol = currencySymbol(listing?.fiat_currency ?? "USD");
-  const listingMax = price ? cryptoAvailable * price : 0;
   const min = listing?.min_amount != null ? Number(listing.min_amount) : 0;
-  const max = listing?.max_amount != null ? Math.min(Number(listing.max_amount), listingMax) : listingMax;
+  // No listing-level inventory cap — the fiat range is the only declared
+  // ceiling. Whether the seller can actually cover a trade this size is
+  // checked live against their wallet balance when the trade is opened.
+  const max = listing?.max_amount != null ? Number(listing.max_amount) : Infinity;
 
   const parsed = Number(fiatAmount);
   const rangeError =
@@ -488,13 +486,15 @@ function StartTradeDialog({
                 {min} – {symbol}
                 {max.toLocaleString()}
               </Label>
-              <button
-                type="button"
-                className="text-xs font-medium text-primary hover:underline"
-                onClick={() => setFiatAmount(String(max))}
-              >
-                MAX
-              </button>
+              {Number.isFinite(max) ? (
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary hover:underline"
+                  onClick={() => setFiatAmount(String(max))}
+                >
+                  MAX
+                </button>
+              ) : null}
             </div>
             <Input
               id="trade-amount"

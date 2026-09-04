@@ -146,7 +146,7 @@ export async function openTrade(params: {
   const { data: listing, error } = await supabaseAdmin
     .from("listings")
     .select(
-      "id, seller_id, side, crypto_type, amount, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status",
+      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status",
     )
     .eq("id", params.listingId)
     .maybeSingle();
@@ -180,11 +180,9 @@ export async function openTrade(params: {
     effectivePrice,
     PLATFORM_FEE_PERCENT,
   );
-  if (grossCrypto > Number(listing.amount)) {
-    throw new Error(
-      `This offer covers at most ${listing.amount} ${listing.crypto_type} (~$${(Number(listing.amount) * effectivePrice).toFixed(2)})`,
-    );
-  }
+  // No listing-level inventory cap: how much a seller can actually cover is
+  // enforced below by their live wallet balance, same as SafeTheTrade — the
+  // fiat min/max range above is the only ceiling declared on the offer.
 
   // On a "sell" offer the lister sells crypto; on a "buy" offer the visitor sells.
   const sellerId = listing.side === "sell" ? listing.seller_id : params.userId;

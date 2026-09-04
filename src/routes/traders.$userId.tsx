@@ -32,11 +32,11 @@ function TraderProfilePage() {
   });
 
   if (profile.isLoading) {
-    return <div className="mx-auto w-full max-w-3xl px-4 py-10 text-sm text-muted-foreground">Loading trader profile…</div>;
+    return <div className="mx-auto w-full max-w-6xl px-4 py-10 text-sm text-muted-foreground">Loading trader profile…</div>;
   }
   if (profile.error || !profile.data) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-4 py-10 text-sm text-destructive">
+      <div className="mx-auto w-full max-w-6xl px-4 py-10 text-sm text-destructive">
         Couldn't find that trader.
       </div>
     );
@@ -45,7 +45,7 @@ function TraderProfilePage() {
   const p = profile.data;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="mb-8 flex items-center gap-4">
         <UserAvatar userId={p.id} displayName={p.displayName} className="size-14 shrink-0 text-lg" />
         <div>

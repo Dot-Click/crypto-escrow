@@ -52,7 +52,7 @@ function TransparencyPage() {
   }, []);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="mb-8 flex items-start gap-3">
         <span className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <ShieldCheck className="size-5" />

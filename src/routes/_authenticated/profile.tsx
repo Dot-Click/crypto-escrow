@@ -264,7 +264,7 @@ function ProfilePage() {
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-4xl gap-6 px-4 py-8">
+    <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-8">
       <Card>
         <CardHeader>
           <CardTitle>Your profile</CardTitle>

@@ -14,6 +14,7 @@ import {
 import { listMessages } from "@/lib/messages.functions";
 import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
 import { currencySymbol } from "@/lib/currencies";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { TradeChat } from "@/components/trade-chat";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { CoinIcon } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
@@ -434,7 +437,8 @@ function TradeRoom() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Rate</p>
-                  <p className="mono">
+                  <p className="mono flex items-center gap-1.5">
+                    <CoinIcon code={t.crypto_type} className="size-4" />
                     {t.amount} {t.crypto_type} ≈ {symbol}
                     {total.toLocaleString()}
                   </p>
@@ -497,10 +501,15 @@ function TradeRoom() {
             hideHeader
             className="flex h-[32rem] flex-col lg:h-full lg:min-h-0 lg:flex-1"
             banner={
-              <div className={`shrink-0 px-4 py-2.5 text-sm font-medium ${statusTone}`}>
+              <div className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-sm font-medium ${statusTone}`}>
+                <CoinIcon code={t.crypto_type} className="size-4" />
                 <span className="uppercase">{isBuyer ? "Buying" : "Selling"}</span> {t.amount}{" "}
                 {t.crypto_type} for {symbol}
-                {total.toLocaleString()} ({t.fiat_currency}) via {t.payment_method}
+                {total.toLocaleString()} ({t.fiat_currency}) via{" "}
+                <span className="inline-flex items-center gap-1">
+                  <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
+                  {t.payment_method}
+                </span>
               </div>
             }
           />

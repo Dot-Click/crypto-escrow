@@ -3,8 +3,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Users, ArrowLeftRight } from "lucide-react";
 import { getTraderProfile } from "@/lib/trader-profile.functions";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { CoinIcon } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -72,7 +75,8 @@ function TraderProfilePage() {
               <span className="text-2xl">—</span>
             ) : (
               p.volumeByCrypto.map((v) => (
-                <span key={v.cryptoType} className="tabular-nums">
+                <span key={v.cryptoType} className="inline-flex items-center gap-1 tabular-nums">
+                  <CoinIcon code={v.cryptoType} className="size-4" />
                   {v.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} {v.cryptoType}
                 </span>
               ))
@@ -91,7 +95,8 @@ function TraderProfilePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {p.methodBreakdown.map((m) => (
-                <Badge key={m.method} variant="secondary" className="font-normal">
+                <Badge key={m.method} variant="secondary" className="gap-1 font-normal">
+                  <PaymentRailIcon railKey={railKeyForMethod(m.method)} className="size-3.5" />
                   {m.method} · {m.trades}
                 </Badge>
               ))}

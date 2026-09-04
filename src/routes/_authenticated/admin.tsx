@@ -17,7 +17,10 @@ import {
   upsertMasterWallet,
 } from "@/lib/admin.functions";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { useAuth } from "@/hooks/useAuth";
+import { CoinIcon } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -286,11 +289,13 @@ function DisputeCard({ dispute }: { dispute: DisputeRow }) {
           <Badge variant={dispute.status === "open" ? "destructive" : "default"}>{dispute.status}</Badge>
           {trade ? (
             <>
-              <span className="mono text-sm font-semibold">
+              <span className="mono flex items-center gap-1.5 text-sm font-semibold">
+                <CoinIcon code={trade.crypto_type} className="size-4" />
                 {Number(trade.amount)} {trade.crypto_type}
               </span>
-              <span className="text-sm text-muted-foreground">
-                ${(Number(trade.amount) * Number(trade.price)).toLocaleString()} ·{" "}
+              <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                ${(Number(trade.amount) * Number(trade.price)).toLocaleString()} ·
+                <PaymentRailIcon railKey={railKeyForMethod(trade.payment_method ?? "")} className="size-3.5" />
                 {trade.payment_method ?? "—"}
               </span>
               <Badge variant={statusVariant(trade.status)}>
@@ -449,15 +454,18 @@ function AllTrades() {
               <CardContent className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="mono font-semibold">
+                    <span className="mono flex items-center gap-1.5 font-semibold">
+                      <CoinIcon code={t.crypto_type} className="size-4" />
                       {t.amount} {t.crypto_type}
                     </span>
                     <Badge variant={statusVariant(t.status)}>
                       {TRADE_STATUS_LABEL[t.status as TradeStatus] ?? t.status}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    ${(t.amount * t.price).toLocaleString()} · {t.payment_method ?? "—"}
+                  <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                    ${(t.amount * t.price).toLocaleString()} ·
+                    <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
+                    {t.payment_method ?? "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t.buyer?.display_name ?? "—"} (buyer) ↔ {t.seller?.display_name ?? "—"} (seller) ·{" "}
@@ -560,7 +568,8 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
       <CardContent className="space-y-3 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={claimStatusVariant(claim.status)}>{claim.status}</Badge>
-          <span className="mono text-sm font-semibold">
+          <span className="mono flex items-center gap-1.5 text-sm font-semibold">
+            <CoinIcon code={claim.crypto_type} className="size-4" />
             {claim.claimed_amount} {claim.crypto_type} <span className="text-xs font-normal text-muted-foreground">via {claim.network}</span>
           </span>
           {claim.verified_amount != null ? (

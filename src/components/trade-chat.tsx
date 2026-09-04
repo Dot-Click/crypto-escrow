@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Paperclip, Send, X, Wallet } from "lucide-react";
+import { Loader2, Paperclip, Send, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { listMessages, sendMessage } from "@/lib/messages.functions";
 import { playMessageSound } from "@/lib/notification-sound";
 import { RAIL_DETAIL_FIELDS } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,7 +77,7 @@ function PaymentDetailsBubble({
     <div className="flex justify-start">
       <div className="max-w-[95%] rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm sm:max-w-[85%]">
         <div className="flex items-center gap-2 text-xs font-medium text-primary">
-          <Wallet className="size-3.5" /> Payment details from {sellerName}
+          <PaymentRailIcon railKey={railKey} className="size-3.5" /> Payment details from {sellerName}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           {details.label ? (

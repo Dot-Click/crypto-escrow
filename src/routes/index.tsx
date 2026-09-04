@@ -24,6 +24,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { currencySymbol } from "@/lib/currencies";
 import { PAYMENT_RAILS, railKeyForMethod, railLabelForMethod, providerForMethod } from "@/lib/payment-taxonomy";
@@ -216,7 +218,10 @@ function Marketplace() {
                   <SelectItem value="all">All coins</SelectItem>
                   {CRYPTO_TYPES.map((c) => (
                     <SelectItem key={c.code} value={c.code}>
-                      {c.code}
+                      <span className="flex items-center gap-2">
+                        <CoinIcon code={c.code} className="size-4" />
+                        {c.code}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -238,7 +243,10 @@ function Marketplace() {
                   <SelectItem value="all">Any method</SelectItem>
                   {PAYMENT_RAILS.map((r) => (
                     <SelectItem key={r.key} value={r.key}>
-                      {r.label}
+                      <span className="flex items-center gap-2">
+                        <PaymentRailIcon railKey={r.key} className="size-4 text-muted-foreground" />
+                        {r.label}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -322,7 +330,8 @@ function Marketplace() {
                   <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-base font-semibold">
+                        <span className="flex items-center gap-1.5 text-base font-semibold">
+                          <CoinIcon code={l.crypto_type} className="size-5" />
                           {l.amount} {l.crypto_type}
                         </span>
                         <Link
@@ -361,7 +370,8 @@ function Marketplace() {
                       ) : null}
                       <div className="flex flex-wrap gap-1.5">
                         {l.accepted_payment_methods.map((m) => (
-                          <Badge key={m} variant="secondary" className="font-normal">
+                          <Badge key={m} variant="secondary" className="gap-1 font-normal">
+                            <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3" />
                             {m}
                           </Badge>
                         ))}
@@ -473,7 +483,8 @@ function StartTradeDialog({
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {listing ? <CoinIcon code={listing.crypto_type} className="size-5" /> : null}
             Start trade · {listing?.crypto_type}
           </DialogTitle>
           <DialogDescription>
@@ -544,7 +555,10 @@ function StartTradeDialog({
               <SelectContent>
                 {(listing?.accepted_payment_methods ?? []).map((m) => (
                   <SelectItem key={m} value={m}>
-                    {m}
+                    <span className="flex items-center gap-2">
+                      <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-4 text-muted-foreground" />
+                      {m}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -572,41 +586,6 @@ const HERO_NAV = [
   { index: "03", label: "Create Offer", to: "/auth" as const },
   { index: "04", label: "Wallet", to: "/auth" as const },
 ];
-
-const COIN_GLYPH: Record<string, string> = { BTC: "B", ETH: "Ξ", LTC: "Ł", USDT: "T" };
-const COIN_FULL_NAME: Record<string, string> = {
-  BTC: "Bitcoin",
-  ETH: "Ethereum",
-  LTC: "Litecoin",
-  USDT: "Tether",
-};
-
-function CoinIcon({ code, className }: { code: string; className?: string }) {
-  if (code === "ETH") {
-    // Ethereum's diamond silhouette — geometric, no font-glyph risk.
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.4">
-        <path d="M12 2.5 L18.5 12.5 L12 16.2 L5.5 12.5 Z" strokeLinejoin="round" />
-        <path d="M12 16.2 L18.5 12.5 L12 21.5 L5.5 12.5 Z" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" className={className}>
-      <text
-        x="12"
-        y="17"
-        textAnchor="middle"
-        fontSize="13"
-        fontWeight="700"
-        fill="currentColor"
-        fontFamily="var(--font-monospace)"
-      >
-        {COIN_GLYPH[code] ?? code[0]}
-      </text>
-    </svg>
-  );
-}
 
 const FEATURE_CARDS = [
   {
@@ -764,8 +743,8 @@ function LandingHero() {
             <div className="pointer-events-none absolute left-2 top-1/4 hidden flex-col gap-6 md:flex lg:-left-16 xl:-left-36">
               {CRYPTO_TYPES.slice(0, 2).map((c) => (
                 <div key={c.code} className="flex flex-col items-center gap-1.5">
-                  <span className="flex size-16 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground backdrop-blur lg:size-20">
-                    <CoinIcon code={c.code} className="size-7 lg:size-9" />
+                  <span className="flex size-16 items-center justify-center rounded-full border border-border bg-card/70 backdrop-blur lg:size-20">
+                    <CoinIcon code={c.code} className="size-9 lg:size-11" />
                   </span>
                   <span className="text-xs text-muted-foreground/40">{COIN_FULL_NAME[c.code] ?? c.code}</span>
                 </div>
@@ -774,8 +753,8 @@ function LandingHero() {
             <div className="pointer-events-none absolute right-2 top-1/3 hidden flex-col gap-6 md:flex lg:-right-16 xl:-right-36">
               {CRYPTO_TYPES.slice(2, 4).map((c) => (
                 <div key={c.code} className="flex flex-col items-center gap-1.5">
-                  <span className="flex size-16 items-center justify-center rounded-full border border-border bg-card/70 text-muted-foreground backdrop-blur lg:size-20">
-                    <CoinIcon code={c.code} className="size-7 lg:size-9" />
+                  <span className="flex size-16 items-center justify-center rounded-full border border-border bg-card/70 backdrop-blur lg:size-20">
+                    <CoinIcon code={c.code} className="size-9 lg:size-11" />
                   </span>
                   <span className="text-xs text-muted-foreground/40">{COIN_FULL_NAME[c.code] ?? c.code}</span>
                 </div>

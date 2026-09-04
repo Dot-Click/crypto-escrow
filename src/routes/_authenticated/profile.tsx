@@ -15,6 +15,8 @@ import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
+import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -460,7 +462,10 @@ function ProfilePage() {
                   className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/30 px-3 py-2"
                 >
                   <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline">{pm.method}</Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <PaymentRailIcon railKey={railKeyForMethod(pm.method)} className="size-3.5" />
+                      {pm.method}
+                    </Badge>
                     <span className="text-muted-foreground">
                       {pm.label ? `${pm.label} · ` : ""}
                       {summarizeDetails(railKeyForMethod(pm.method) ?? "", pm.details as Record<string, string>)}
@@ -486,9 +491,10 @@ function ProfilePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full justify-start"
+                  className="w-full justify-start gap-2"
                   onClick={() => setPickerOpen(true)}
                 >
+                  {newMethod ? <PaymentRailIcon railKey={newRailKey} className="size-4" /> : null}
                   {newMethod ?? "Choose a payment method"}
                 </Button>
               </div>
@@ -553,7 +559,8 @@ function ProfilePage() {
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <CoinIcon code={l.crypto_type} className="size-4" />
                       {l.side === "sell" ? "Selling" : "Buying"} {l.amount} {l.crypto_type}
                     </span>
                     <Badge variant={l.status === "active" ? "default" : "secondary"}>

@@ -13,6 +13,8 @@ import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { RAIL_DETAIL_FIELDS } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { CoinIcon } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -325,7 +327,10 @@ function NewListing() {
                   <SelectContent>
                     {CRYPTO_TYPES.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
-                        {c.label}
+                        <span className="flex items-center gap-2">
+                          <CoinIcon code={c.code} className="size-4" />
+                          {c.label}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -550,7 +555,10 @@ function NewListing() {
                             key={m}
                             className="space-y-2 rounded-md border border-border bg-muted/40 px-3 py-2.5"
                           >
-                            <p className="text-sm font-medium">{m}</p>
+                            <p className="flex items-center gap-1.5 text-sm font-medium">
+                              <PaymentRailIcon railKey={rk} className="size-4 text-muted-foreground" />
+                              {m}
+                            </p>
                             {matches.length > 0 ? (
                               <Select
                                 value={attachedDetails[m] ?? "__none"}

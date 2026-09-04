@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, ArrowLeft, X } from "lucide-react";
 import { PAYMENT_RAILS, methodString, railLabelForMethod, providerForMethod } from "@/lib/payment-taxonomy";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -102,9 +103,10 @@ export function PaymentMethodPicker({
                       }`}
                       onClick={() => toggle(method)}
                     >
-                      <span>
+                      <span className="flex items-center gap-2">
+                        <PaymentRailIcon railKey={rail.key} className="size-4 text-muted-foreground" />
                         {provider}
-                        <span className="ml-2 text-xs text-muted-foreground">{rail.label}</span>
+                        <span className="text-xs text-muted-foreground">{rail.label}</span>
                       </span>
                       {isSelected ? <Badge>Selected</Badge> : null}
                     </button>
@@ -126,6 +128,7 @@ export function PaymentMethodPicker({
                       onClick={() => setActiveRailKey(rail.key)}
                     >
                       <span className="flex items-center gap-2">
+                        <PaymentRailIcon railKey={rail.key} className="size-4 text-muted-foreground" />
                         {rail.label}
                         <span className="text-xs text-muted-foreground">{rail.providers.length}</span>
                         {count > 0 ? <Badge variant="secondary">{count} selected</Badge> : null}
@@ -157,7 +160,10 @@ export function PaymentMethodPicker({
                 >
                   <ArrowLeft className="size-4" />
                 </button>
-                <DialogTitle>{activeRail.label}</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <PaymentRailIcon railKey={activeRail.key} className="size-4" />
+                  {activeRail.label}
+                </DialogTitle>
               </div>
             </DialogHeader>
             <Input

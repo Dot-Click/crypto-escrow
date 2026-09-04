@@ -9,6 +9,7 @@ import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
 import { CRYPTO_TYPES } from "@/lib/constants";
+import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -184,7 +185,10 @@ function WalletPage() {
                 <Card key={w.id}>
                   <CardContent className="space-y-3 py-5">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold">{w.crypto_type}</span>
+                      <span className="flex items-center gap-2 font-semibold">
+                        <CoinIcon code={w.crypto_type} className="size-6" />
+                        {w.crypto_type}
+                      </span>
                       {w.held_balance > 0 ? (
                         <Badge variant="secondary" className="gap-1 font-normal">
                           <Lock className="size-3" />
@@ -246,7 +250,10 @@ function WalletPage() {
                     <SelectContent>
                       {CRYPTO_TYPES.map((c) => (
                         <SelectItem key={c.code} value={c.code}>
-                          {c.code}
+                          <span className="flex items-center gap-2">
+                            <CoinIcon code={c.code} className="size-4" />
+                            {c.code}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -342,7 +349,8 @@ function WalletPage() {
                     className="flex flex-col gap-1 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
-                      <p className="text-sm font-medium">
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        <CoinIcon code={t.crypto_type} className="size-4" />
                         {TYPE_LABEL[t.type] ?? t.type}{" "}
                         <span className="mono text-muted-foreground">
                           {t.amount} {t.crypto_type}

@@ -6,6 +6,7 @@ import { ShieldCheck } from "lucide-react";
 import { getTransparencyStats } from "@/lib/platform-stats.functions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CoinIcon } from "@/components/coin-icon";
 
 export const Route = createFileRoute("/transparency")({
   head: () => ({
@@ -122,7 +123,12 @@ function TransparencyPage() {
                         row.userLiabilities === 0 ? null : (row.systemReserves / row.userLiabilities) * 100;
                       return (
                         <TableRow key={row.currency}>
-                          <TableCell className="font-medium">{row.currency}</TableCell>
+                          <TableCell className="font-medium">
+                            <span className="flex items-center gap-2">
+                              <CoinIcon code={row.currency} className="size-4" />
+                              {row.currency}
+                            </span>
+                          </TableCell>
                           <TableCell className="mono text-right tabular-nums">
                             {formatAmount(row.systemReserves)}
                           </TableCell>

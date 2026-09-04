@@ -4,7 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { listMyTrades } from "@/lib/trades.functions";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
+import { CoinIcon } from "@/components/coin-icon";
+import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -203,7 +206,8 @@ function TradesPage() {
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">
+                    <span className="flex items-center gap-1.5 font-semibold">
+                      <CoinIcon code={t.crypto_type} className="size-4" />
                       {t.amount} {t.crypto_type}
                     </span>
                     <Badge variant={statusVariant(t.status)}>
@@ -211,8 +215,10 @@ function TradesPage() {
                     </Badge>
                     <Badge variant="outline">You are the {t.role}</Badge>
                   </div>
-                  <p className="mono text-sm text-muted-foreground">
-                    ${(t.amount * t.price).toLocaleString()} total · {t.payment_method ?? "—"}
+                  <p className="mono flex items-center gap-1.5 text-sm text-muted-foreground">
+                    ${(t.amount * t.price).toLocaleString()} total ·
+                    <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
+                    {t.payment_method ?? "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     With {t.role === "buyer" ? t.seller?.display_name : t.buyer?.display_name} ·{" "}

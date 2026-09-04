@@ -60,20 +60,21 @@
   --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-monospace: "JetBrains Mono", ui-monospace, monospace;
 
-  /* base — #0D0D0D / #1A1A1A / #2A2A2A / #F5F5F5 / #A0A0A0 */
-  --background: oklch(0.158 0 0);
+  /* base — lightened a step from the original #0D0D0D/#1A1A1A/#2A2A2A run,
+     same hierarchy of steps between background/card/border, just less black */
+  --background: oklch(0.205 0 0);
   --foreground: oklch(0.965 0 0);
-  --card: oklch(0.221 0 0);
+  --card: oklch(0.263 0 0);
   --card-foreground: oklch(0.965 0 0);
-  --popover: oklch(0.221 0 0);
+  --popover: oklch(0.263 0 0);
   --popover-foreground: oklch(0.965 0 0);
-  --border: oklch(0.288 0 0);
-  --input: oklch(0.288 0 0);
-  --muted: oklch(0.248 0 0);
-  --muted-foreground: oklch(0.706 0 0);
-  --accent: oklch(0.288 0 0);
+  --border: oklch(0.325 0 0);
+  --input: oklch(0.325 0 0);
+  --muted: oklch(0.29 0 0);
+  --muted-foreground: oklch(0.723 0 0);
+  --accent: oklch(0.325 0 0);
   --accent-foreground: oklch(0.965 0 0);
-  --secondary: oklch(0.248 0 0);
+  --secondary: oklch(0.29 0 0);
   --secondary-foreground: oklch(0.965 0 0);
 
   /* actions & statuses */
@@ -89,13 +90,13 @@
   --escrow: oklch(0.702 0.122 182.9); /* #14B8A6 funded */
   --escrow-foreground: oklch(0.16 0 0);
 
-  --sidebar: oklch(0.221 0 0);
+  --sidebar: oklch(0.263 0 0);
   --sidebar-foreground: oklch(0.965 0 0);
   --sidebar-primary: oklch(0.566 0.191 261.3);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.288 0 0);
+  --sidebar-accent: oklch(0.325 0 0);
   --sidebar-accent-foreground: oklch(0.965 0 0);
-  --sidebar-border: oklch(0.288 0 0);
+  --sidebar-border: oklch(0.325 0 0);
   --sidebar-ring: oklch(0.566 0.191 261.3);
 }
 

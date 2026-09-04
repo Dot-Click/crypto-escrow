@@ -313,7 +313,6 @@ function NewListing() {
         </CardHeader>
         <CardContent className="space-y-6">
           {step === 0 ? (
-            <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Offer type</Label>
@@ -354,18 +353,15 @@ function NewListing() {
                   <SelectContent>
                     {CURRENCIES.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
-                        {c.code} — {c.label}
+                        <span className="flex items-center gap-2">
+                          <span aria-hidden>{c.flag}</span>
+                          {c.code} — {c.label}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              No need to declare a total amount — availability is checked against your wallet
-              balance whenever a buyer starts a trade. Set how big a single trade can be in the
-              next step.
-            </p>
             </div>
           ) : null}
 

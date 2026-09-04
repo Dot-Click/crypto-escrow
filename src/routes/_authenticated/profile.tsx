@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,8 +9,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { RAIL_DETAIL_FIELDS, summarizeDetails } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { closeAccount } from "@/lib/account.functions";
+import { uploadAvatar } from "@/lib/avatar";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { UserAvatar } from "@/components/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +59,7 @@ function ProfilePage() {
   const { user, profile, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const avatarInput = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"buyer" | "seller" | "both">("both");
   const [busy, setBusy] = useState(false);
@@ -67,6 +70,9 @@ function ProfilePage() {
 
   const [newEmail, setNewEmail] = useState("");
   const [emailBusy, setEmailBusy] = useState(false);
+
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarVersion, setAvatarVersion] = useState(0);
 
   useEffect(() => {
     if (profile) {
@@ -208,6 +214,28 @@ function ProfilePage() {
     toast.success(`Confirmation links sent to ${user?.email} and ${trimmed} — click both to finish the change.`);
   };
 
+  const handleAvatarUpload = async (file: File | undefined) => {
+    if (!file || !user) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Use a JPEG, PNG, or WebP image");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be 2 MB or smaller");
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      await uploadAvatar(user.id, file);
+      setAvatarVersion(Date.now());
+      toast.success("Avatar updated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't upload avatar");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
   const closeAccountFn = useServerFn(closeAccount);
   const closeAccountMutation = useMutation({
     mutationFn: () => closeAccountFn(),
@@ -237,6 +265,35 @@ function ProfilePage() {
           <CardDescription>{user?.email}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            {user ? (
+              <UserAvatar
+                userId={user.id}
+                displayName={profile?.display_name ?? "Trader"}
+                cacheBust={avatarVersion}
+                className="size-16 shrink-0 text-xl"
+              />
+            ) : null}
+            <div className="space-y-1">
+              <input
+                ref={avatarInput}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => void handleAvatarUpload(e.target.files?.[0])}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={avatarBusy}
+                onClick={() => avatarInput.current?.click()}
+              >
+                {avatarBusy ? "Uploading…" : "Change photo"}
+              </Button>
+              <p className="text-xs text-muted-foreground">JPEG, PNG or WebP, up to 2 MB.</p>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dn">Display name</Label>

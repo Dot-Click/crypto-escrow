@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Users, ArrowLeftRight } from "lucide-react";
 import { getTraderProfile } from "@/lib/trader-profile.functions";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { UserAvatar } from "@/components/user-avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -43,9 +44,7 @@ function TraderProfilePage() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10">
       <div className="mb-8 flex items-center gap-4">
-        <span className="flex size-14 items-center justify-center rounded-full bg-muted text-lg font-semibold">
-          {p.displayName.slice(0, 1).toUpperCase()}
-        </span>
+        <UserAvatar userId={p.id} displayName={p.displayName} className="size-14 shrink-0 text-lg" />
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold">{p.displayName}</h1>

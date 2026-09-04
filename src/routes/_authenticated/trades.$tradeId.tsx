@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { TradeChat } from "@/components/trade-chat";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { UserAvatar } from "@/components/user-avatar";
 
 export const Route = createFileRoute("/_authenticated/trades/$tradeId")({
   head: () => ({
@@ -461,9 +462,11 @@ function TradeRoom() {
         <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
           <div className="flex shrink-0 items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
             <div className="flex items-center gap-3">
-              <span className="flex size-9 items-center justify-center rounded-full bg-muted text-sm font-semibold">
-                {(counterparty?.display_name ?? "T").slice(0, 1).toUpperCase()}
-              </span>
+              <UserAvatar
+                userId={counterpartyId}
+                displayName={counterparty?.display_name ?? "Trader"}
+                className="size-9 shrink-0 text-sm"
+              />
               <div>
                 <div className="flex items-center gap-2">
                   <Link

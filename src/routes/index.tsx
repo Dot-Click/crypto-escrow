@@ -30,6 +30,7 @@ import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
+import { offerTagLabel } from "@/lib/offer-tags";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
@@ -414,6 +415,11 @@ function Marketplace() {
                             {l.min_trades_required}+ trades required
                           </Badge>
                         ) : null}
+                        {(l.tags ?? []).map((t) => (
+                          <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
+                            {offerTagLabel(t)}
+                          </Badge>
+                        ))}
                       </div>
                       {l.terms ? (
                         <p className="max-w-prose text-xs text-muted-foreground">{l.terms}</p>
@@ -464,6 +470,7 @@ type ListingRow = {
   fiat_currency: string;
   country: string | null;
   min_trades_required: number | null;
+  tags: string[];
   accepted_payment_methods: string[];
 };
 

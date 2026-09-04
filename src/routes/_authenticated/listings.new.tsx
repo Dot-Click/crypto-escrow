@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
+import { OFFER_TAG_PAIRS, offerTagLabel } from "@/lib/offer-tags";
 import { computeEffectivePrice } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
@@ -75,6 +76,8 @@ function NewListing() {
   const [timeLimitMinutes, setTimeLimitMinutes] = useState("60");
   const [minTradesEnabled, setMinTradesEnabled] = useState(false);
   const [minTradesRequired, setMinTradesRequired] = useState("3");
+  const [tags, setTags] = useState<string[]>([]);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
   const [methods, setMethods] = useState<string[]>([]);
   const [attachedDetails, setAttachedDetails] = useState<Record<string, string>>({});
   // New inline detail entry — keyed by method name. When populated, we
@@ -148,6 +151,13 @@ function NewListing() {
   };
 
   const removeMethod = (m: string) => setMethodsAndPrune(methods.filter((x) => x !== m));
+
+  // Toggling a tag unchecks its opposite in the pair — "No VPN" and "VPN
+  // allowed" checked together wouldn't mean anything.
+  const toggleTag = (value: string, pairValue: string) =>
+    setTags((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev.filter((t) => t !== pairValue), value],
+    );
 
   const hasInlineDetailsFor = (m: string) => {
     const rk = railKeyForMethod(m);
@@ -282,6 +292,8 @@ function NewListing() {
         min_trades_required: minTradesEnabled ? Number(minTradesRequired) : null,
         accepted_payment_methods: methods,
         terms: terms || null,
+        tags,
+        welcome_message: welcomeMessage || null,
       })
       .select("id")
       .single();
@@ -676,6 +688,45 @@ function NewListing() {
                     placeholder="Payment within 30 minutes. Send proof in the trade chat."
                   />
                 </div>
+
+                <div className="group space-y-1.5">
+                  <Label htmlFor="welcome-message">Automatic trade message (optional)</Label>
+                  <Textarea
+                    id="welcome-message"
+                    value={welcomeMessage}
+                    onChange={(e) => setWelcomeMessage(e.target.value)}
+                    placeholder="Hi, thanks for opening this trade. Please follow the payment instructions."
+                  />
+                  <p className="hidden text-xs text-muted-foreground group-focus-within:block">
+                    Sent automatically in the trade chat the moment escrow opens.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Trade policies (optional)</Label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {OFFER_TAG_PAIRS.flat().map((opt) => {
+                      const pair = OFFER_TAG_PAIRS.find((p) => p[0].value === opt.value || p[1].value === opt.value)!;
+                      const other = pair[0].value === opt.value ? pair[1].value : pair[0].value;
+                      return (
+                        <label
+                          key={opt.value}
+                          className="flex cursor-pointer items-start gap-2 rounded-md border border-border p-2.5 text-sm"
+                        >
+                          <Checkbox
+                            checked={tags.includes(opt.value)}
+                            onCheckedChange={() => toggleTag(opt.value, other)}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            <span className="block font-medium">{opt.label}</span>
+                            <span className="block text-xs text-muted-foreground">{opt.description}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3 border-t border-border pt-6">
@@ -733,6 +784,12 @@ function NewListing() {
                       methods.join(", ")
                     )}
                   </div>
+                  {tags.length > 0 ? (
+                    <div className="sm:col-span-2">
+                      <span className="text-muted-foreground">Policies: </span>
+                      {tags.map((t) => offerTagLabel(t)).join(", ")}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>

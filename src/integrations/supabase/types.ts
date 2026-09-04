@@ -556,8 +556,10 @@ export type Database = {
           seller_id: string
           side: Database["public"]["Enums"]["listing_side"]
           status: Database["public"]["Enums"]["listing_status"]
+          tags: string[]
           terms: string | null
           updated_at: string
+          welcome_message: string | null
         }
         Insert: {
           accepted_payment_methods?: string[]
@@ -577,8 +579,10 @@ export type Database = {
           seller_id: string
           side?: Database["public"]["Enums"]["listing_side"]
           status?: Database["public"]["Enums"]["listing_status"]
+          tags?: string[]
           terms?: string | null
           updated_at?: string
+          welcome_message?: string | null
         }
         Update: {
           accepted_payment_methods?: string[]
@@ -598,8 +602,10 @@ export type Database = {
           seller_id?: string
           side?: Database["public"]["Enums"]["listing_side"]
           status?: Database["public"]["Enums"]["listing_status"]
+          tags?: string[]
           terms?: string | null
           updated_at?: string
+          welcome_message?: string | null
         }
         Relationships: [
           {

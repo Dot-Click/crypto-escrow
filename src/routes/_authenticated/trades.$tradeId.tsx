@@ -14,6 +14,7 @@ import {
 import { listMessages } from "@/lib/messages.functions";
 import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
 import { currencySymbol } from "@/lib/currencies";
+import { offerTagLabel } from "@/lib/offer-tags";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +235,22 @@ function TradeRoom() {
               <CardContent className="space-y-1.5 py-4">
                 <p className="text-sm font-medium">Offer terms</p>
                 <p className="whitespace-pre-line text-sm text-muted-foreground">{d.terms}</p>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {/* Offer policies */}
+          {d.tags && d.tags.length > 0 ? (
+            <Card>
+              <CardContent className="space-y-2 py-4">
+                <p className="text-sm font-medium">Offer policies</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {d.tags.map((t: string) => (
+                    <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
+                      {offerTagLabel(t)}
+                    </Badge>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           ) : null}

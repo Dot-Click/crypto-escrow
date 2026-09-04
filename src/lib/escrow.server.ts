@@ -146,7 +146,7 @@ export async function openTrade(params: {
   const { data: listing, error } = await supabaseAdmin
     .from("listings")
     .select(
-      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status, min_trades_required",
+      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status, min_trades_required, welcome_message",
     )
     .eq("id", params.listingId)
     .maybeSingle();
@@ -262,6 +262,14 @@ export async function openTrade(params: {
     crypto_type: listing.crypto_type,
     status: "completed",
   });
+
+  if (listing.welcome_message) {
+    await supabaseAdmin.from("messages").insert({
+      trade_id: trade.id,
+      sender_id: listing.seller_id,
+      content: listing.welcome_message,
+    });
+  }
 
   return { tradeId: trade.id };
 }

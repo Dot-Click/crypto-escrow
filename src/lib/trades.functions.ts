@@ -58,13 +58,15 @@ export const getTrade = createServerFn({ method: "POST" })
       .maybeSingle();
 
     let terms: string | null = null;
+    let tags: string[] = [];
     if (trade.listing_id) {
       const { data: listing } = await supabaseAdmin
         .from("listings")
-        .select("terms")
+        .select("terms, tags")
         .eq("id", trade.listing_id)
         .maybeSingle();
       terms = listing?.terms ?? null;
+      tags = listing?.tags ?? [];
     }
 
     return {
@@ -76,6 +78,7 @@ export const getTrade = createServerFn({ method: "POST" })
         payout_amount: Number(trade.payout_amount),
       },
       terms,
+      tags,
       dispute,
       role: trade.buyer_id === context.userId ? ("buyer" as const) : ("seller" as const),
     };

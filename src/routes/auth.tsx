@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
+import { COUNTRIES } from "@/lib/countries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,10 +45,20 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"buyer" | "seller" | "both">("both");
+  const [country, setCountry] = useState("");
+  const [referralCode, setReferralCode] = useState("");
 
   useEffect(() => {
     if (!loading && user) navigate({ to: "/", replace: true });
   }, [loading, user, navigate]);
+
+  // Prefill from a referral link (e.g. fomn.app/auth?ref=ABC12345) — a
+  // plain query param, not a typed search param, so it works from any link
+  // without the route needing a validateSearch schema.
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("ref");
+    if (ref) setReferralCode(ref.toUpperCase());
+  }, []);
 
   const signIn = async () => {
     setBusy(true);
@@ -67,7 +78,12 @@ function AuthPage() {
       password,
       options: {
         emailRedirectTo: window.location.origin,
-        data: { display_name: displayName || email.split("@")[0], role },
+        data: {
+          display_name: displayName || email.split("@")[0],
+          role,
+          country: country || null,
+          referral_code: referralCode.trim() || null,
+        },
       },
     });
     setBusy(false);
@@ -206,6 +222,30 @@ function AuthPage() {
                         <SelectItem value="both">Both</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Country</Label>
+                    <Select value={country} onValueChange={setCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your country" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {COUNTRIES.map((c) => (
+                          <SelectItem key={c.code} value={c.code}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="su-ref">Referral code (optional)</Label>
+                    <Input
+                      id="su-ref"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      placeholder="Friend's invite code"
+                    />
                   </div>
                   <Button className="w-full rounded-full" disabled={busy} onClick={signUp}>
                     Create account

@@ -721,33 +721,42 @@ export type Database = {
       profiles: {
         Row: {
           closed_at: string | null
+          country: string | null
           created_at: string
           display_name: string
           email: string | null
           email_notifications: boolean
           id: string
+          referral_code: string
+          referred_by: string | null
           role: Database["public"]["Enums"]["profile_role"]
           trades_completed: number
           updated_at: string
         }
         Insert: {
           closed_at?: string | null
+          country?: string | null
           created_at?: string
           display_name?: string
           email?: string | null
           email_notifications?: boolean
           id: string
+          referral_code?: string
+          referred_by?: string | null
           role?: Database["public"]["Enums"]["profile_role"]
           trades_completed?: number
           updated_at?: string
         }
         Update: {
           closed_at?: string | null
+          country?: string | null
           created_at?: string
           display_name?: string
           email?: string | null
           email_notifications?: boolean
           id?: string
+          referral_code?: string
+          referred_by?: string | null
           role?: Database["public"]["Enums"]["profile_role"]
           trades_completed?: number
           updated_at?: string

@@ -8,6 +8,8 @@ export type Profile = {
   role: "buyer" | "seller" | "both";
   email: string | null;
   trades_completed: number;
+  country: string | null;
+  referral_code: string;
 };
 
 type AuthContextValue = {
@@ -38,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [{ data: p }, { data: roles }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, display_name, role, email, trades_completed")
+        .select("id, display_name, role, email, trades_completed, country, referral_code")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { RAIL_DETAIL_FIELDS, summarizeDetails } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { COUNTRIES } from "@/lib/countries";
 import { closeAccount } from "@/lib/account.functions";
 import { uploadAvatar } from "@/lib/avatar";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
@@ -62,6 +63,7 @@ function ProfilePage() {
   const avatarInput = useRef<HTMLInputElement>(null);
   const [displayName, setDisplayName] = useState("");
   const [role, setRole] = useState<"buyer" | "seller" | "both">("both");
+  const [country, setCountry] = useState("");
   const [busy, setBusy] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
@@ -78,6 +80,7 @@ function ProfilePage() {
     if (profile) {
       setDisplayName(profile.display_name);
       setRole(profile.role);
+      setCountry(profile.country ?? "");
     }
   }, [profile]);
 
@@ -165,7 +168,7 @@ function ProfilePage() {
     setBusy(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName, role })
+      .update({ display_name: displayName, role, country: country || null })
       .eq("id", user.id);
     setBusy(false);
     if (error) {
@@ -311,6 +314,43 @@ function ProfilePage() {
                   <SelectItem value="both">Both</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Country</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Your referral code</Label>
+              <div className="flex gap-2">
+                <Input readOnly value={profile?.referral_code ?? ""} className="mono" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    if (!profile) return;
+                    void navigator.clipboard.writeText(
+                      `${window.location.origin}/auth?ref=${profile.referral_code}`,
+                    );
+                    toast.success("Invite link copied");
+                  }}
+                >
+                  Copy link
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Share this link — anyone who signs up through it is linked to your account.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">

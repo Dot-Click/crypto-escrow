@@ -20,6 +20,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Lock,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,7 +29,8 @@ import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { currencySymbol } from "@/lib/currencies";
-import { PAYMENT_RAILS, railKeyForMethod, railLabelForMethod, providerForMethod } from "@/lib/payment-taxonomy";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { Button } from "@/components/ui/button";
@@ -70,8 +72,8 @@ function Marketplace() {
   const { user } = useAuth();
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
-  const [railKey, setRailKey] = useState("all");
-  const [provider, setProvider] = useState("");
+  const [methodFilter, setMethodFilter] = useState<string | null>(null);
+  const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [search, setSearch] = useState("");
@@ -120,13 +122,8 @@ function Marketplace() {
 
     let out = (listings.data ?? []).filter((l) => l.side === side);
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
-    if (railKey !== "all") {
-      out = out.filter((l) =>
-        l.accepted_payment_methods.some((m) => {
-          if (railKeyForMethod(m) !== railKey) return false;
-          return !provider || providerForMethod(m) === provider;
-        }),
-      );
+    if (methodFilter) {
+      out = out.filter((l) => l.accepted_payment_methods.includes(methodFilter));
     }
     if (minPrice) out = out.filter((l) => usdPriceOf(l) >= Number(minPrice));
     if (maxPrice) out = out.filter((l) => usdPriceOf(l) <= Number(maxPrice));
@@ -148,8 +145,7 @@ function Marketplace() {
     fxRates.data,
     side,
     crypto,
-    railKey,
-    provider,
+    methodFilter,
     minPrice,
     maxPrice,
     search,
@@ -229,49 +225,31 @@ function Marketplace() {
             </div>
             <div className="space-y-2">
               <Label>Payment method</Label>
-              <Select
-                value={railKey}
-                onValueChange={(v) => {
-                  setRailKey(v);
-                  setProvider(""); // switching category clears any specific provider picked in the old one
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any method</SelectItem>
-                  {PAYMENT_RAILS.map((r) => (
-                    <SelectItem key={r.key} value={r.key}>
-                      <span className="flex items-center gap-2">
-                        <PaymentRailIcon railKey={r.key} className="size-4 text-muted-foreground" />
-                        {r.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {railKey !== "all" ? (
-              <div className="space-y-2">
-                <Label>{PAYMENT_RAILS.find((r) => r.key === railKey)?.label}</Label>
-                <Select value={provider || "any"} onValueChange={(v) => setProvider(v === "any" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    <SelectItem value="any">
-                      Any {PAYMENT_RAILS.find((r) => r.key === railKey)?.label.toLowerCase()}
-                    </SelectItem>
-                    {PAYMENT_RAILS.find((r) => r.key === railKey)?.providers.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start gap-2 font-normal"
+                  onClick={() => setMethodPickerOpen(true)}
+                >
+                  {methodFilter ? (
+                    <PaymentRailIcon railKey={railKeyForMethod(methodFilter)} className="size-4 text-muted-foreground" />
+                  ) : null}
+                  <span className="truncate">{methodFilter ?? "Any method"}</span>
+                </Button>
+                {methodFilter ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Clear payment method filter"
+                    onClick={() => setMethodFilter(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                ) : null}
               </div>
-            ) : null}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="min">Min price (USD equiv.)</Label>
@@ -390,6 +368,14 @@ function Marketplace() {
           )}
         </div>
       </div>
+
+      <PaymentMethodPicker
+        open={methodPickerOpen}
+        onOpenChange={setMethodPickerOpen}
+        selected={methodFilter ? [methodFilter] : []}
+        onChange={(methods) => setMethodFilter(methods[0] ?? null)}
+        multiple={false}
+      />
 
       <StartTradeDialog
         listing={activeListing}

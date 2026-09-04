@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -121,9 +121,9 @@ function FeesPage() {
 
       <p className="text-xs text-muted-foreground">
         Live platform figures — reserves, liabilities and open disputes — are published on the{" "}
-        <Link to="/transparency" className="text-primary underline-offset-2 hover:underline">
+        <a href="/transparency" className="text-primary underline-offset-2 hover:underline">
           transparency page
-        </Link>
+        </a>
         . This is a testnet demo: figures above describe how the platform is actually wired today,
         not a finalized commercial fee schedule.
       </p>

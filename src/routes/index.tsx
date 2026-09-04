@@ -26,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { currencySymbol } from "@/lib/currencies";
-import { PAYMENT_RAILS, railLabelForMethod } from "@/lib/payment-taxonomy";
+import { PAYMENT_RAILS, railKeyForMethod, railLabelForMethod, providerForMethod } from "@/lib/payment-taxonomy";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,8 @@ function Marketplace() {
   const { user } = useAuth();
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
-  const [method, setMethod] = useState("all");
+  const [railKey, setRailKey] = useState("all");
+  const [provider, setProvider] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [search, setSearch] = useState("");
@@ -117,8 +118,13 @@ function Marketplace() {
 
     let out = (listings.data ?? []).filter((l) => l.side === side);
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
-    if (method !== "all") {
-      out = out.filter((l) => l.accepted_payment_methods.some((m) => railLabelForMethod(m) === method));
+    if (railKey !== "all") {
+      out = out.filter((l) =>
+        l.accepted_payment_methods.some((m) => {
+          if (railKeyForMethod(m) !== railKey) return false;
+          return !provider || providerForMethod(m) === provider;
+        }),
+      );
     }
     if (minPrice) out = out.filter((l) => usdPriceOf(l) >= Number(minPrice));
     if (maxPrice) out = out.filter((l) => usdPriceOf(l) <= Number(maxPrice));
@@ -134,7 +140,19 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [listings.data, marketPrices.data, fxRates.data, side, crypto, method, minPrice, maxPrice, search, sort]);
+  }, [
+    listings.data,
+    marketPrices.data,
+    fxRates.data,
+    side,
+    crypto,
+    railKey,
+    provider,
+    minPrice,
+    maxPrice,
+    search,
+    sort,
+  ]);
 
   if (!user) return <LandingHero />;
 
@@ -206,20 +224,46 @@ function Marketplace() {
             </div>
             <div className="space-y-2">
               <Label>Payment method</Label>
-              <Select value={method} onValueChange={setMethod}>
+              <Select
+                value={railKey}
+                onValueChange={(v) => {
+                  setRailKey(v);
+                  setProvider(""); // switching category clears any specific provider picked in the old one
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Any method</SelectItem>
                   {PAYMENT_RAILS.map((r) => (
-                    <SelectItem key={r.key} value={r.label}>
+                    <SelectItem key={r.key} value={r.key}>
                       {r.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+            {railKey !== "all" ? (
+              <div className="space-y-2">
+                <Label>{PAYMENT_RAILS.find((r) => r.key === railKey)?.label}</Label>
+                <Select value={provider || "any"} onValueChange={(v) => setProvider(v === "any" ? "" : v)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    <SelectItem value="any">
+                      Any {PAYMENT_RAILS.find((r) => r.key === railKey)?.label.toLowerCase()}
+                    </SelectItem>
+                    {PAYMENT_RAILS.find((r) => r.key === railKey)?.providers.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="min">Min price (USD equiv.)</Label>

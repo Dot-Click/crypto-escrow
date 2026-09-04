@@ -7,7 +7,8 @@ import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CRYPTO_TYPES } from "@/lib/constants";
-import { CURRENCIES, currencySymbol } from "@/lib/currencies";
+import { currencySymbol } from "@/lib/currencies";
+import { CurrencyCombobox } from "@/components/currency-combobox";
 import { COUNTRIES } from "@/lib/countries";
 import { CountryBlockPicker } from "@/components/country-block-picker";
 import { OFFER_TAG_PAIRS, offerTagLabel } from "@/lib/offer-tags";
@@ -370,21 +371,7 @@ function NewListing() {
               </div>
               <div className="space-y-1.5">
                 <Label>Currency</Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>
-                        <span className="flex items-center gap-2">
-                          <span className={`fi fi-${c.flagCode} text-base`} aria-hidden />
-                          {c.code} — {c.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CurrencyCombobox value={currency} onChange={setCurrency} />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Blocked countries</Label>

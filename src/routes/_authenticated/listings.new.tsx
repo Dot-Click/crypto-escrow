@@ -354,7 +354,7 @@ function NewListing() {
                     {CURRENCIES.map((c) => (
                       <SelectItem key={c.code} value={c.code}>
                         <span className="flex items-center gap-2">
-                          <span aria-hidden>{c.flag}</span>
+                          <span className={`fi fi-${c.flagCode} text-base`} aria-hidden />
                           {c.code} — {c.label}
                         </span>
                       </SelectItem>

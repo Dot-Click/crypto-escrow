@@ -1,6 +1,10 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+/* Real SVG flag icons — Unicode flag emoji render as plain two-letter
+   codes on Windows (no colored glyphs in the OS emoji font), so currency
+   flags use this instead of emoji for consistent rendering everywhere. */
+@import "flag-icons/css/flag-icons.min.css";
 
 @custom-variant dark (&:is(.dark *));
 

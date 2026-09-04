@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
+import { CountryBlockPicker } from "@/components/country-block-picker";
 import { OFFER_TAG_PAIRS, offerTagLabel } from "@/lib/offer-tags";
 import { computeEffectivePrice } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
@@ -66,7 +67,8 @@ function NewListing() {
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [cryptoType, setCryptoType] = useState<string>("BTC");
   const [currency, setCurrency] = useState<string>("USD");
-  const [country, setCountry] = useState<string>("");
+  const [blockedCountries, setBlockedCountries] = useState<string[]>([]);
+  const [countryPickerOpen, setCountryPickerOpen] = useState(false);
   const [pricingMode, setPricingMode] = useState<"margin" | "fixed">("margin");
   const [margin, setMargin] = useState("0");
   const [fixedPrice, setFixedPrice] = useState("");
@@ -282,7 +284,7 @@ function NewListing() {
         side,
         crypto_type: cryptoType,
         fiat_currency: currency,
-        country: country || null,
+        blocked_countries: blockedCountries,
         price: effectivePrice,
         margin_percent: pricingMode === "margin" ? marginNum : 0,
         fixed_price: pricingMode === "fixed" ? Number(fixedPrice) : null,
@@ -384,24 +386,41 @@ function NewListing() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Country</Label>
-                <Select value={country || "__global"} onValueChange={(v) => setCountry(v === "__global" ? "" : v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__global">🌐 Global — any country</SelectItem>
-                    {COUNTRIES.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>
-                        <span className="flex items-center gap-2">
-                          <span className={`fi fi-${c.code.toLowerCase()} text-base`} aria-hidden />
-                          {c.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Blocked countries</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-start gap-2 font-normal"
+                    onClick={() => setCountryPickerOpen(true)}
+                  >
+                    {blockedCountries.length === 0
+                      ? "🌐 Open to every country"
+                      : `${blockedCountries.length} ${blockedCountries.length === 1 ? "country" : "countries"} blocked`}
+                  </Button>
+                </div>
+                {blockedCountries.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {blockedCountries.map((code) => {
+                      const c = COUNTRIES.find((x) => x.code === code);
+                      return (
+                        <Badge key={code} variant="secondary" className="gap-1.5 font-normal">
+                          <span className={`fi fi-${code.toLowerCase()}`} aria-hidden />
+                          {c?.name ?? code}
+                          <button
+                            type="button"
+                            aria-label={`Unblock ${c?.name ?? code}`}
+                            className="rounded-full p-0.5 hover:bg-foreground/10"
+                            onClick={() => setBlockedCountries((prev) => prev.filter((x) => x !== code))}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -766,15 +785,10 @@ function NewListing() {
                       ? `Requires ${minTradesRequired || "0"}+ completed trades`
                       : "Open to any trader"}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {country ? (
-                      <>
-                        <span className={`fi fi-${country.toLowerCase()} text-base`} aria-hidden />
-                        {COUNTRIES.find((c) => c.code === country)?.name ?? country}
-                      </>
-                    ) : (
-                      <>🌐 Global — any country</>
-                    )}
+                  <div>
+                    {blockedCountries.length === 0
+                      ? "🌐 Open to every country"
+                      : `Blocks: ${blockedCountries.map((code) => COUNTRIES.find((c) => c.code === code)?.name ?? code).join(", ")}`}
                   </div>
                   <div className="sm:col-span-2">
                     <span className="text-muted-foreground">Payment methods: </span>
@@ -800,6 +814,13 @@ function NewListing() {
             onOpenChange={setPickerOpen}
             selected={methods}
             onChange={setMethodsAndPrune}
+          />
+
+          <CountryBlockPicker
+            open={countryPickerOpen}
+            onOpenChange={setCountryPickerOpen}
+            selected={blockedCountries}
+            onChange={setBlockedCountries}
           />
         </CardContent>
       </Card>

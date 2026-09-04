@@ -128,7 +128,7 @@ function Marketplace() {
     if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
     if (currency !== "all") out = out.filter((l) => l.fiat_currency === currency);
     if (countryFilter !== "all") {
-      out = out.filter((l) => l.country === countryFilter || l.country == null);
+      out = out.filter((l) => !(l.blocked_countries ?? []).includes(countryFilter));
     }
     if (methodFilter) {
       out = out.filter((l) => l.accepted_payment_methods.includes(methodFilter));
@@ -253,7 +253,7 @@ function Marketplace() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Country</Label>
+              <Label>Your country</Label>
               <Select value={countryFilter} onValueChange={setCountryFilter}>
                 <SelectTrigger>
                   <SelectValue />
@@ -371,16 +371,15 @@ function Marketplace() {
                         <span className="text-xs text-muted-foreground">
                           {counterparty?.trades_completed ?? 0} trades
                         </span>
-                        {l.country ? (
-                          <Badge variant="outline" className="gap-1.5 font-normal">
-                            <span className={`fi fi-${l.country.toLowerCase()}`} aria-hidden />
-                            {COUNTRIES.find((c) => c.code === l.country)?.name ?? l.country}
+                        {(l.blocked_countries ?? []).length > 0 ? (
+                          <Badge
+                            variant="outline"
+                            className="font-normal text-muted-foreground"
+                            title={`Blocked: ${l.blocked_countries.map((code) => COUNTRIES.find((c) => c.code === code)?.name ?? code).join(", ")}`}
+                          >
+                            {l.blocked_countries.length} {l.blocked_countries.length === 1 ? "country" : "countries"} blocked
                           </Badge>
-                        ) : (
-                          <Badge variant="outline" className="font-normal text-muted-foreground">
-                            🌐 Global
-                          </Badge>
-                        )}
+                        ) : null}
                       </div>
                       <p className="mono text-sm text-muted-foreground">
                         {symbol}
@@ -450,6 +449,7 @@ function Marketplace() {
         marketPricesError={marketPrices.error as Error | null}
         fxRates={fxRates.data}
         myTradesCompleted={profile?.trades_completed ?? 0}
+        myCountry={profile?.country ?? null}
         onClose={() => setActive(null)}
       />
     </div>
@@ -468,7 +468,7 @@ type ListingRow = {
   max_amount: number | string | null;
   payment_window_minutes: number | string | null;
   fiat_currency: string;
-  country: string | null;
+  blocked_countries: string[];
   min_trades_required: number | null;
   tags: string[];
   accepted_payment_methods: string[];
@@ -480,6 +480,7 @@ function StartTradeDialog({
   marketPricesError,
   fxRates,
   myTradesCompleted,
+  myCountry,
   onClose,
 }: {
   listing: ListingRow | null;
@@ -487,6 +488,7 @@ function StartTradeDialog({
   marketPricesError?: Error | null;
   fxRates: Record<string, number> | undefined;
   myTradesCompleted: number;
+  myCountry: string | null;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -508,7 +510,9 @@ function StartTradeDialog({
     fiatAmount && (parsed < min || parsed > max) ? `Value must be between ${min} and ${max}` : null;
   const notVerifiedEnough =
     !!listing?.min_trades_required && myTradesCompleted < listing.min_trades_required;
-  const valid = !!listing && !!payment && !!price && parsed > 0 && !rangeError && !notVerifiedEnough;
+  const countryBlocked = !!myCountry && !!listing?.blocked_countries?.includes(myCountry);
+  const valid =
+    !!listing && !!payment && !!price && parsed > 0 && !rangeError && !notVerifiedEnough && !countryBlocked;
 
   const receive = price ? computeReceiveAmount(parsed, price, PLATFORM_FEE_PERCENT) : null;
 
@@ -560,6 +564,11 @@ function StartTradeDialog({
             <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
               This offer requires at least {listing?.min_trades_required} completed trades — you have{" "}
               {myTradesCompleted}.
+            </p>
+          ) : null}
+          {countryBlocked ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              This offer is not available to traders from your country.
             </p>
           ) : null}
           <div className="space-y-2">

@@ -47,10 +47,56 @@ function AuthPage() {
   const [role, setRole] = useState<"buyer" | "seller" | "both">("both");
   const [country, setCountry] = useState("");
   const [referralCode, setReferralCode] = useState("");
+  const [mfaChallenge, setMfaChallenge] = useState<{ factorId: string; challengeId: string } | null>(
+    null,
+  );
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
 
+  // Owns all post-auth navigation, password sign-in, sign-up, and Google
+  // OAuth alike: a session existing isn't enough to enter the app if the
+  // account has a verified TOTP factor and this session hasn't cleared it
+  // yet (aal1, needs aal2) — in that case we challenge it and wait for the
+  // code instead of navigating straight through.
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/", replace: true });
-  }, [loading, user, navigate]);
+    if (loading || !user || mfaChallenge) return;
+    let active = true;
+    (async () => {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== aal.nextLevel) {
+        const { data: factorsData } = await supabase.auth.mfa.listFactors();
+        const factor = factorsData?.totp.find((f) => f.status === "verified");
+        if (factor) {
+          const { data: challenge, error } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+          if (!active) return;
+          if (!error && challenge) {
+            setMfaChallenge({ factorId: factor.id, challengeId: challenge.id });
+            return;
+          }
+        }
+      }
+      if (active) navigate({ to: "/", replace: true });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [loading, user, mfaChallenge, navigate]);
+
+  const verifyMfa = async () => {
+    if (!mfaChallenge) return;
+    setMfaBusy(true);
+    const { error } = await supabase.auth.mfa.verify({
+      factorId: mfaChallenge.factorId,
+      challengeId: mfaChallenge.challengeId,
+      code: mfaCode,
+    });
+    setMfaBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    navigate({ to: "/", replace: true });
+  };
 
   // Prefill from a referral link (e.g. fomn.app/auth?ref=ABC12345) — a
   // plain query param, not a typed search param, so it works from any link
@@ -68,7 +114,8 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/", replace: true });
+    // Navigation (or the MFA challenge step) is handled by the effect above
+    // once useAuth's session listener picks up the new session.
   };
 
   const signUp = async () => {
@@ -92,7 +139,6 @@ function AuthPage() {
       return;
     }
     toast.success("Account created — you're signed in.");
-    navigate({ to: "/", replace: true });
   };
 
   const google = async () => {
@@ -101,10 +147,9 @@ function AuthPage() {
     });
     if (result.error) {
       toast.error("Google sign-in failed");
-      return;
     }
-    if (result.redirected) return;
-    navigate({ to: "/", replace: true });
+    // On success this redirects the browser away; on return, the effect
+    // above picks up the new session.
   };
 
   return (
@@ -152,7 +197,38 @@ function AuthPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="signin">
+              {mfaChallenge ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Enter the 6-digit code from your authenticator app.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="mfa-verify-code">Authentication code</Label>
+                    <Input
+                      id="mfa-verify-code"
+                      inputMode="numeric"
+                      maxLength={6}
+                      autoFocus
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className="mono text-center text-lg tracking-widest"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && mfaCode.length === 6 && !mfaBusy) verifyMfa();
+                      }}
+                    />
+                  </div>
+                  <Button
+                    className="w-full rounded-full"
+                    disabled={mfaBusy || mfaCode.length !== 6}
+                    onClick={verifyMfa}
+                  >
+                    {mfaBusy ? "Verifying…" : "Verify"}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                <Tabs defaultValue="signin">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="signin">Sign in</TabsTrigger>
                   <TabsTrigger value="signup">Sign up</TabsTrigger>
@@ -261,6 +337,8 @@ function AuthPage() {
               <Button variant="outline" className="w-full rounded-full" onClick={google}>
                 Continue with Google
               </Button>
+              </>
+              )}
             </CardContent>
           </Card>
         </div>

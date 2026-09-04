@@ -14,6 +14,7 @@ import { uploadAvatar } from "@/lib/avatar";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -427,6 +428,14 @@ function ProfilePage() {
           <Button onClick={changePassword} disabled={passwordBusy || !newPassword || !confirmPassword}>
             {passwordBusy ? "Updating…" : "Change password"}
           </Button>
+
+          <div className="border-t border-border pt-6">
+            <Label className="text-sm font-medium">Two-factor authentication</Label>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Require a code from an authenticator app in addition to your password.
+            </p>
+            <TwoFactorSettings />
+          </div>
         </CardContent>
       </Card>
 

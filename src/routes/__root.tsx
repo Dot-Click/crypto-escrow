@@ -146,6 +146,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <div aria-hidden className="dot-grid-bg" />
         <div className="flex min-h-screen flex-col">
           {hideHeader ? null : <SiteHeader />}
           <main className="flex-1">

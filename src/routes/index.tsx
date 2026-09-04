@@ -184,14 +184,14 @@ function Marketplace() {
           size="sm"
           onClick={() => setSide("sell")}
         >
-          Buy crypto
+          Buy
         </Button>
         <Button
           variant={side === "buy" ? "default" : "ghost"}
           size="sm"
           onClick={() => setSide("buy")}
         >
-          Sell crypto
+          Sell
         </Button>
       </div>
 
@@ -426,7 +426,7 @@ function Marketplace() {
                       ) : null}
                     </div>
                     <Button className="w-full sm:w-auto" onClick={() => setActive(l)}>
-                      Start trade
+                      {l.side === "sell" ? "Buy" : "Sell"}
                     </Button>
                   </CardContent>
                 </Card>

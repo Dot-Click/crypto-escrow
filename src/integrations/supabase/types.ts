@@ -550,6 +550,7 @@ export type Database = {
           margin_percent: number
           max_amount: number | null
           min_amount: number | null
+          min_trades_required: number | null
           payment_window_minutes: number | null
           price: number
           seller_id: string
@@ -570,6 +571,7 @@ export type Database = {
           margin_percent?: number
           max_amount?: number | null
           min_amount?: number | null
+          min_trades_required?: number | null
           payment_window_minutes?: number | null
           price: number
           seller_id: string
@@ -590,6 +592,7 @@ export type Database = {
           margin_percent?: number
           max_amount?: number | null
           min_amount?: number | null
+          min_trades_required?: number | null
           payment_window_minutes?: number | null
           price?: number
           seller_id?: string

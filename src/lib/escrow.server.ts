@@ -146,7 +146,7 @@ export async function openTrade(params: {
   const { data: listing, error } = await supabaseAdmin
     .from("listings")
     .select(
-      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status",
+      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status, min_trades_required",
     )
     .eq("id", params.listingId)
     .maybeSingle();
@@ -161,6 +161,18 @@ export async function openTrade(params: {
   }
   if (listing.max_amount != null && params.fiatAmount > Number(listing.max_amount)) {
     throw new Error(`This offer covers at most $${listing.max_amount}`);
+  }
+  if (listing.min_trades_required) {
+    const { data: buyerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("trades_completed")
+      .eq("id", params.userId)
+      .maybeSingle();
+    if (!buyerProfile || buyerProfile.trades_completed < listing.min_trades_required) {
+      throw new Error(
+        `This offer requires at least ${listing.min_trades_required} completed trades — you have ${buyerProfile?.trades_completed ?? 0}`,
+      );
+    }
   }
 
   // Price and fee are computed and locked in now — later market or fee changes

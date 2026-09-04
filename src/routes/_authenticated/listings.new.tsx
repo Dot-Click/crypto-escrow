@@ -73,6 +73,8 @@ function NewListing() {
   const [maxAmount, setMaxAmount] = useState("");
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState("60");
+  const [minTradesEnabled, setMinTradesEnabled] = useState(false);
+  const [minTradesRequired, setMinTradesRequired] = useState("3");
   const [methods, setMethods] = useState<string[]>([]);
   const [attachedDetails, setAttachedDetails] = useState<Record<string, string>>({});
   // New inline detail entry — keyed by method name. When populated, we
@@ -219,6 +221,10 @@ function NewListing() {
       toast.error("Enter a payment time limit greater than zero, or turn it off");
       return;
     }
+    if (minTradesEnabled && (!minTradesRequired || Number(minTradesRequired) <= 0)) {
+      toast.error("Enter a minimum trade count greater than zero, or turn it off");
+      return;
+    }
     for (let i = 0; i < 3; i++) {
       const err = stepError(i);
       if (err) {
@@ -273,6 +279,7 @@ function NewListing() {
         min_amount: Number(minAmount),
         max_amount: Number(maxAmount),
         payment_window_minutes: timeLimitEnabled ? Number(timeLimitMinutes) : null,
+        min_trades_required: minTradesEnabled ? Number(minTradesRequired) : null,
         accepted_payment_methods: methods,
         terms: terms || null,
       })
@@ -633,6 +640,33 @@ function NewListing() {
                   </p>
                 </div>
 
+                <div className="group space-y-2 rounded-md border border-border p-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                    <Checkbox
+                      checked={minTradesEnabled}
+                      onCheckedChange={(v) => setMinTradesEnabled(!!v)}
+                    />
+                    Require a minimum trade history
+                  </label>
+                  {minTradesEnabled ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        inputMode="numeric"
+                        className="w-24"
+                        value={minTradesRequired}
+                        onChange={(e) => setMinTradesRequired(e.target.value)}
+                        placeholder="3"
+                      />
+                      <span className="text-sm text-muted-foreground">completed trades</span>
+                    </div>
+                  ) : null}
+                  <p className="hidden text-xs text-muted-foreground group-focus-within:block">
+                    {minTradesEnabled
+                      ? "Traders with fewer completed trades won't be able to start this trade — a lightweight trust filter, since this platform doesn't do KYC verification."
+                      : "Open to any trader, regardless of trade history."}
+                  </p>
+                </div>
+
                 <div className="group space-y-1.5">
                   <Label htmlFor="terms">Trade terms (optional)</Label>
                   <Textarea
@@ -675,6 +709,11 @@ function NewListing() {
                   </div>
                   <div>
                     {timeLimitEnabled ? `${timeLimitMinutes || "0"} min payment window` : "No time limit"}
+                  </div>
+                  <div>
+                    {minTradesEnabled
+                      ? `Requires ${minTradesRequired || "0"}+ completed trades`
+                      : "Open to any trader"}
                   </div>
                   <div className="flex items-center gap-2">
                     {country ? (

@@ -70,7 +70,7 @@ export const Route = createFileRoute("/")({
 type SortKey = "newest" | "price_asc" | "price_desc";
 
 function Marketplace() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
   const [currency, setCurrency] = useState("all");
@@ -408,6 +408,12 @@ function Marketplace() {
                             {m}
                           </Badge>
                         ))}
+                        {l.min_trades_required ? (
+                          <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                            <ShieldCheck className="size-3" />
+                            {l.min_trades_required}+ trades required
+                          </Badge>
+                        ) : null}
                       </div>
                       {l.terms ? (
                         <p className="max-w-prose text-xs text-muted-foreground">{l.terms}</p>
@@ -437,6 +443,7 @@ function Marketplace() {
         marketPrices={marketPrices.data}
         marketPricesError={marketPrices.error as Error | null}
         fxRates={fxRates.data}
+        myTradesCompleted={profile?.trades_completed ?? 0}
         onClose={() => setActive(null)}
       />
     </div>
@@ -456,6 +463,7 @@ type ListingRow = {
   payment_window_minutes: number | string | null;
   fiat_currency: string;
   country: string | null;
+  min_trades_required: number | null;
   accepted_payment_methods: string[];
 };
 
@@ -464,12 +472,14 @@ function StartTradeDialog({
   marketPrices,
   marketPricesError,
   fxRates,
+  myTradesCompleted,
   onClose,
 }: {
   listing: ListingRow | null;
   marketPrices: Record<string, number> | undefined;
   marketPricesError?: Error | null;
   fxRates: Record<string, number> | undefined;
+  myTradesCompleted: number;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -489,7 +499,9 @@ function StartTradeDialog({
   const parsed = Number(fiatAmount);
   const rangeError =
     fiatAmount && (parsed < min || parsed > max) ? `Value must be between ${min} and ${max}` : null;
-  const valid = !!listing && !!payment && !!price && parsed > 0 && !rangeError;
+  const notVerifiedEnough =
+    !!listing?.min_trades_required && myTradesCompleted < listing.min_trades_required;
+  const valid = !!listing && !!payment && !!price && parsed > 0 && !rangeError && !notVerifiedEnough;
 
   const receive = price ? computeReceiveAmount(parsed, price, PLATFORM_FEE_PERCENT) : null;
 
@@ -537,6 +549,12 @@ function StartTradeDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {notVerifiedEnough ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+              This offer requires at least {listing?.min_trades_required} completed trades — you have{" "}
+              {myTradesCompleted}.
+            </p>
+          ) : null}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="trade-amount">

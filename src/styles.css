@@ -34,6 +34,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-placeholder: var(--placeholder);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -76,6 +77,10 @@
   --input: oklch(0.325 0 0);
   --muted: oklch(0.29 0 0);
   --muted-foreground: oklch(0.965 0 0);
+  /* Kept as an actual grey, separate from --muted-foreground (now white) —
+     placeholder text needs to read as "not yet typed", so it can't share
+     the same brightness as real input text. */
+  --placeholder: oklch(0.55 0 0);
   --accent: oklch(0.325 0 0);
   --accent-foreground: oklch(0.965 0 0);
   --secondary: oklch(0.29 0 0);

@@ -23,6 +23,7 @@ import { Route as TradersUserIdRouteImport } from './routes/traders.$userId'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
 import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
 import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authenticated/trades.$tradeId'
+import { Route as ApiPublicCronExpireTradesRouteImport } from './routes/api/public/cron/expire-trades'
 import { Route as ApiPublicWebhooksBtcpayRouteImport } from './routes/api/public/webhooks/btcpay'
 
 const IndexRoute = IndexRouteImport.update({
@@ -97,6 +98,12 @@ const AuthenticatedTradesTradeIdRoute =
     path: '/trades/$tradeId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicCronExpireTradesRoute =
+  ApiPublicCronExpireTradesRouteImport.update({
+    id: '/api/public/cron/expire-trades',
+    path: '/api/public/cron/expire-trades',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksBtcpayRoute = ApiPublicWebhooksBtcpayRouteImport.update({
   id: '/api/public/webhooks/btcpay',
   path: '/api/public/webhooks/btcpay',
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades/': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRoutesByTo {
@@ -133,6 +141,7 @@ export interface FileRoutesByTo {
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRoutesById {
@@ -151,6 +160,7 @@ export interface FileRoutesById {
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
   '/_authenticated/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
 }
 export interface FileRouteTypes {
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades/'
+    | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades'
+    | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
   id:
     | '__root__'
@@ -202,6 +214,7 @@ export interface FileRouteTypes {
     | '/_authenticated/listings/new'
     | '/_authenticated/trades/$tradeId'
     | '/_authenticated/trades/'
+    | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
   fileRoutesById: FileRoutesById
 }
@@ -212,6 +225,7 @@ export interface RootRouteChildren {
   FeesRoute: typeof FeesRoute
   TransparencyRoute: typeof TransparencyRoute
   TradersUserIdRoute: typeof TradersUserIdRoute
+  ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
   ApiPublicWebhooksBtcpayRoute: typeof ApiPublicWebhooksBtcpayRoute
 }
 
@@ -315,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTradesTradeIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/cron/expire-trades': {
+      id: '/api/public/cron/expire-trades'
+      path: '/api/public/cron/expire-trades'
+      fullPath: '/api/public/cron/expire-trades'
+      preLoaderRoute: typeof ApiPublicCronExpireTradesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/btcpay': {
       id: '/api/public/webhooks/btcpay'
       path: '/api/public/webhooks/btcpay'
@@ -357,6 +378,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeesRoute: FeesRoute,
   TransparencyRoute: TransparencyRoute,
   TradersUserIdRoute: TradersUserIdRoute,
+  ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,
   ApiPublicWebhooksBtcpayRoute: ApiPublicWebhooksBtcpayRoute,
 }
 export const routeTree = rootRouteImport

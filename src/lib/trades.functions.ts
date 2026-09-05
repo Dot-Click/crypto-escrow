@@ -97,7 +97,9 @@ export const createTrade = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { openTrade } = await import("@/lib/escrow.server");
-    return openTrade({ ...data, userId: context.userId });
+    const { getRequestIP } = await import("@tanstack/react-start/server");
+    const buyerIp = getRequestIP({ xForwardedFor: true });
+    return openTrade({ ...data, userId: context.userId, ...(buyerIp ? { buyerIp } : {}) });
   });
 
 export const markPaymentSent = createServerFn({ method: "POST" })

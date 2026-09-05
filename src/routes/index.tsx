@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { createTrade } from "@/lib/trades.functions";
@@ -100,19 +100,33 @@ function Marketplace() {
     refetchInterval: 5 * 60_000,
   });
 
-  const listings = useQuery({
-    queryKey: ["listings"],
+  const LISTINGS_PAGE_SIZE = 10;
+  const listings = useInfiniteQuery({
+    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilter],
     enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      let query = supabase
         .from("listings")
         .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed)")
         .eq("status", "active")
-        .order("created_at", { ascending: false });
+        .eq("side", side);
+      if (crypto !== "all") query = query.eq("crypto_type", crypto);
+      if (currency !== "all") query = query.eq("fiat_currency", currency);
+      if (countryFilter !== "all") query = query.not("blocked_countries", "cs", `{${countryFilter}}`);
+      if (methodFilter) query = query.contains("accepted_payment_methods", [methodFilter]);
+
+      const { data, error } = await query
+        .order("created_at", { ascending: false })
+        .range(pageParam, pageParam + LISTINGS_PAGE_SIZE - 1);
       if (error) throw error;
       return data;
     },
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === LISTINGS_PAGE_SIZE ? allPages.length * LISTINGS_PAGE_SIZE : undefined,
   });
+
+  const allListings = useMemo(() => listings.data?.pages.flat() ?? [], [listings.data]);
 
   const priceOf = (l: ListingRow) => resolveListingPrice(l, marketPrices.data, fxRates.data) ?? Number(l.price);
 
@@ -124,15 +138,7 @@ function Marketplace() {
     // listing's own currency via priceOf.
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
-    let out = (listings.data ?? []).filter((l) => l.side === side);
-    if (crypto !== "all") out = out.filter((l) => l.crypto_type === crypto);
-    if (currency !== "all") out = out.filter((l) => l.fiat_currency === currency);
-    if (countryFilter !== "all") {
-      out = out.filter((l) => !(l.blocked_countries ?? []).includes(countryFilter));
-    }
-    if (methodFilter) {
-      out = out.filter((l) => l.accepted_payment_methods.includes(methodFilter));
-    }
+    let out = allListings;
     if (minPrice) out = out.filter((l) => usdPriceOf(l) >= Number(minPrice));
     if (maxPrice) out = out.filter((l) => usdPriceOf(l) <= Number(maxPrice));
     if (search.trim()) {
@@ -147,20 +153,7 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [
-    listings.data,
-    marketPrices.data,
-    fxRates.data,
-    side,
-    crypto,
-    currency,
-    countryFilter,
-    methodFilter,
-    minPrice,
-    maxPrice,
-    search,
-    sort,
-  ]);
+  }, [allListings, marketPrices.data, fxRates.data, minPrice, maxPrice, search, sort]);
 
   if (!user) return <LandingHero />;
 
@@ -427,6 +420,16 @@ function Marketplace() {
               );
             })
           )}
+          {listings.hasNextPage ? (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={listings.isFetchingNextPage}
+              onClick={() => listings.fetchNextPage()}
+            >
+              {listings.isFetchingNextPage ? "Loading…" : "Load more"}
+            </Button>
+          ) : null}
         </div>
       </div>
 

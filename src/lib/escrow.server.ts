@@ -5,7 +5,7 @@ import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { getMarketPrice } from "@/lib/market-price.server";
 import { getFxRate } from "@/lib/fx-rate.server";
 import { computeEffectivePrice, computeReceiveAmount } from "@/lib/pricing";
-import { PLATFORM_FEE_PERCENT } from "@/lib/constants";
+import { PLATFORM_FEE_PERCENT, DEFAULT_MAX_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
 
 type TradeRow = {
   id: string;
@@ -135,6 +135,7 @@ export async function openTrade(params: {
   fiatAmount: number;
   paymentMethod: string;
   userId: string;
+  buyerIp?: string;
 }) {
   await enforceRateLimit({
     userId: params.userId,
@@ -146,7 +147,7 @@ export async function openTrade(params: {
   const { data: listing, error } = await supabaseAdmin
     .from("listings")
     .select(
-      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status, min_trades_required, welcome_message, blocked_countries",
+      "id, seller_id, side, crypto_type, margin_percent, fixed_price, min_amount, max_amount, payment_window_minutes, fiat_currency, accepted_payment_methods, status, min_trades_required, welcome_message, blocked_countries, tags",
     )
     .eq("id", params.listingId)
     .maybeSingle();
@@ -175,6 +176,14 @@ export async function openTrade(params: {
     }
     if (buyerProfile?.country && listing.blocked_countries?.includes(buyerProfile.country)) {
       throw new Error("This offer is not available to traders from your country");
+    }
+  }
+
+  if (listing.tags?.includes("no_vpn") && params.buyerIp) {
+    const { checkVpnOrProxy } = await import("@/lib/vpn-check.server");
+    const { flagged } = await checkVpnOrProxy(params.buyerIp);
+    if (flagged) {
+      throw new Error("This offer does not allow VPN or proxy connections — disable it and try again.");
     }
   }
 
@@ -237,9 +246,11 @@ export async function openTrade(params: {
       price: effectivePrice,
       fee_amount: feeCrypto,
       payout_amount: netCrypto,
-      expires_at: listing.payment_window_minutes
-        ? new Date(Date.now() + listing.payment_window_minutes * 60_000).toISOString()
-        : null,
+      // Always set, even when the seller disabled the explicit time limit —
+      // a null expires_at can never expire (see DEFAULT_MAX_PAYMENT_WINDOW_MINUTES).
+      expires_at: new Date(
+        Date.now() + (listing.payment_window_minutes || DEFAULT_MAX_PAYMENT_WINDOW_MINUTES) * 60_000,
+      ).toISOString(),
       fiat_currency: listing.fiat_currency,
       payment_method: params.paymentMethod,
       status: "escrow_funded",

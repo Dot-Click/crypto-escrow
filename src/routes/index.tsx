@@ -166,16 +166,11 @@ function Marketplace() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Marketplace</h1>
-          <p className="text-sm text-muted-foreground">
-            Escrow-protected offers · testnet only, no real funds
-          </p>
-        </div>
-        <Button asChild>
-          <Link to="/listings/new">Create offer</Link>
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold">Marketplace</h1>
+        <p className="text-sm text-muted-foreground">
+          Escrow-protected offers · testnet only, no real funds
+        </p>
       </div>
 
       <div className="mb-4 inline-flex rounded-md border border-border p-1">

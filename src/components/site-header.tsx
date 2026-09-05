@@ -1,10 +1,19 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, Plus } from "lucide-react";
+import { LogOut, Menu, Plus, User } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { UserAvatar } from "@/components/user-avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const NAV = [
   { to: "/", label: "Marketplace" },
@@ -54,7 +63,7 @@ export function SiteHeader() {
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{user ? links() : null}</nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {user ? (
             <>
               <Button asChild size="sm" className="gap-1.5">
@@ -63,12 +72,39 @@ export function SiteHeader() {
                   <span className="hidden sm:inline">Create Offer</span>
                 </Link>
               </Button>
-              <span className="hidden text-sm text-muted-foreground sm:inline">
-                {profile?.display_name ?? user.email}
-              </span>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                Sign out
-              </Button>
+
+              <div className="h-6 w-px bg-border" />
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="rounded-full transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    aria-label="Account menu"
+                  >
+                    <UserAvatar
+                      userId={user.id}
+                      displayName={profile?.display_name ?? "Trader"}
+                      className="size-8"
+                    />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
+                    {profile?.display_name ?? "Trader"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="cursor-pointer">
+                      <User className="size-4" /> Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                    <LogOut className="size-4" /> Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
                   <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open menu">

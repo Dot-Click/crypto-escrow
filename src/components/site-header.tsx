@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,7 +8,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const NAV = [
   { to: "/", label: "Marketplace" },
-  { to: "/listings/new", label: "Create Offer" },
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
   { to: "/profile", label: "Profile" },
@@ -58,6 +57,12 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           {user ? (
             <>
+              <Button asChild size="sm" className="gap-1.5">
+                <Link to="/listings/new">
+                  <Plus className="size-4" />
+                  <span className="hidden sm:inline">Create Offer</span>
+                </Link>
+              </Button>
               <span className="hidden text-sm text-muted-foreground sm:inline">
                 {profile?.display_name ?? user.email}
               </span>
@@ -71,7 +76,16 @@ export function SiteHeader() {
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-64">
-                  <nav className="mt-10 flex flex-col gap-5">{links(() => setOpen(false))}</nav>
+                  <nav className="mt-10 flex flex-col gap-5">
+                    <Link
+                      to="/listings/new"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium text-foreground"
+                    >
+                      <Plus className="size-4" /> Create Offer
+                    </Link>
+                    {links(() => setOpen(false))}
+                  </nav>
                 </SheetContent>
               </Sheet>
             </>

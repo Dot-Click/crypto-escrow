@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Menu, Plus, User } from "lucide-react";
+import { LogOut, Menu, Plus, Tag, User } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -72,6 +72,12 @@ export function SiteHeader() {
                   <span className="hidden sm:inline">Create Offer</span>
                 </Link>
               </Button>
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link to="/offers">
+                  <Tag className="size-4" />
+                  <span className="hidden sm:inline">My Offers</span>
+                </Link>
+              </Button>
 
               <div className="h-6 w-px bg-border" />
 
@@ -119,6 +125,13 @@ export function SiteHeader() {
                       className="flex items-center gap-2 text-sm font-medium text-foreground"
                     >
                       <Plus className="size-4" /> Create Offer
+                    </Link>
+                    <Link
+                      to="/offers"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium text-foreground"
+                    >
+                      <Tag className="size-4" /> My Offers
                     </Link>
                     {links(() => setOpen(false))}
                   </nav>

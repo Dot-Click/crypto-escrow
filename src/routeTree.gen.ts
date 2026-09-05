@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedOffersRouteImport } from './routes/_authenticated/offers'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
@@ -51,6 +52,11 @@ const TransparencyRoute = TransparencyRouteImport.update({
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOffersRoute = AuthenticatedOffersRouteImport.update({
+  id: '/offers',
+  path: '/offers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/fees': typeof FeesRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wallet': typeof AuthenticatedWalletRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/fees': typeof FeesRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wallet': typeof AuthenticatedWalletRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/fees': typeof FeesRoute
   '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/offers': typeof AuthenticatedOffersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/transparency'
     | '/admin'
+    | '/offers'
     | '/profile'
     | '/settings'
     | '/wallet'
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/transparency'
     | '/admin'
+    | '/offers'
     | '/profile'
     | '/settings'
     | '/wallet'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/transparency'
     | '/_authenticated/admin'
+    | '/_authenticated/offers'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
     | '/_authenticated/wallet'
@@ -247,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/offers': {
+      id: '/_authenticated/offers'
+      path: '/offers'
+      fullPath: '/offers'
+      preLoaderRoute: typeof AuthenticatedOffersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/profile': {
       id: '/_authenticated/profile'
       path: '/profile'
@@ -308,6 +327,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedOffersRoute: typeof AuthenticatedOffersRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
@@ -318,6 +338,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedOffersRoute: AuthenticatedOffersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,

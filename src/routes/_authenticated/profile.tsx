@@ -26,7 +26,6 @@ import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { TwoFactorSettings } from "@/components/two-factor-settings";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
-import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,7 +68,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
-type MenuKey = "profile" | "security" | "payments" | "offers" | "danger";
+type MenuKey = "profile" | "security" | "payments" | "danger";
 
 function MenuRow({
   icon: Icon,
@@ -180,20 +179,6 @@ function ProfilePage() {
       setCountry(profile.country ?? "");
     }
   }, [profile]);
-
-  const myListings = useQuery({
-    queryKey: ["my-listings", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("listings")
-        .select("*")
-        .eq("seller_id", user!.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const [newMethod, setNewMethod] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -346,16 +331,6 @@ function ProfilePage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const setStatus = async (id: string, status: "active" | "paused") => {
-    const { error } = await supabase.from("listings").update({ status }).eq("id", id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    await queryClient.invalidateQueries({ queryKey: ["my-listings", user?.id] });
-    await queryClient.invalidateQueries({ queryKey: ["listings"] });
-  };
 
   return (
     <div className="mx-auto grid w-full max-w-2xl gap-4 px-4 py-8">
@@ -632,58 +607,12 @@ function ProfilePage() {
             </div>
           </MenuRow>
 
-          <MenuRow
+          <LinkRow
             icon={Tag}
             title="Your offers"
-            subtitle="Pause or activate your published offers"
-            open={openSection === "offers"}
-            onToggle={() => toggleSection("offers")}
-          >
-            {myListings.isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
-            ) : (myListings.data ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">You haven't published any offers yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {(myListings.data ?? []).map((l) => (
-                  <div
-                    key={l.id}
-                    className="flex flex-col gap-3 rounded-md border border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <CoinIcon code={l.crypto_type} className="size-4" />
-                          {l.side === "sell" ? "Selling" : "Buying"} {l.crypto_type}
-                        </span>
-                        <Badge variant={l.status === "active" ? "default" : "secondary"}>
-                          {l.status}
-                        </Badge>
-                      </div>
-                      <p className="mono text-xs text-muted-foreground">
-                        ${Number(l.price).toLocaleString()} / {l.crypto_type}
-                        {l.min_amount != null && l.max_amount != null
-                          ? ` · $${Number(l.min_amount).toLocaleString()}–$${Number(l.max_amount).toLocaleString()}`
-                          : ""}{" "}
-                        · {l.accepted_payment_methods.join(", ")}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {l.status === "active" ? (
-                        <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "paused")}>
-                          Pause
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "active")}>
-                          Activate
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </MenuRow>
+            subtitle="Publish, pause, or edit your offers"
+            to="/offers"
+          />
 
           <LinkRow
             icon={Bell}

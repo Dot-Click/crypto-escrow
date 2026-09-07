@@ -35,7 +35,7 @@ export async function notifyNewMessage(params: {
 
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, display_name, email_notifications')
+      .select('id, email, display_name, email_notifications, telegram_notifications')
       .in('id', [recipientId, params.senderId]);
 
     const recipient = profiles?.find((p) => p.id === recipientId);
@@ -83,6 +83,22 @@ export async function notifyNewMessage(params: {
         body: preview.slice(0, 140),
         ...(tradeUrl ? { url: `/trades/${params.tradeId}` } : {}),
       });
+    }
+
+    if (recipient?.telegram_notifications !== false) {
+      const { data: tgLink } = await supabaseAdmin
+        .from('telegram_links')
+        .select('chat_id')
+        .eq('user_id', recipientId)
+        .maybeSingle();
+      if (tgLink) {
+        const { sendTelegramMessage } = await import('@/lib/telegram.server');
+        const link = tradeUrl ? `\n\n${escapeHtml(tradeUrl)}` : '';
+        await sendTelegramMessage(
+          tgLink.chat_id,
+          `💬 <b>${escapeHtml(senderName)}</b> sent you a message:\n${escapeHtml(preview.slice(0, 300))}${link}`,
+        );
+      }
     }
   } catch (err) {
     console.error('[notify] Failed to send new-message notification', err);

@@ -52,7 +52,7 @@ export async function notifyTradeEnded(params: {
 
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, email, display_name, email_notifications')
+      .select('id, email, display_name, email_notifications, telegram_notifications')
       .in('id', [trade.buyer_id, trade.seller_id]);
 
     const buyer = profiles?.find((p) => p.id === trade.buyer_id);
@@ -62,14 +62,31 @@ export async function notifyTradeEnded(params: {
     const tradeUrl = siteUrl ? `${siteUrl}/trades/${params.tradeId}` : null;
 
     const { sendEmail } = await import('@/lib/email.server');
+    const { data: tgLinks } = await supabaseAdmin
+      .from('telegram_links')
+      .select('user_id, chat_id')
+      .in('user_id', [trade.buyer_id, trade.seller_id]);
 
     const send = async (
-      recipient: { email: string | null; display_name: string; email_notifications: boolean } | undefined,
+      recipient:
+        | { id: string; email: string | null; display_name: string; email_notifications: boolean; telegram_notifications: boolean }
+        | undefined,
       subject: string,
       bodyHtml: string,
+      telegramText: string,
     ) => {
-      if (!recipient?.email || recipient.email_notifications === false) return;
-      await sendEmail({ to: recipient.email, subject, html: emailShell(bodyHtml, tradeUrl) });
+      if (!recipient) return;
+      if (recipient.email && recipient.email_notifications !== false) {
+        await sendEmail({ to: recipient.email, subject, html: emailShell(bodyHtml, tradeUrl) });
+      }
+      if (recipient.telegram_notifications !== false) {
+        const link = tgLinks?.find((l) => l.user_id === recipient.id);
+        if (link) {
+          const { sendTelegramMessage } = await import('@/lib/telegram.server');
+          const urlLine = tradeUrl ? `\n\n${escapeHtml(tradeUrl)}` : '';
+          await sendTelegramMessage(link.chat_id, `${telegramText}${urlLine}`);
+        }
+      }
     };
 
     if (params.outcome === 'released') {
@@ -81,6 +98,7 @@ export async function notifyTradeEnded(params: {
            <p style="font-size: 14px; color: #444; background: #f5f5f5; border-radius: 8px; padding: 12px 14px;">
              You received <strong>${escapeHtml(String(trade.payout_amount))} ${escapeHtml(trade.crypto_type)}</strong> into your CEMP wallet.
            </p>`,
+          `✅ Trade complete — you received <b>${escapeHtml(String(trade.payout_amount))} ${escapeHtml(trade.crypto_type)}</b>.`,
         ),
         send(
           seller,
@@ -89,6 +107,7 @@ export async function notifyTradeEnded(params: {
            <p style="font-size: 14px; color: #444; background: #f5f5f5; border-radius: 8px; padding: 12px 14px;">
              You released <strong>${escapeHtml(String(trade.amount))} ${escapeHtml(trade.crypto_type)}</strong> from escrow to the buyer.
            </p>`,
+          `✅ Trade complete — you released <b>${escapeHtml(String(trade.amount))} ${escapeHtml(trade.crypto_type)}</b> from escrow.`,
         ),
       ]);
     } else {
@@ -100,6 +119,7 @@ export async function notifyTradeEnded(params: {
            <p style="font-size: 14px; color: #444; background: #f5f5f5; border-radius: 8px; padding: 12px 14px;">
              No funds were exchanged — the seller's ${escapeHtml(String(trade.amount))} ${escapeHtml(trade.crypto_type)} escrow hold was released back to them.
            </p>`,
+          `❌ Trade cancelled — no funds were exchanged.`,
         ),
         send(
           seller,
@@ -108,6 +128,7 @@ export async function notifyTradeEnded(params: {
            <p style="font-size: 14px; color: #444; background: #f5f5f5; border-radius: 8px; padding: 12px 14px;">
              Your <strong>${escapeHtml(String(trade.amount))} ${escapeHtml(trade.crypto_type)}</strong> escrow hold has been refunded to your available wallet balance.
            </p>`,
+          `❌ Trade cancelled — your <b>${escapeHtml(String(trade.amount))} ${escapeHtml(trade.crypto_type)}</b> escrow hold was refunded.`,
         ),
       ]);
     }

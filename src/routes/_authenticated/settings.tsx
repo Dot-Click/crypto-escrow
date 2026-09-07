@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Bell, Mail, ShieldAlert } from "lucide-react";
+import { Bell, Copy, Mail, Send, ShieldAlert } from "lucide-react";
 import {
   deletePushSubscription,
   getNotificationSettings,
@@ -18,10 +18,17 @@ import {
   setWithdrawalVerification,
 } from "@/lib/security-settings.functions";
 import type { StepUpMethod } from "@/lib/security-types";
+import {
+  disconnectTelegram,
+  generateTelegramLinkCode,
+  getTelegramStatus,
+  setTelegramNotifications,
+} from "@/lib/telegram.functions";
 import { isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -71,6 +78,38 @@ function SettingsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["notification-settings"] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const fetchTelegram = useServerFn(getTelegramStatus);
+  const telegram = useQuery({
+    queryKey: ["telegram-status"],
+    queryFn: () => fetchTelegram(),
+  });
+
+  const [linkCode, setLinkCode] = useState<string | null>(null);
+  const generateLinkFn = useServerFn(generateTelegramLinkCode);
+  const generateLinkMutation = useMutation({
+    mutationFn: () => generateLinkFn(),
+    onSuccess: (res) => setLinkCode(res.code),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const disconnectTelegramFn = useServerFn(disconnectTelegram);
+  const disconnectMutation = useMutation({
+    mutationFn: () => disconnectTelegramFn(),
+    onSuccess: () => {
+      setLinkCode(null);
+      void qc.invalidateQueries({ queryKey: ["telegram-status"] });
+      toast.success("Telegram disconnected");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setTelegramNotifFn = useServerFn(setTelegramNotifications);
+  const telegramNotifMutation = useMutation({
+    mutationFn: (enabled: boolean) => setTelegramNotifFn({ data: { enabled } }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["telegram-status"] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -306,6 +345,99 @@ function SettingsPage() {
                     onCheckedChange={(checked) => (checked ? enablePush() : disablePush())}
                   />
                 </div>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                {/* Telegram notifications */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Send className="mt-0.5 size-5 text-muted-foreground" />
+                    <div>
+                      <Label className="text-sm font-medium">Telegram notifications</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {!telegram.data?.configured
+                          ? "Not available on this deployment yet."
+                          : telegram.data.linked
+                            ? "Get a Telegram message when a trade partner sends you a message."
+                            : "Connect a Telegram account to get trade updates there."}
+                      </p>
+                    </div>
+                  </div>
+                  {telegram.data?.linked ? (
+                    <Switch
+                      checked={telegram.data.notificationsEnabled}
+                      disabled={telegramNotifMutation.isPending}
+                      onCheckedChange={(checked) => telegramNotifMutation.mutate(checked)}
+                    />
+                  ) : null}
+                </div>
+
+                {telegram.data?.configured ? (
+                  telegram.data.linked ? (
+                    <div className="mt-3 flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2">
+                      <p className="text-xs text-muted-foreground">
+                        Connected {telegram.data.linkedAt ? new Date(telegram.data.linkedAt).toLocaleDateString() : ""}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={disconnectMutation.isPending}
+                        onClick={() => disconnectMutation.mutate()}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {linkCode ? (
+                        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                          <p className="text-xs text-muted-foreground">
+                            Message this code to{" "}
+                            {telegram.data.botUsername ? (
+                              <a
+                                href={`https://t.me/${telegram.data.botUsername}?start=${linkCode}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-primary underline-offset-2 hover:underline"
+                              >
+                                @{telegram.data.botUsername}
+                              </a>
+                            ) : (
+                              "our bot"
+                            )}{" "}
+                            as <span className="mono">/start {linkCode}</span>:
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <code className="mono flex-1 rounded bg-background px-2 py-1 text-sm tracking-widest">
+                              {linkCode}
+                            </code>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(linkCode);
+                                toast.success("Code copied");
+                              }}
+                            >
+                              <Copy className="size-3.5" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Expires in 15 minutes.</p>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={generateLinkMutation.isPending}
+                          onClick={() => generateLinkMutation.mutate()}
+                        >
+                          {generateLinkMutation.isPending ? "Generating…" : "Connect Telegram"}
+                        </Button>
+                      )}
+                    </div>
+                  )
+                ) : null}
               </div>
             </>
           )}

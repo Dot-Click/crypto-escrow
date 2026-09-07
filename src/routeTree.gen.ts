@@ -26,6 +26,7 @@ import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenti
 import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authenticated/trades.$tradeId'
 import { Route as ApiPublicCronExpireTradesRouteImport } from './routes/api/public/cron/expire-trades'
 import { Route as ApiPublicWebhooksBtcpayRouteImport } from './routes/api/public/webhooks/btcpay'
+import { Route as ApiPublicWebhooksTelegramRouteImport } from './routes/api/public/webhooks/telegram'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -116,6 +117,12 @@ const ApiPublicWebhooksBtcpayRoute = ApiPublicWebhooksBtcpayRouteImport.update({
   path: '/api/public/webhooks/btcpay',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksTelegramRoute =
+  ApiPublicWebhooksTelegramRouteImport.update({
+    id: '/api/public/webhooks/telegram',
+    path: '/api/public/webhooks/telegram',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/trades/': typeof AuthenticatedTradesIndexRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
+  '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -152,6 +160,7 @@ export interface FileRoutesByTo {
   '/trades': typeof AuthenticatedTradesIndexRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
+  '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -172,6 +181,7 @@ export interface FileRoutesById {
   '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
+  '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/trades/'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
+    | '/api/public/webhooks/telegram'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/trades'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
+    | '/api/public/webhooks/telegram'
   id:
     | '__root__'
     | '/'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/_authenticated/trades/'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
+    | '/api/public/webhooks/telegram'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -240,6 +253,7 @@ export interface RootRouteChildren {
   TradersUserIdRoute: typeof TradersUserIdRoute
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
   ApiPublicWebhooksBtcpayRoute: typeof ApiPublicWebhooksBtcpayRoute
+  ApiPublicWebhooksTelegramRoute: typeof ApiPublicWebhooksTelegramRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -363,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksBtcpayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/telegram': {
+      id: '/api/public/webhooks/telegram'
+      path: '/api/public/webhooks/telegram'
+      fullPath: '/api/public/webhooks/telegram'
+      preLoaderRoute: typeof ApiPublicWebhooksTelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -402,6 +423,7 @@ const rootRouteChildren: RootRouteChildren = {
   TradersUserIdRoute: TradersUserIdRoute,
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,
   ApiPublicWebhooksBtcpayRoute: ApiPublicWebhooksBtcpayRoute,
+  ApiPublicWebhooksTelegramRoute: ApiPublicWebhooksTelegramRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

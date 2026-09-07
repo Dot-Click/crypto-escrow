@@ -138,15 +138,6 @@ const FEATURE_CARDS = [
 function LandingHero() {
   const { user } = useAuth();
 
-  // Signed-in visitors land here too (e.g. via the logo), but every CTA
-  // should drop them straight into the app instead of back through /auth.
-  const heroNav = [
-    { index: "01", label: "Marketplace", to: user ? "/marketplace" : "/auth" } as const,
-    { index: "02", label: "How it Works", to: "/#how-it-works" as const },
-    { index: "03", label: "Create Offer", to: user ? "/listings/new" : "/auth" } as const,
-    { index: "04", label: "Wallet", to: user ? "/wallet" : "/auth" } as const,
-  ];
-
   return (
     <div className="flex h-dvh flex-col overflow-hidden overflow-x-clip">
       {/* ---------- Hero ---------- */}
@@ -175,20 +166,6 @@ function LandingHero() {
         </div>
 
         <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-4">
-          {/* bracket-indexed nav — sits in the hero, below the transparent site header */}
-          <nav className="hidden shrink-0 items-center justify-center gap-8 pb-2 pt-16 md:flex">
-            {heroNav.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <span className="mono text-xs text-primary">[{item.index}]</span>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
           <div className="relative mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center pt-14 text-center md:pt-0">
             {/* floating crypto badges — pushed far out from the headline */}
             <div className="pointer-events-none absolute left-2 top-1/4 hidden flex-col gap-6 md:flex lg:-left-16 xl:-left-36">

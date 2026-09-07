@@ -85,7 +85,7 @@ function AdminPage() {
           This dashboard is limited to platform administrators.
         </p>
         <Button asChild className="mt-6">
-          <Link to="/">Back to marketplace</Link>
+          <Link to="/marketplace">Back to marketplace</Link>
         </Button>
       </div>
     );

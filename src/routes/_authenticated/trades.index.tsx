@@ -123,7 +123,7 @@ function TradesPage() {
             Export CSV
           </Button>
           <Button asChild variant="outline">
-            <Link to="/">Browse offers</Link>
+            <Link to="/marketplace">Browse offers</Link>
           </Button>
         </div>
       </div>

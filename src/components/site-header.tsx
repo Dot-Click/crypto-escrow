@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const NAV = [
-  { to: "/", label: "Marketplace" },
+  { to: "/marketplace", label: "Marketplace" },
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
   { to: "/profile", label: "Profile" },

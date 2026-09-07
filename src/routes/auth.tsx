@@ -75,7 +75,7 @@ function AuthPage() {
           }
         }
       }
-      if (active) navigate({ to: "/", replace: true });
+      if (active) navigate({ to: "/marketplace", replace: true });
     })();
     return () => {
       active = false;
@@ -95,7 +95,7 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/", replace: true });
+    navigate({ to: "/marketplace", replace: true });
   };
 
   // Prefill from a referral link (e.g. cemp.app/auth?ref=ABC12345) — a

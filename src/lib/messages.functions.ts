@@ -38,6 +38,23 @@ export const sendMessage = createServerFn({ method: "POST" })
       windowSeconds: 60,
     });
 
+    // The trade room UI locks the composer once a trade is released or
+    // cancelled (see trades.$tradeId.tsx's `disabled` prop), but that's a
+    // client-side hint only — without this check, a stale tab or a direct
+    // call could still post into a chat whose trade already closed. Once
+    // released/cancelled there is nothing left to coordinate, so further
+    // messages are refused server-side too. Disputed trades stay open —
+    // that's exactly where the chat still matters, for a moderator to read.
+    const { data: trade, error: tradeErr } = await context.supabase
+      .from("trades")
+      .select("status")
+      .eq("id", data.tradeId)
+      .single();
+    if (tradeErr) throw new Error(tradeErr.message);
+    if (trade.status === "released" || trade.status === "cancelled") {
+      throw new Error("This trade is closed — chat is read-only.");
+    }
+
     const { data: row, error } = await context.supabase
       .from("messages")
       .insert({

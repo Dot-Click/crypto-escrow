@@ -314,14 +314,14 @@ function NewListing() {
       if (attachErr) {
         setBusy(false);
         toast.error(`Offer published, but couldn't attach payment details: ${attachErr.message}`);
-        navigate({ to: "/" });
+        navigate({ to: "/marketplace" });
         return;
       }
     }
 
     setBusy(false);
     toast.success("Offer published");
-    navigate({ to: "/" });
+    navigate({ to: "/marketplace" });
   };
 
   return (

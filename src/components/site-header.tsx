@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, Menu, Plus, Tag, User } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,6 +30,13 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const nav = isAdmin ? [...NAV, { to: "/admin", label: "Admin" } as const] : NAV;
 
+  // The hero on "/" has its own dark background and glow — the header
+  // floats transparently over it there (signed in or not), the same way
+  // it always has for signed-out visitors. Every other page gets the
+  // solid, sticky bar since they don't have hero art behind them.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isHome = pathname === "/";
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
@@ -51,9 +58,9 @@ export function SiteHeader() {
   return (
     <header
       className={
-        user
-          ? "sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur"
-          : "absolute inset-x-0 top-0 z-40 border-b border-transparent bg-transparent"
+        isHome
+          ? "absolute inset-x-0 top-0 z-40 border-b border-transparent bg-transparent"
+          : "sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur"
       }
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">

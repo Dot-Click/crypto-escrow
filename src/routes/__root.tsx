@@ -133,6 +133,9 @@ function RootComponent() {
   const router = useRouter();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const hideHeader = pathname === "/auth";
+  // The hero on "/" is a full-viewport, self-contained section (own
+  // background, own scroll behavior) — the footer doesn't belong under it.
+  const hideFooter = hideHeader || pathname === "/";
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -153,7 +156,7 @@ function RootComponent() {
             {/* Required: nested routes render here. */}
             <Outlet />
           </main>
-          {hideHeader ? null : <SiteFooter />}
+          {hideFooter ? null : <SiteFooter />}
         </div>
         <Toaster />
       </AuthProvider>

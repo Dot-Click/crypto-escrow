@@ -112,8 +112,25 @@ export const markPaymentSent = createServerFn({ method: "POST" })
 
 export const releaseEscrow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { tradeId: string }) => input)
+  .inputValidator((input: { tradeId: string; stepUpCode?: string }) => input)
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: securityProfile, error: secErr } = await supabaseAdmin
+      .from("profiles")
+      .select("release_verification")
+      .eq("id", context.userId)
+      .single();
+    if (secErr) throw new Error(secErr.message);
+
+    const { requireStepUp } = await import("@/lib/step-up.server");
+    await requireStepUp({
+      supabase: context.supabase,
+      userId: context.userId,
+      purpose: "release",
+      method: securityProfile.release_verification as "none" | "email" | "totp",
+      code: data.stepUpCode ?? null,
+    });
+
     const { releaseHold } = await import("@/lib/escrow.server");
     return releaseHold({ tradeId: data.tradeId, userId: context.userId });
   });

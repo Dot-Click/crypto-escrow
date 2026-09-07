@@ -8,6 +8,7 @@ import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Loader2, Lock, Z
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
+import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,7 @@ function WalletPage() {
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+  const [stepUpCode, setStepUpCode] = useState("");
 
   const [lightningOpen, setLightningOpen] = useState(false);
   const [lnAmountSats, setLnAmountSats] = useState("");
@@ -112,14 +114,34 @@ function WalletPage() {
   const networksForCoin = (depositAddresses.data ?? []).filter((n) => n.crypto_type === depositCoin);
   const selectedAddress = networksForCoin.find((n) => n.network === depositNetwork) ?? null;
 
+  const fetchSecurity = useServerFn(getSecuritySettings);
+  const security = useQuery({
+    queryKey: ["security-settings"],
+    queryFn: () => fetchSecurity(),
+  });
+  const withdrawalVerification = security.data?.withdrawalVerification ?? "none";
+
+  const requestStepUpCode = useServerFn(requestStepUpEmailCode);
+  const stepUpCodeMutation = useMutation({
+    mutationFn: () => requestStepUpCode({ data: { purpose: "withdrawal" } }),
+    onSuccess: () => toast.success("Code sent — check your email."),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const withdrawMutation = useMutation({
     mutationFn: () =>
       submitWithdrawal({
-        data: { cryptoType: withdrawCoin, amount: Number(amount), address: address.trim() },
+        data: {
+          cryptoType: withdrawCoin,
+          amount: Number(amount),
+          address: address.trim(),
+          ...(withdrawalVerification !== "none" ? { stepUpCode } : {}),
+        },
       }),
     onSuccess: () => {
       setAmount("");
       setAddress("");
+      setStepUpCode("");
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
       toast.success("Withdrawal queued — it will broadcast within a few minutes.");
     },
@@ -283,10 +305,42 @@ function WalletPage() {
                 <p className="text-xs text-muted-foreground sm:col-span-2">
                   Available: {availableToWithdraw} {withdrawCoin}
                 </p>
+
+                {withdrawalVerification !== "none" ? (
+                  <div className="space-y-2 sm:col-span-3">
+                    <Label htmlFor="wd-stepup">
+                      {withdrawalVerification === "totp" ? "Authenticator code" : "Email code"}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="wd-stepup"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={stepUpCode}
+                        onChange={(e) => setStepUpCode(e.target.value.replace(/\D/g, ""))}
+                        placeholder="000000"
+                        className="mono max-w-32 tracking-widest"
+                        required
+                      />
+                      {withdrawalVerification === "email" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={stepUpCodeMutation.isPending}
+                          onClick={() => stepUpCodeMutation.mutate()}
+                        >
+                          {stepUpCodeMutation.isPending ? "Sending…" : "Send code"}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
                 <Button
                   type="submit"
                   className="w-full sm:w-auto"
-                  disabled={withdrawMutation.isPending}
+                  disabled={withdrawMutation.isPending || (withdrawalVerification !== "none" && stepUpCode.length !== 6)}
                 >
                   {withdrawMutation.isPending ? "Submitting…" : "Withdraw"}
                 </Button>

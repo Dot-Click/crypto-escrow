@@ -29,9 +29,16 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
+/**
+ * Decodes the bearer token and returns { supabase, userId, claims } — the
+ * base auth check, with NO step-up enforcement. Used only by the login
+ * step-up's own request/verify server functions (security-login.functions.ts),
+ * which must be reachable by a session that hasn't cleared step-up yet —
+ * everything else should import requireSupabaseAuth below instead.
+ */
+export const requireSupabaseAuthBasic = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
-    
+
     const SUPABASE_URL = process.env['SUPABASE_URL'];
     const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'];
 
@@ -106,3 +113,46 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     });
   },
 );
+
+/**
+ * The middleware every protected server function should import. Same base
+ * check as requireSupabaseAuthBasic, plus: if this account opted into the
+ * email-code login step-up (and has no TOTP factor — the two are mutually
+ * exclusive, see security-settings.functions.ts) then EVERY request needs a
+ * completed login_step_ups row for this exact session, not just the login
+ * screen's own UI flow. Without this check here, a valid password alone
+ * would be enough to call any server function directly, making the email
+ * step-up a checkbox that looks like security but isn't one — this is what
+ * makes it a real second factor.
+ */
+export const requireSupabaseAuth = createMiddleware({ type: 'function' })
+  .middleware([requireSupabaseAuthBasic])
+  .server(async ({ next, context }) => {
+    const sessionId = (context.claims as { session_id?: string } | undefined)?.session_id;
+
+    const { supabaseAdmin } = await import('./client.server');
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('login_email_verification')
+      .eq('id', context.userId)
+      .maybeSingle();
+
+    if (profile?.login_email_verification) {
+      if (!sessionId) {
+        // No session_id claim to check against — fail closed rather than
+        // silently skip a step-up the account explicitly turned on.
+        throw new Error('Unauthorized: session could not be verified for login step-up');
+      }
+      const { data: stepUp } = await supabaseAdmin
+        .from('login_step_ups')
+        .select('expires_at')
+        .eq('session_id', sessionId)
+        .eq('user_id', context.userId)
+        .maybeSingle();
+      if (!stepUp || new Date(stepUp.expires_at).getTime() < Date.now()) {
+        throw new Error('Unauthorized: complete the emailed sign-in code first');
+      }
+    }
+
+    return next({ context });
+  });

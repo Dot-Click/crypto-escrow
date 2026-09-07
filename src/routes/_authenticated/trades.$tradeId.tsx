@@ -13,6 +13,17 @@ import {
 } from "@/lib/trades.functions";
 import { listMessages } from "@/lib/messages.functions";
 import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
+import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { currencySymbol } from "@/lib/currencies";
 import { offerTagLabel } from "@/lib/offer-tags";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
@@ -135,10 +146,49 @@ function TradeRoom() {
     mutationFn: () => paidFn({ data: { tradeId } }),
     ...onSettled("Payment marked as sent"),
   });
-  const release = useMutation({
-    mutationFn: () => releaseFn({ data: { tradeId } }),
-    ...onSettled("Escrow released to the buyer"),
+
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [releaseCode, setReleaseCode] = useState("");
+  const fetchSecurity = useServerFn(getSecuritySettings);
+  const security = useQuery({
+    queryKey: ["security-settings"],
+    queryFn: () => fetchSecurity(),
   });
+  const releaseVerification = security.data?.releaseVerification ?? "none";
+
+  const requestReleaseCode = useServerFn(requestStepUpEmailCode);
+  const releaseCodeMutation = useMutation({
+    mutationFn: () => requestReleaseCode({ data: { purpose: "release" } }),
+    onSuccess: () => toast.success("Code sent — check your email."),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const release = useMutation({
+    mutationFn: () =>
+      releaseFn({
+        data: { tradeId, ...(releaseVerification !== "none" ? { stepUpCode: releaseCode } : {}) },
+      }),
+    onSuccess: () => {
+      toast.success("Escrow released to the buyer");
+      void qc.invalidateQueries({ queryKey: ["trade", tradeId] });
+      void qc.invalidateQueries({ queryKey: ["trades"] });
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
+      setReleaseDialogOpen(false);
+      setReleaseCode("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const startRelease = () => {
+    // No extra confirmation required — release immediately, matching the
+    // existing one-click behavior for accounts that haven't opted into a
+    // release step-up.
+    if (releaseVerification === "none") {
+      release.mutate();
+      return;
+    }
+    setReleaseDialogOpen(true);
+  };
   const cancel = useMutation({
     mutationFn: () => cancelFn({ data: { tradeId } }),
     ...onSettled("Trade cancelled and escrow refunded"),
@@ -317,7 +367,7 @@ function TradeRoom() {
                     <Button
                       className="w-full"
                       disabled={release.isPending}
-                      onClick={() => release.mutate()}
+                      onClick={startRelease}
                     >
                       Release escrow to buyer
                     </Button>
@@ -536,6 +586,56 @@ function TradeRoom() {
           </p>
         </div>
       </div>
+
+      <Dialog open={releaseDialogOpen} onOpenChange={setReleaseDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Confirm escrow release</DialogTitle>
+            <DialogDescription>
+              {releaseVerification === "totp"
+                ? "Enter the 6-digit code from your authenticator app to release the escrow to the buyer."
+                : "Enter the code emailed to you to release the escrow to the buyer."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="release-stepup">
+              {releaseVerification === "totp" ? "Authenticator code" : "Email code"}
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="release-stepup"
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                value={releaseCode}
+                onChange={(e) => setReleaseCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="000000"
+                className="mono tracking-widest"
+              />
+              {releaseVerification === "email" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={releaseCodeMutation.isPending}
+                  onClick={() => releaseCodeMutation.mutate()}
+                >
+                  {releaseCodeMutation.isPending ? "Sending…" : "Send code"}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              className="w-full"
+              disabled={release.isPending || releaseCode.length !== 6}
+              onClick={() => release.mutate()}
+            >
+              {release.isPending ? "Releasing…" : "Release escrow"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

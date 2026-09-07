@@ -51,14 +51,14 @@ export const getWalletOverview = createServerFn({ method: "GET" })
  */
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { cryptoType: string; amount: number; address: string }) => {
+  .inputValidator((input: { cryptoType: string; amount: number; address: string; stepUpCode?: string }) => {
     if (!CODES.includes(input.cryptoType)) throw new Error("Unsupported coin");
     const amount = Number(input.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
     const address = String(input.address ?? "").trim();
     const err = withdrawalError(input.cryptoType, amount, address);
     if (err) throw new Error(err);
-    return { cryptoType: input.cryptoType, amount, address };
+    return { cryptoType: input.cryptoType, amount, address, stepUpCode: input.stepUpCode };
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -69,6 +69,22 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       action: "withdrawal",
       limit: 5,
       windowSeconds: 3600,
+    });
+
+    const { data: securityProfile, error: secErr } = await supabaseAdmin
+      .from("profiles")
+      .select("withdrawal_verification")
+      .eq("id", context.userId)
+      .single();
+    if (secErr) throw new Error(secErr.message);
+
+    const { requireStepUp } = await import("@/lib/step-up.server");
+    await requireStepUp({
+      supabase: context.supabase,
+      userId: context.userId,
+      purpose: "withdrawal",
+      method: securityProfile.withdrawal_verification as "none" | "email" | "totp",
+      code: data.stepUpCode ?? null,
     });
 
     const { data: wallet, error } = await supabaseAdmin

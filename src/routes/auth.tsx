@@ -1,9 +1,11 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
+import { requestLoginStepUpCode, verifyLoginStepUpCode } from "@/lib/security-login.functions";
 import { COUNTRIES } from "@/lib/countries";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,13 +55,23 @@ function AuthPage() {
   const [mfaCode, setMfaCode] = useState("");
   const [mfaBusy, setMfaBusy] = useState(false);
 
+  // Email-code login step-up: the alternative second factor for accounts
+  // that opted into it instead of TOTP (see security-settings.functions.ts —
+  // the two are mutually exclusive on one account). Only ever reached when
+  // the TOTP/AAL2 branch above found nothing to challenge.
+  const [emailStepUpPending, setEmailStepUpPending] = useState(false);
+  const [emailStepUpCode, setEmailStepUpCode] = useState("");
+  const [emailStepUpBusy, setEmailStepUpBusy] = useState(false);
+  const requestEmailStepUp = useServerFn(requestLoginStepUpCode);
+  const verifyEmailStepUp = useServerFn(verifyLoginStepUpCode);
+
   // Owns all post-auth navigation, password sign-in, sign-up, and Google
   // OAuth alike: a session existing isn't enough to enter the app if the
   // account has a verified TOTP factor and this session hasn't cleared it
   // yet (aal1, needs aal2) — in that case we challenge it and wait for the
   // code instead of navigating straight through.
   useEffect(() => {
-    if (loading || !user || mfaChallenge) return;
+    if (loading || !user || mfaChallenge || emailStepUpPending) return;
     let active = true;
     (async () => {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
@@ -75,12 +87,39 @@ function AuthPage() {
           }
         }
       }
+
+      // No TOTP factor — check whether this account uses the email-code
+      // step-up instead. requestLoginStepUpCode is a no-op (sent: false)
+      // for accounts that didn't opt into it, so this is safe to always call.
+      try {
+        const result = await requestEmailStepUp();
+        if (!active) return;
+        if (result.sent) {
+          setEmailStepUpPending(true);
+          return;
+        }
+      } catch {
+        // Fails open to "no step-up configured" rather than stranding a
+        // user who was never asked to set one up.
+      }
       if (active) navigate({ to: "/marketplace", replace: true });
     })();
     return () => {
       active = false;
     };
-  }, [loading, user, mfaChallenge, navigate]);
+  }, [loading, user, mfaChallenge, emailStepUpPending, navigate, requestEmailStepUp]);
+
+  const verifyEmailCode = async () => {
+    setEmailStepUpBusy(true);
+    try {
+      await verifyEmailStepUp({ data: { code: emailStepUpCode } });
+      navigate({ to: "/marketplace", replace: true });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Incorrect code");
+    } finally {
+      setEmailStepUpBusy(false);
+    }
+  };
 
   const verifyMfa = async () => {
     if (!mfaChallenge) return;
@@ -225,6 +264,42 @@ function AuthPage() {
                   >
                     {mfaBusy ? "Verifying…" : "Verify"}
                   </Button>
+                </div>
+              ) : emailStepUpPending ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    We emailed you a 6-digit code to finish signing in.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="email-stepup-code">Email code</Label>
+                    <Input
+                      id="email-stepup-code"
+                      inputMode="numeric"
+                      maxLength={6}
+                      autoFocus
+                      value={emailStepUpCode}
+                      onChange={(e) => setEmailStepUpCode(e.target.value.replace(/\D/g, ""))}
+                      placeholder="000000"
+                      className="mono text-center text-lg tracking-widest"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && emailStepUpCode.length === 6 && !emailStepUpBusy) verifyEmailCode();
+                      }}
+                    />
+                  </div>
+                  <Button
+                    className="w-full rounded-full"
+                    disabled={emailStepUpBusy || emailStepUpCode.length !== 6}
+                    onClick={verifyEmailCode}
+                  >
+                    {emailStepUpBusy ? "Verifying…" : "Verify"}
+                  </Button>
+                  <button
+                    type="button"
+                    className="w-full text-center text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => requestEmailStepUp()}
+                  >
+                    Resend code
+                  </button>
                 </div>
               ) : (
                 <>

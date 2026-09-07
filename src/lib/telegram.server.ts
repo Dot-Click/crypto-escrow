@@ -45,3 +45,37 @@ export function isTelegramConfigured(): boolean {
 export function telegramBotUsername(): string | null {
   return process.env['TELEGRAM_BOT_USERNAME'] || null;
 }
+
+function getSiteUrl(): string | null {
+  const explicit = process.env['SITE_URL'];
+  if (explicit) return explicit.replace(/\/$/, '');
+  const vercelUrl = process.env['VERCEL_URL'];
+  return vercelUrl ? `https://${vercelUrl}` : null;
+}
+
+/**
+ * Registers this deployment's webhook URL with Telegram, called from the
+ * server (Vercel) rather than a developer's own machine — some networks
+ * actively reset TLS connections to api.telegram.org, but a cloud host
+ * calling the same API has no such trouble. See the setup route that
+ * calls this, and docs/TELEGRAM_SETUP.md.
+ */
+export async function registerTelegramWebhook(): Promise<{ ok: boolean; body: unknown }> {
+  const base = apiBase();
+  const secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
+  const siteUrl = getSiteUrl();
+  if (!base) throw new Error('TELEGRAM_BOT_TOKEN is not set');
+  if (!secret) throw new Error('TELEGRAM_WEBHOOK_SECRET is not set');
+  if (!siteUrl) throw new Error('SITE_URL (or VERCEL_URL) is not set — cannot build the webhook URL');
+
+  const res = await fetch(`${base}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: `${siteUrl}/api/public/webhooks/telegram`,
+      secret_token: secret,
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  return { ok: res.ok, body };
+}

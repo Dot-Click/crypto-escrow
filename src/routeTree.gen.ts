@@ -27,6 +27,7 @@ import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authen
 import { Route as ApiPublicCronExpireTradesRouteImport } from './routes/api/public/cron/expire-trades'
 import { Route as ApiPublicWebhooksBtcpayRouteImport } from './routes/api/public/webhooks/btcpay'
 import { Route as ApiPublicWebhooksTelegramRouteImport } from './routes/api/public/webhooks/telegram'
+import { Route as ApiPublicWebhooksTelegramSetupRouteImport } from './routes/api/public/webhooks/telegram-setup'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -123,6 +124,12 @@ const ApiPublicWebhooksTelegramRoute =
     path: '/api/public/webhooks/telegram',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksTelegramSetupRoute =
+  ApiPublicWebhooksTelegramSetupRouteImport.update({
+    id: '/api/public/webhooks/telegram-setup',
+    path: '/api/public/webhooks/telegram-setup',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
+  '/api/public/webhooks/telegram-setup': typeof ApiPublicWebhooksTelegramSetupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -161,6 +169,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
+  '/api/public/webhooks/telegram-setup': typeof ApiPublicWebhooksTelegramSetupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -182,6 +191,7 @@ export interface FileRoutesById {
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
+  '/api/public/webhooks/telegram-setup': typeof ApiPublicWebhooksTelegramSetupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
+    | '/api/public/webhooks/telegram-setup'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
+    | '/api/public/webhooks/telegram-setup'
   id:
     | '__root__'
     | '/'
@@ -242,6 +254,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
+    | '/api/public/webhooks/telegram-setup'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -254,6 +267,7 @@ export interface RootRouteChildren {
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
   ApiPublicWebhooksBtcpayRoute: typeof ApiPublicWebhooksBtcpayRoute
   ApiPublicWebhooksTelegramRoute: typeof ApiPublicWebhooksTelegramRoute
+  ApiPublicWebhooksTelegramSetupRoute: typeof ApiPublicWebhooksTelegramSetupRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -384,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/telegram-setup': {
+      id: '/api/public/webhooks/telegram-setup'
+      path: '/api/public/webhooks/telegram-setup'
+      fullPath: '/api/public/webhooks/telegram-setup'
+      preLoaderRoute: typeof ApiPublicWebhooksTelegramSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -424,6 +445,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,
   ApiPublicWebhooksBtcpayRoute: ApiPublicWebhooksBtcpayRoute,
   ApiPublicWebhooksTelegramRoute: ApiPublicWebhooksTelegramRoute,
+  ApiPublicWebhooksTelegramSetupRoute: ApiPublicWebhooksTelegramSetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -31,7 +31,31 @@ Project Settings → Environment Variables → Production), then redeploy.
 ## 3. Register the webhook with Telegram
 
 Once the app is deployed and the env vars above are set, tell Telegram
-where to send updates — run this once (replace the placeholders):
+where to send updates.
+
+**Easiest way — visit a URL in your browser.** Some networks/antivirus
+products reset connections to api.telegram.org specifically, which makes
+running a curl/PowerShell command from your own machine fail with a TLS
+handshake error even though everything else online works fine. Doing the
+registration from the deployed app itself (Vercel) sidesteps that, since
+it's a different network with no such interference:
+
+```
+https://<your-domain>/api/public/webhooks/telegram-setup?secret=<TELEGRAM_WEBHOOK_SECRET>
+```
+
+Open that URL — you should see:
+
+```json
+{"ok":true,"result":true,"description":"Webhook was set"}
+```
+
+That route is safe to leave in place and safe to re-visit any time (e.g.
+after rotating the bot token) — it just re-registers the same webhook.
+
+**Alternative — call Telegram's API directly**, if you'd rather not add a
+setup route, or want to run it from a network that already works fine
+with Telegram:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
@@ -40,12 +64,6 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
     "url": "https://<your-domain>/api/public/webhooks/telegram",
     "secret_token": "<TELEGRAM_WEBHOOK_SECRET>"
   }'
-```
-
-A successful response looks like:
-
-```json
-{"ok":true,"result":true,"description":"Webhook was set"}
 ```
 
 To check it's registered correctly at any time:

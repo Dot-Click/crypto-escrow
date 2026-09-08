@@ -12,17 +12,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, SlidersHorizontal, Tag, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, RefreshCw, Search, SlidersHorizontal, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
 import { OFFER_TAGS, offerTagLabel } from "@/lib/offer-tags";
-import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { providerForMethod, railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
@@ -31,7 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -124,6 +125,10 @@ function Marketplace() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  // Desktop-only, matching the reference layout's "Enter Amount" box — the
+  // mobile bar deliberately doesn't have this (removed per an earlier,
+  // separate request), so it's not part of resetFilters either.
+  const [amount, setAmount] = useState("");
 
   const resetFilters = () => {
     setCrypto("all");
@@ -154,7 +159,7 @@ function Marketplace() {
     queryFn: async ({ pageParam }) => {
       let query = supabase
         .from("listings")
-        .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed)")
+        .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed, country)")
         .eq("status", "active")
         .eq("side", side);
       if (crypto !== "all") query = query.eq("crypto_type", crypto);
@@ -186,6 +191,14 @@ function Marketplace() {
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
     let out = allListings;
+    if (amount) {
+      const wanted = Number(amount);
+      out = out.filter((l) => {
+        const min = l.min_amount != null ? Number(l.min_amount) : 0;
+        const max = l.max_amount != null ? Number(l.max_amount) : Infinity;
+        return wanted >= min && wanted <= max;
+      });
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -198,37 +211,182 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [allListings, marketPrices.data, fxRates.data, search, sort]);
+  }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
+
+  // Display currency for the hero rate ticker — "Any Fiat" has no single
+  // rate to show, so it falls back to USD.
+  const heroCurrency = currency === "all" ? "USD" : currency;
+  const heroFx = heroCurrency === "USD" ? 1 : fxRates.data?.[heroCurrency];
+  const heroCryptoCode = crypto === "all" ? "BTC" : crypto;
+  const heroCryptoPrice = marketPrices.data?.[heroCryptoCode];
+  const heroMethodText =
+    methodFilters.length === 0
+      ? "All Payment Methods"
+      : methodFilters.length === 1
+        ? providerForMethod(methodFilters[0]!)
+        : `${methodFilters.length} Payment Methods`;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
+      {/* Hero — headline + live reference rate, matching the reference
+          design. Reads off the same marketPrices/fxRates queries the
+          listing cards already use, just at the currently selected
+          crypto/currency (or their defaults). */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Marketplace</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          {side === "sell" ? "Buy" : "Sell"}{" "}
+          <span className="text-primary">{crypto === "all" ? "Crypto" : COIN_FULL_NAME[crypto] ?? crypto}</span>{" "}
+          with <span className="text-primary">{heroMethodText}</span>
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          {heroFx && heroCurrency !== "USD" ? (
+            <span className="flex items-center gap-1.5">
+              <span className={`fi fi-${CURRENCIES.find((c) => c.code === "USD")?.flagCode ?? "us"}`} aria-hidden />
+              1 USD = {heroFx.toLocaleString(undefined, { maximumFractionDigits: 4 })} {heroCurrency}
+            </span>
+          ) : null}
+          {heroCryptoPrice ? (
+            <span className="flex items-center gap-1.5">
+              <CoinIcon code={heroCryptoCode} className="size-4" />
+              1 {heroCryptoCode} = {(heroCryptoPrice * (heroFx ?? 1)).toLocaleString(undefined, { maximumFractionDigits: 2 })} {heroCurrency}
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
           Escrow-protected offers · testnet only, no real funds
         </p>
       </div>
 
-      <div className="mb-4 hidden lg:inline-flex rounded-md border border-border p-1">
+      {/* Desktop filter bar — one row, matching the reference layout
+          exactly (Buy/Sell, crypto, payment method, fiat, amount,
+          create-offer, filters, refresh). Country/Tags/Sort share the
+          same "Filters" sheet the mobile bar below uses. */}
+      <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-card/40 p-2 lg:flex">
         <Button
-          variant={side === "sell" ? "default" : "ghost"}
-          size="sm"
+          type="button"
           onClick={() => setSide("sell")}
+          className={
+            side === "sell"
+              ? "h-10 shrink-0 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+              : "h-10 shrink-0 gap-1.5 bg-muted text-foreground hover:bg-muted/80"
+          }
         >
-          Buy
+          <ArrowDownCircle className="size-4" /> Buy
         </Button>
         <Button
-          variant={side === "buy" ? "default" : "ghost"}
-          size="sm"
+          type="button"
           onClick={() => setSide("buy")}
+          className={
+            side === "buy"
+              ? "h-10 shrink-0 gap-1.5 bg-green-600 text-white hover:bg-green-600/90"
+              : "h-10 shrink-0 gap-1.5 bg-muted text-foreground hover:bg-muted/80"
+          }
         >
-          Sell
+          <ArrowUpCircle className="size-4" /> Sell
         </Button>
+
+        <Select value={crypto} onValueChange={setCrypto}>
+          <SelectTrigger className="h-10 w-40 shrink-0">
+            <span className="flex items-center gap-2 truncate">
+              <Layers className="size-4 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="All crypto" />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All crypto</SelectItem>
+            {CRYPTO_TYPES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                <span className="flex items-center gap-2">
+                  <CoinIcon code={c.code} className="size-4" />
+                  {c.code}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <button
+          type="button"
+          className="flex h-10 w-48 shrink-0 items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
+          onClick={() => setMethodPickerOpen(true)}
+        >
+          <span className="flex items-center gap-2 truncate">
+            {methodFilters.length > 0 ? (
+              <>
+                <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{methodFilters[0]}</span>
+                {methodFilters.length > 1 ? (
+                  <Badge variant="secondary" className="shrink-0 font-normal">
+                    +{methodFilters.length - 1}
+                  </Badge>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Payment method</span>
+            )}
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+
+        <Select value={currency} onValueChange={setCurrency}>
+          <SelectTrigger className="h-10 w-32 shrink-0">
+            <SelectValue placeholder="Any Fiat" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any Fiat</SelectItem>
+            {CURRENCIES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                <span className="flex items-center gap-2">
+                  <span className={`fi fi-${c.flagCode}`} aria-hidden />
+                  {c.code}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="relative w-44 shrink-0">
+          <Input
+            className="h-10 pr-16"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Enter Amount"
+          />
+          <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+            <span
+              className={`fi fi-${currency === "all" ? "us" : (CURRENCIES.find((c) => c.code === currency)?.flagCode ?? "us")}`}
+              aria-hidden
+            />
+            {heroCurrency}
+          </span>
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Button type="button" className="h-10 gap-1.5" asChild>
+            <Link to="/listings/new">
+              <Plus className="size-4" /> Create an offer
+            </Link>
+          </Button>
+          <Button type="button" variant="outline" className="h-10 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
+            <SlidersHorizontal className="size-4" /> Filters
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            aria-label="Refresh offers"
+            onClick={() => void listings.refetch()}
+          >
+            <RefreshCw className={`size-4 ${listings.isFetching ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
 
       {/* Compact filter bar — mobile/tablet only, matching the reference
           layout. Country, Tags and Sort live in the "Filters" sheet below
-          instead of cluttering the main bar — the desktop sidebar keeps
+          instead of cluttering the main bar — the desktop bar above keeps
           everything inline since it has the room. */}
       <div className="mb-4 space-y-2 lg:hidden">
         <div className="grid grid-cols-2 gap-2">
@@ -390,136 +548,7 @@ function Marketplace() {
         </SheetContent>
       </Sheet>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card className="hidden h-fit lg:block">
-          <CardHeader>
-            <CardTitle className="text-base">Filters</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="q">Search</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="q"
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="BTC, bank transfer…"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Crypto type</Label>
-              <Select value={crypto} onValueChange={setCrypto}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All coins</SelectItem>
-                  {CRYPTO_TYPES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      <span className="flex items-center gap-2">
-                        <CoinIcon code={c.code} className="size-4" />
-                        {c.code}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any currency</SelectItem>
-                  {CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      <span className="flex items-center gap-2">
-                        <span className={`fi fi-${c.flagCode}`} aria-hidden />
-                        {c.code}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Your country</Label>
-              <Select value={countryFilter} onValueChange={setCountryFilter}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any country</SelectItem>
-                  {COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      <span className="flex items-center gap-2">
-                        <span className={`fi fi-${c.code.toLowerCase()}`} aria-hidden />
-                        {c.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Payment method</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start gap-2 font-normal"
-                  onClick={() => setMethodPickerOpen(true)}
-                >
-                  {methodFilters.length > 0 ? (
-                    <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 text-muted-foreground" />
-                  ) : null}
-                  <span className="truncate">
-                    {methodFilters.length > 0
-                      ? methodFilters.length === 1
-                        ? methodFilters[0]
-                        : `${methodFilters[0]} +${methodFilters.length - 1}`
-                      : "Any method"}
-                  </span>
-                </Button>
-                {methodFilters.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Clear payment method filter"
-                    onClick={() => setMethodFilters([])}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Tags</Label>
-              <TagFilterPopover selected={tagFilter} onChange={setTagFilter} className="w-full" />
-            </div>
-            <div className="space-y-2">
-              <Label>Sort by</Label>
-              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="newest">Newest</SelectItem>
-                  <SelectItem value="price_asc">Price: low to high</SelectItem>
-                  <SelectItem value="price_desc">Price: high to low</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-3">
+      <div className="space-y-3">
           {listings.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading offers…</p>
           ) : rows.length === 0 ? (
@@ -531,20 +560,32 @@ function Marketplace() {
           ) : (
             rows.map((l) => {
               const counterparty = (
-                l as unknown as { profiles: { display_name: string; trades_completed: number } | null }
+                l as unknown as {
+                  profiles: { display_name: string; trades_completed: number; country: string | null } | null;
+                }
               ).profiles;
               const price = priceOf(l);
               const symbol = currencySymbol(l.fiat_currency);
               const margin = Number(l.margin_percent);
+              const previewFiat = l.min_amount != null ? Number(l.min_amount) : 10;
+              const preview = computeReceiveAmount(previewFiat, price, PLATFORM_FEE_PERCENT);
               return (
                 <Card key={l.id}>
                   <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
+                        <UserAvatar
+                          userId={l.seller_id}
+                          displayName={counterparty?.display_name ?? "Trader"}
+                          className="size-8 shrink-0"
+                        />
                         <span className="flex items-center gap-1.5 text-base font-semibold">
                           <CoinIcon code={l.crypto_type} className="size-5" />
                           {COIN_FULL_NAME[l.crypto_type] ?? l.crypto_type}
                         </span>
+                        {counterparty?.country ? (
+                          <span className={`fi fi-${counterparty.country.toLowerCase()}`} aria-hidden />
+                        ) : null}
                         <Link
                           to="/traders/$userId"
                           params={{ userId: l.seller_id }}
@@ -563,17 +604,22 @@ function Marketplace() {
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mono text-sm text-muted-foreground">
+                      <p className="mono flex items-center gap-2 text-sm text-muted-foreground">
                         {symbol}
                         {price.toLocaleString()} per {l.crypto_type}
                         {l.fixed_price != null ? (
-                          <span className="text-muted-foreground"> (fixed)</span>
+                          <span className="text-muted-foreground">(fixed)</span>
                         ) : margin !== 0 ? (
-                          <span className={margin < 0 ? "text-green-600" : "text-muted-foreground"}>
-                            {" "}
-                            ({margin > 0 ? "+" : ""}
-                            {margin}%)
-                          </span>
+                          <Badge
+                            className={
+                              margin < 0
+                                ? "bg-green-600/15 font-normal text-green-600 hover:bg-green-600/15"
+                                : "bg-destructive/15 font-normal text-destructive hover:bg-destructive/15"
+                            }
+                          >
+                            {margin > 0 ? "+" : ""}
+                            {margin}%
+                          </Badge>
                         ) : null}
                       </p>
                       {l.min_amount != null && l.max_amount != null ? (
@@ -581,6 +627,12 @@ function Marketplace() {
                           Range: {symbol}
                           {Number(l.min_amount).toLocaleString()} – {symbol}
                           {Number(l.max_amount).toLocaleString()}
+                        </p>
+                      ) : null}
+                      {price ? (
+                        <p className="text-xs text-muted-foreground">
+                          Pay {symbol}
+                          {previewFiat.toLocaleString()} · Receive {preview.netCrypto.toFixed(8)} {l.crypto_type}
                         </p>
                       ) : null}
                       <div className="flex flex-wrap gap-1.5">
@@ -619,7 +671,6 @@ function Marketplace() {
             </Button>
           ) : null}
         </div>
-      </div>
 
       <PaymentMethodPicker
         open={methodPickerOpen}

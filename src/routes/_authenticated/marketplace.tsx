@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, ShieldCheck, SlidersHorizontal, Tag, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, SlidersHorizontal, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -553,9 +553,6 @@ function Marketplace() {
                           <Badge variant="outline">{counterparty?.display_name ?? "Trader"}</Badge>
                         </Link>
                         <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
-                        <span className="text-xs text-muted-foreground">
-                          {counterparty?.trades_completed ?? 0} trades
-                        </span>
                         {(l.blocked_countries ?? []).length > 0 ? (
                           <Badge
                             variant="outline"
@@ -593,12 +590,6 @@ function Marketplace() {
                             {m}
                           </Badge>
                         ))}
-                        {l.min_trades_required ? (
-                          <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
-                            <ShieldCheck className="size-3" />
-                            {l.min_trades_required}+ trades required
-                          </Badge>
-                        ) : null}
                         {(l.tags ?? []).map((t) => (
                           <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
                             {offerTagLabel(t)}

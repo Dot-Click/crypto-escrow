@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, RefreshCw, Search, SlidersHorizontal, Tag, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, SlidersHorizontal, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -125,10 +125,6 @@ function Marketplace() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
-  // Desktop-only, matching the reference layout's "Enter Amount" box — the
-  // mobile bar deliberately doesn't have this (removed per an earlier,
-  // separate request), so it's not part of resetFilters either.
-  const [amount, setAmount] = useState("");
 
   const resetFilters = () => {
     setCrypto("all");
@@ -191,14 +187,6 @@ function Marketplace() {
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
     let out = allListings;
-    if (amount) {
-      const wanted = Number(amount);
-      out = out.filter((l) => {
-        const min = l.min_amount != null ? Number(l.min_amount) : 0;
-        const max = l.max_amount != null ? Number(l.max_amount) : Infinity;
-        return wanted >= min && wanted <= max;
-      });
-    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -211,7 +199,7 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
+  }, [allListings, marketPrices.data, fxRates.data, search, sort]);
 
   // Display currency for the hero rate ticker — "Any Fiat" has no single
   // rate to show, so it falls back to USD.
@@ -257,10 +245,10 @@ function Marketplace() {
         </p>
       </div>
 
-      {/* Desktop filter bar — one row, matching the reference layout
-          exactly (Buy/Sell, crypto, payment method, fiat, amount,
-          create-offer, filters, refresh). Country/Tags/Sort share the
-          same "Filters" sheet the mobile bar below uses. */}
+      {/* Desktop filter bar — one row (Buy/Sell, crypto, payment method,
+          fiat, create-offer, filters). Amount and refresh were both tried
+          here and removed per request, same as on the mobile bar below.
+          Country/Tags/Sort share the same "Filters" sheet both bars use. */}
       <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-card/40 p-2 lg:flex">
         <Button
           type="button"
@@ -345,23 +333,6 @@ function Marketplace() {
           </SelectContent>
         </Select>
 
-        <div className="relative w-44 shrink-0">
-          <Input
-            className="h-10 pr-16"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter Amount"
-          />
-          <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-            <span
-              className={`fi fi-${currency === "all" ? "us" : (CURRENCIES.find((c) => c.code === currency)?.flagCode ?? "us")}`}
-              aria-hidden
-            />
-            {heroCurrency}
-          </span>
-        </div>
-
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button type="button" className="h-10 gap-1.5" asChild>
             <Link to="/listings/new">
@@ -370,16 +341,6 @@ function Marketplace() {
           </Button>
           <Button type="button" variant="outline" className="h-10 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" /> Filters
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-10 w-10 shrink-0"
-            aria-label="Refresh offers"
-            onClick={() => void listings.refetch()}
-          >
-            <RefreshCw className={`size-4 ${listings.isFetching ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>

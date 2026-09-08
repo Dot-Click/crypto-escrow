@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Tag, X } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, ShieldCheck, SlidersHorizontal, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -316,7 +316,7 @@ function Marketplace() {
           </SelectContent>
         </Select>
 
-        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+        <div className="grid grid-cols-[1fr_auto] gap-2">
           <Button type="button" className="h-11 gap-1.5" asChild>
             <Link to="/listings/new">
               <Plus className="size-4" /> Create an offer
@@ -324,16 +324,6 @@ function Marketplace() {
           </Button>
           <Button type="button" variant="outline" className="h-11 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" /> Filters
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 shrink-0"
-            aria-label="Refresh offers"
-            onClick={() => void listings.refetch()}
-          >
-            <RefreshCw className={`size-4 ${listings.isFetching ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>

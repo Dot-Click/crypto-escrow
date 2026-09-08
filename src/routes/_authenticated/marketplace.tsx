@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMemo, useState } from "react";
-import { Search, ShieldCheck, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, ShieldCheck, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -21,8 +21,8 @@ import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
-import { offerTagLabel } from "@/lib/offer-tags";
-import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { OFFER_TAGS, offerTagLabel } from "@/lib/offer-tags";
+import { methodString, railKeyForMethod, searchProviders, TOTAL_PROVIDER_COUNT } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
@@ -30,7 +30,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -63,6 +65,51 @@ export const Route = createFileRoute("/_authenticated/marketplace")({
 
 type SortKey = "newest" | "price_asc" | "price_desc";
 
+/** Multi-select tag filter — shared between the mobile compact bar and the
+ * desktop sidebar so the checklist only exists once. */
+function TagFilterPopover({
+  selected,
+  onChange,
+  className,
+}: {
+  selected: string[];
+  onChange: (tags: string[]) => void;
+  className?: string;
+}) {
+  const toggle = (value: string) => {
+    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className={`justify-start gap-2 font-normal ${className ?? ""}`}>
+          <Tag className="size-4 text-muted-foreground" />
+          {selected.length > 0 ? `${selected.length} tag${selected.length === 1 ? "" : "s"} selected` : "Tags"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 space-y-1 p-2" align="start">
+        {OFFER_TAGS.map((t) => (
+          <label
+            key={t.value}
+            className="flex cursor-pointer items-start gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+          >
+            <Checkbox
+              checked={selected.includes(t.value)}
+              onCheckedChange={() => toggle(t.value)}
+              className="mt-0.5"
+            />
+            <span>
+              {t.label}
+              <span className="block text-xs font-normal text-muted-foreground">{t.description}</span>
+            </span>
+          </label>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function Marketplace() {
   const { profile } = useAuth();
   const [side, setSide] = useState<"sell" | "buy">("sell");
@@ -71,11 +118,36 @@ function Marketplace() {
   const [countryFilter, setCountryFilter] = useState("all");
   const [methodFilter, setMethodFilter] = useState<string | null>(null);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+  const [methodQuery, setMethodQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  // What a buyer wants to spend — filters to offers whose min/max trade
+  // range actually covers that amount, not the coin's unit price.
+  const [amount, setAmount] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
+
+  const methodSearchRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (methodSearchRef.current && !methodSearchRef.current.contains(e.target as Node)) {
+        setMethodQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+  const methodQueryResults = useMemo(() => searchProviders(methodQuery), [methodQuery]);
+
+  const resetFilters = () => {
+    setCrypto("all");
+    setCurrency("all");
+    setCountryFilter("all");
+    setMethodFilter(null);
+    setMethodQuery("");
+    setTagFilter([]);
+    setAmount("");
+  };
 
   const fetchPrices = useServerFn(getMarketPrices);
   const marketPrices = useQuery({
@@ -93,7 +165,7 @@ function Marketplace() {
 
   const LISTINGS_PAGE_SIZE = 10;
   const listings = useInfiniteQuery({
-    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilter],
+    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilter, tagFilter],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       let query = supabase
@@ -105,6 +177,7 @@ function Marketplace() {
       if (currency !== "all") query = query.eq("fiat_currency", currency);
       if (countryFilter !== "all") query = query.not("blocked_countries", "cs", `{${countryFilter}}`);
       if (methodFilter) query = query.contains("accepted_payment_methods", [methodFilter]);
+      if (tagFilter.length > 0) query = query.overlaps("tags", tagFilter);
 
       const { data, error } = await query
         .order("created_at", { ascending: false })
@@ -129,8 +202,14 @@ function Marketplace() {
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
     let out = allListings;
-    if (minPrice) out = out.filter((l) => usdPriceOf(l) >= Number(minPrice));
-    if (maxPrice) out = out.filter((l) => usdPriceOf(l) <= Number(maxPrice));
+    if (amount) {
+      const wanted = Number(amount);
+      out = out.filter((l) => {
+        const min = l.min_amount != null ? Number(l.min_amount) : 0;
+        const max = l.max_amount != null ? Number(l.max_amount) : Infinity;
+        return wanted >= min && wanted <= max;
+      });
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -143,7 +222,7 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [allListings, marketPrices.data, fxRates.data, minPrice, maxPrice, search, sort]);
+  }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -154,7 +233,7 @@ function Marketplace() {
         </p>
       </div>
 
-      <div className="mb-4 inline-flex rounded-md border border-border p-1">
+      <div className="mb-4 hidden lg:inline-flex rounded-md border border-border p-1">
         <Button
           variant={side === "sell" ? "default" : "ghost"}
           size="sm"
@@ -171,8 +250,144 @@ function Marketplace() {
         </Button>
       </div>
 
+      {/* Compact chip-style filter bar — mobile/tablet only. Deliberately
+          scoped to just what fits a narrow screen (no free-text search, no
+          sort — those stay on the desktop sidebar below). */}
+      <div className="mb-4 space-y-2 lg:hidden">
+        <div className="flex gap-2">
+          <div ref={methodSearchRef} className="relative flex-1">
+            {methodFilter ? (
+              <div className="flex h-10 items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm">
+                <PaymentRailIcon railKey={railKeyForMethod(methodFilter)} className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{methodFilter}</span>
+                <button
+                  type="button"
+                  className="ml-auto text-muted-foreground hover:text-foreground"
+                  aria-label="Clear payment method filter"
+                  onClick={() => setMethodFilter(null)}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  value={methodQuery}
+                  onChange={(e) => setMethodQuery(e.target.value)}
+                  placeholder={`Search ${TOTAL_PROVIDER_COUNT}+ Payment Methods`}
+                />
+                {methodQuery.trim() ? (
+                  <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 space-y-1 overflow-y-auto rounded-md border border-border bg-popover p-1.5 shadow-md">
+                    {methodQueryResults.slice(0, 30).map(({ rail, provider }) => {
+                      const method = methodString(rail.label, provider);
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
+                          onClick={() => {
+                            setMethodFilter(method);
+                            setMethodQuery("");
+                          }}
+                        >
+                          <PaymentRailIcon railKey={rail.key} className="size-4 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{provider}</span>
+                          <span className="ml-auto shrink-0 text-xs text-muted-foreground">{rail.label}</span>
+                        </button>
+                      );
+                    })}
+                    {methodQueryResults.length === 0 ? (
+                      <p className="px-2 py-3 text-center text-sm text-muted-foreground">No matches</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+          <Button type="button" variant="outline" onClick={() => setMethodPickerOpen(true)}>
+            Show All
+          </Button>
+          <Button type="button" variant="outline" size="icon" aria-label="Clear all filters" onClick={resetFilters}>
+            <X className="size-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={side === "sell" ? "buy" : "sell"} onValueChange={(v) => setSide(v === "buy" ? "sell" : "buy")}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="buy">Buy</SelectItem>
+              <SelectItem value="sell">Sell</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={crypto} onValueChange={setCrypto}>
+            <SelectTrigger>
+              <SelectValue placeholder="Any crypto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any crypto</SelectItem>
+              {CRYPTO_TYPES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  <span className="flex items-center gap-2">
+                    <CoinIcon code={c.code} className="size-4" />
+                    {c.code}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Select value={currency} onValueChange={setCurrency}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any currency</SelectItem>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  <span className="flex items-center gap-2">
+                    <span className={`fi fi-${c.flagCode}`} aria-hidden />
+                    {c.code}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any country</SelectItem>
+              {COUNTRIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  <span className="flex items-center gap-2">
+                    <span className={`fi fi-${c.code.toLowerCase()}`} aria-hidden />
+                    {c.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Amount"
+          />
+        </div>
+
+        <TagFilterPopover selected={tagFilter} onChange={setTagFilter} className="w-full" />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card className="h-fit">
+        <Card className="hidden h-fit lg:block">
           <CardHeader>
             <CardTitle className="text-base">Filters</CardTitle>
           </CardHeader>
@@ -274,25 +489,19 @@ function Marketplace() {
                 ) : null}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="min">Min price (USD equiv.)</Label>
-                <Input
-                  id="min"
-                  inputMode="decimal"
-                  value={minPrice}
-                  onChange={(e) => setMinPrice(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="max">Max price (USD equiv.)</Label>
-                <Input
-                  id="max"
-                  inputMode="decimal"
-                  value={maxPrice}
-                  onChange={(e) => setMaxPrice(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount you want to trade</Label>
+              <Input
+                id="amount"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="e.g. 100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagFilterPopover selected={tagFilter} onChange={setTagFilter} className="w-full" />
             </div>
             <div className="space-y-2">
               <Label>Sort by</Label>

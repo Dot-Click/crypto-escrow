@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronRight, ArrowLeft, X } from "lucide-react";
-import { PAYMENT_RAILS, methodString, railLabelForMethod, providerForMethod } from "@/lib/payment-taxonomy";
+import { PAYMENT_RAILS, methodString, railLabelForMethod, providerForMethod, searchProviders } from "@/lib/payment-taxonomy";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,19 +47,7 @@ export function PaymentMethodPicker({
   // Top-level search: matches a provider anywhere across every rail, so
   // users can jump straight to e.g. "PayPal" without first tapping into
   // "Online wallets".
-  const railSearchResults = useMemo(() => {
-    const q = railSearch.trim().toLowerCase();
-    if (!q) return [];
-    const results: Array<{ rail: (typeof PAYMENT_RAILS)[number]; provider: string }> = [];
-    for (const rail of PAYMENT_RAILS) {
-      for (const provider of rail.providers) {
-        if (provider.toLowerCase().includes(q) || rail.label.toLowerCase().includes(q)) {
-          results.push({ rail, provider });
-        }
-      }
-    }
-    return results;
-  }, [railSearch]);
+  const railSearchResults = useMemo(() => searchProviders(railSearch), [railSearch]);
 
   const toggle = (method: string) => {
     if (selected.includes(method)) {

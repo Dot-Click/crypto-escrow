@@ -861,3 +861,19 @@ export function providerForMethod(method: string): string {
 }
 
 export const TOTAL_PROVIDER_COUNT = PAYMENT_RAILS.reduce((sum, r) => sum + r.providers.length, 0);
+
+/** Matches a provider anywhere across every rail — used by both the full
+ * picker's top-level search and the marketplace's inline quick-search. */
+export function searchProviders(query: string): Array<{ rail: PaymentRail; provider: string }> {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const results: Array<{ rail: PaymentRail; provider: string }> = [];
+  for (const rail of PAYMENT_RAILS) {
+    for (const provider of rail.providers) {
+      if (provider.toLowerCase().includes(q) || rail.label.toLowerCase().includes(q)) {
+        results.push({ rail, provider });
+      }
+    }
+  }
+  return results;
+}

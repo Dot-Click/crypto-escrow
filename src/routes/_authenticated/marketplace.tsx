@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ShieldCheck, Tag, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Tag, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -22,7 +22,7 @@ import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
 import { OFFER_TAGS, offerTagLabel } from "@/lib/offer-tags";
-import { methodString, railKeyForMethod, searchProviders, TOTAL_PROVIDER_COUNT } from "@/lib/payment-taxonomy";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -116,9 +117,8 @@ function Marketplace() {
   const [crypto, setCrypto] = useState("all");
   const [currency, setCurrency] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
-  const [methodFilter, setMethodFilter] = useState<string | null>(null);
+  const [methodFilters, setMethodFilters] = useState<string[]>([]);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
-  const [methodQuery, setMethodQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   // What a buyer wants to spend — filters to offers whose min/max trade
   // range actually covers that amount, not the coin's unit price.
@@ -126,25 +126,13 @@ function Marketplace() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
-
-  const methodSearchRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
-      if (methodSearchRef.current && !methodSearchRef.current.contains(e.target as Node)) {
-        setMethodQuery("");
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, []);
-  const methodQueryResults = useMemo(() => searchProviders(methodQuery), [methodQuery]);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const resetFilters = () => {
     setCrypto("all");
     setCurrency("all");
     setCountryFilter("all");
-    setMethodFilter(null);
-    setMethodQuery("");
+    setMethodFilters([]);
     setTagFilter([]);
     setAmount("");
   };
@@ -165,7 +153,7 @@ function Marketplace() {
 
   const LISTINGS_PAGE_SIZE = 10;
   const listings = useInfiniteQuery({
-    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilter, tagFilter],
+    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilters, tagFilter],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       let query = supabase
@@ -176,7 +164,7 @@ function Marketplace() {
       if (crypto !== "all") query = query.eq("crypto_type", crypto);
       if (currency !== "all") query = query.eq("fiat_currency", currency);
       if (countryFilter !== "all") query = query.not("blocked_countries", "cs", `{${countryFilter}}`);
-      if (methodFilter) query = query.contains("accepted_payment_methods", [methodFilter]);
+      if (methodFilters.length > 0) query = query.overlaps("accepted_payment_methods", methodFilters);
       if (tagFilter.length > 0) query = query.overlaps("tags", tagFilter);
 
       const { data, error } = await query
@@ -250,141 +238,196 @@ function Marketplace() {
         </Button>
       </div>
 
-      {/* Compact chip-style filter bar — mobile/tablet only. Deliberately
-          scoped to just what fits a narrow screen (no free-text search, no
-          sort — those stay on the desktop sidebar below). */}
+      {/* Compact filter bar — mobile/tablet only, matching the reference
+          layout. Country, Tags and Sort live in the "Filters" sheet below
+          instead of cluttering the main bar — the desktop sidebar keeps
+          everything inline since it has the room. */}
       <div className="mb-4 space-y-2 lg:hidden">
-        <div className="flex gap-2">
-          <div ref={methodSearchRef} className="relative flex-1">
-            {methodFilter ? (
-              <div className="flex h-10 items-center gap-2 rounded-md border border-border bg-muted/30 px-3 text-sm">
-                <PaymentRailIcon railKey={railKeyForMethod(methodFilter)} className="size-4 shrink-0 text-muted-foreground" />
-                <span className="truncate">{methodFilter}</span>
-                <button
-                  type="button"
-                  className="ml-auto text-muted-foreground hover:text-foreground"
-                  aria-label="Clear payment method filter"
-                  onClick={() => setMethodFilter(null)}
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            onClick={() => setSide("sell")}
+            className={
+              side === "sell"
+                ? "h-11 justify-center gap-2 bg-green-600 text-white hover:bg-green-600/90"
+                : "h-11 justify-center gap-2 bg-muted text-foreground hover:bg-muted/80"
+            }
+          >
+            <ArrowDownCircle className="size-4" /> Buy
+          </Button>
+          <Button
+            type="button"
+            onClick={() => setSide("buy")}
+            className={
+              side === "buy"
+                ? "h-11 justify-center gap-2 bg-green-600 text-white hover:bg-green-600/90"
+                : "h-11 justify-center gap-2 bg-muted text-foreground hover:bg-muted/80"
+            }
+          >
+            <ArrowUpCircle className="size-4" /> Sell
+          </Button>
+        </div>
+
+        <Select value={crypto} onValueChange={setCrypto}>
+          <SelectTrigger className="h-11">
+            <span className="flex items-center gap-2 truncate">
+              <Layers className="size-4 shrink-0 text-muted-foreground" />
+              <SelectValue placeholder="All crypto" />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All crypto</SelectItem>
+            {CRYPTO_TYPES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                <span className="flex items-center gap-2">
+                  <CoinIcon code={c.code} className="size-4" />
+                  {c.code}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <button
+          type="button"
+          className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
+          onClick={() => setMethodPickerOpen(true)}
+        >
+          <span className="flex items-center gap-2 truncate">
+            {methodFilters.length > 0 ? (
               <>
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  value={methodQuery}
-                  onChange={(e) => setMethodQuery(e.target.value)}
-                  placeholder={`Search ${TOTAL_PROVIDER_COUNT}+ Payment Methods`}
-                />
-                {methodQuery.trim() ? (
-                  <div className="absolute inset-x-0 top-full z-20 mt-1 max-h-64 space-y-1 overflow-y-auto rounded-md border border-border bg-popover p-1.5 shadow-md">
-                    {methodQueryResults.slice(0, 30).map(({ rail, provider }) => {
-                      const method = methodString(rail.label, provider);
-                      return (
-                        <button
-                          key={method}
-                          type="button"
-                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted"
-                          onClick={() => {
-                            setMethodFilter(method);
-                            setMethodQuery("");
-                          }}
-                        >
-                          <PaymentRailIcon railKey={rail.key} className="size-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{provider}</span>
-                          <span className="ml-auto shrink-0 text-xs text-muted-foreground">{rail.label}</span>
-                        </button>
-                      );
-                    })}
-                    {methodQueryResults.length === 0 ? (
-                      <p className="px-2 py-3 text-center text-sm text-muted-foreground">No matches</p>
-                    ) : null}
-                  </div>
+                <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate">{methodFilters[0]}</span>
+                {methodFilters.length > 1 ? (
+                  <Badge variant="secondary" className="shrink-0 font-normal">
+                    +{methodFilters.length - 1}
+                  </Badge>
                 ) : null}
               </>
+            ) : (
+              <span className="text-muted-foreground">Payment method</span>
             )}
-          </div>
-          <Button type="button" variant="outline" onClick={() => setMethodPickerOpen(true)}>
-            Show All
-          </Button>
-          <Button type="button" variant="outline" size="icon" aria-label="Clear all filters" onClick={resetFilters}>
-            <X className="size-4" />
-          </Button>
-        </div>
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+        </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={side === "sell" ? "buy" : "sell"} onValueChange={(v) => setSide(v === "buy" ? "sell" : "buy")}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="buy">Buy</SelectItem>
-              <SelectItem value="sell">Sell</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={crypto} onValueChange={setCrypto}>
-            <SelectTrigger>
-              <SelectValue placeholder="Any crypto" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any crypto</SelectItem>
-              {CRYPTO_TYPES.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  <span className="flex items-center gap-2">
-                    <CoinIcon code={c.code} className="size-4" />
-                    {c.code}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Select value={currency} onValueChange={setCurrency}>
+          <SelectTrigger className="h-11">
+            <SelectValue placeholder="Any Fiat" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any Fiat</SelectItem>
+            {CURRENCIES.map((c) => (
+              <SelectItem key={c.code} value={c.code}>
+                <span className="flex items-center gap-2">
+                  <span className={`fi fi-${c.flagCode}`} aria-hidden />
+                  {c.code}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <div className="grid grid-cols-3 gap-2">
-          <Select value={currency} onValueChange={setCurrency}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any currency</SelectItem>
-              {CURRENCIES.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  <span className="flex items-center gap-2">
-                    <span className={`fi fi-${c.flagCode}`} aria-hidden />
-                    {c.code}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Country" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any country</SelectItem>
-              {COUNTRIES.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  <span className="flex items-center gap-2">
-                    <span className={`fi fi-${c.code.toLowerCase()}`} aria-hidden />
-                    {c.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="relative">
           <Input
+            className="h-11 pr-24"
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount"
+            placeholder="Enter Amount"
           />
+          <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+            <span
+              className={`fi fi-${currency === "all" ? "us" : (CURRENCIES.find((c) => c.code === currency)?.flagCode ?? "us")}`}
+              aria-hidden
+            />
+            {currency === "all" ? "USD" : currency}
+          </span>
         </div>
 
-        <TagFilterPopover selected={tagFilter} onChange={setTagFilter} className="w-full" />
+        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+          <Button type="button" className="h-11 gap-1.5" asChild>
+            <Link to="/listings/new">
+              <Plus className="size-4" /> Create an offer
+            </Link>
+          </Button>
+          <Button type="button" variant="outline" className="h-11 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
+            <SlidersHorizontal className="size-4" /> Filters
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            aria-label="Refresh offers"
+            onClick={() => void listings.refetch()}
+          >
+            <RefreshCw className={`size-4 ${listings.isFetching ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       </div>
+
+      <Sheet open={moreFiltersOpen} onOpenChange={setMoreFiltersOpen}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>More filters</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Your country</Label>
+              <Select value={countryFilter} onValueChange={setCountryFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any country</SelectItem>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      <span className="flex items-center gap-2">
+                        <span className={`fi fi-${c.code.toLowerCase()}`} aria-hidden />
+                        {c.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Sort by</Label>
+              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest</SelectItem>
+                  <SelectItem value="price_asc">Price: low to high</SelectItem>
+                  <SelectItem value="price_desc">Price: high to low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <TagFilterPopover selected={tagFilter} onChange={setTagFilter} className="w-full" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobile-search">Search</Label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="mobile-search"
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="BTC, bank transfer…"
+                />
+              </div>
+            </div>
+            <Button type="button" variant="outline" className="w-full gap-2" onClick={resetFilters}>
+              <X className="size-4" /> Clear all filters
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <Card className="hidden h-fit lg:block">
@@ -471,18 +514,24 @@ function Marketplace() {
                   className="w-full justify-start gap-2 font-normal"
                   onClick={() => setMethodPickerOpen(true)}
                 >
-                  {methodFilter ? (
-                    <PaymentRailIcon railKey={railKeyForMethod(methodFilter)} className="size-4 text-muted-foreground" />
+                  {methodFilters.length > 0 ? (
+                    <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 text-muted-foreground" />
                   ) : null}
-                  <span className="truncate">{methodFilter ?? "Any method"}</span>
+                  <span className="truncate">
+                    {methodFilters.length > 0
+                      ? methodFilters.length === 1
+                        ? methodFilters[0]
+                        : `${methodFilters[0]} +${methodFilters.length - 1}`
+                      : "Any method"}
+                  </span>
                 </Button>
-                {methodFilter ? (
+                {methodFilters.length > 0 ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     aria-label="Clear payment method filter"
-                    onClick={() => setMethodFilter(null)}
+                    onClick={() => setMethodFilters([])}
                   >
                     <X className="size-4" />
                   </Button>
@@ -633,9 +682,9 @@ function Marketplace() {
       <PaymentMethodPicker
         open={methodPickerOpen}
         onOpenChange={setMethodPickerOpen}
-        selected={methodFilter ? [methodFilter] : []}
-        onChange={(methods) => setMethodFilter(methods[0] ?? null)}
-        multiple={false}
+        selected={methodFilters}
+        onChange={setMethodFilters}
+        multiple
       />
 
       <StartTradeDialog

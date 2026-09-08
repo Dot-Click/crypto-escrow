@@ -120,9 +120,6 @@ function Marketplace() {
   const [methodFilters, setMethodFilters] = useState<string[]>([]);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
-  // What a buyer wants to spend — filters to offers whose min/max trade
-  // range actually covers that amount, not the coin's unit price.
-  const [amount, setAmount] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
@@ -134,7 +131,6 @@ function Marketplace() {
     setCountryFilter("all");
     setMethodFilters([]);
     setTagFilter([]);
-    setAmount("");
   };
 
   const fetchPrices = useServerFn(getMarketPrices);
@@ -190,14 +186,6 @@ function Marketplace() {
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
     let out = allListings;
-    if (amount) {
-      const wanted = Number(amount);
-      out = out.filter((l) => {
-        const min = l.min_amount != null ? Number(l.min_amount) : 0;
-        const max = l.max_amount != null ? Number(l.max_amount) : Infinity;
-        return wanted >= min && wanted <= max;
-      });
-    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -210,7 +198,7 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
+  }, [allListings, marketPrices.data, fxRates.data, search, sort]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -327,23 +315,6 @@ function Marketplace() {
             ))}
           </SelectContent>
         </Select>
-
-        <div className="relative">
-          <Input
-            className="h-11 pr-24"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter Amount"
-          />
-          <span className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-            <span
-              className={`fi fi-${currency === "all" ? "us" : (CURRENCIES.find((c) => c.code === currency)?.flagCode ?? "us")}`}
-              aria-hidden
-            />
-            {currency === "all" ? "USD" : currency}
-          </span>
-        </div>
 
         <div className="grid grid-cols-[1fr_auto_auto] gap-2">
           <Button type="button" className="h-11 gap-1.5" asChild>
@@ -537,16 +508,6 @@ function Marketplace() {
                   </Button>
                 ) : null}
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="amount">Amount you want to trade</Label>
-              <Input
-                id="amount"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 100"
-              />
             </div>
             <div className="space-y-2">
               <Label>Tags</Label>

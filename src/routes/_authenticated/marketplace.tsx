@@ -237,7 +237,7 @@ function Marketplace() {
             onClick={() => setSide("sell")}
             className={
               side === "sell"
-                ? "h-11 justify-center gap-2 bg-green-600 text-white hover:bg-green-600/90"
+                ? "h-11 justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
                 : "h-11 justify-center gap-2 bg-muted text-foreground hover:bg-muted/80"
             }
           >

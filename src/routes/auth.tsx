@@ -215,7 +215,7 @@ function AuthPage() {
           }}
         />
         <div className="absolute bottom-10 left-10 right-10">
-          <img src="/logo.png" alt="CEMP" className="h-8 w-auto" />
+          <img src="/logo.png" alt="CEMP" className="h-12 w-auto" />
           <p className="mt-2 max-w-sm text-sm text-foreground/80">
             Trade crypto safely, peer-to-peer.
           </p>
@@ -226,7 +226,7 @@ function AuthPage() {
       <div className="flex w-full flex-col items-center justify-center px-4 py-10 lg:w-1/2">
         <div className="w-full max-w-md">
           <Link to="/" className="mb-6 flex items-center justify-center lg:hidden">
-            <img src="/logo.png" alt="CEMP" className="h-6 w-auto" />
+            <img src="/logo.png" alt="CEMP" className="h-10 w-auto" />
           </Link>
           <Card>
             <CardHeader>

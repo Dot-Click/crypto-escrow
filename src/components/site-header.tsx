@@ -82,7 +82,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 px-4">
         <Link to="/" className="flex items-center">
-          <img src="/logo.png" alt="CEMP" className="h-6 w-auto" />
+          <img src="/logo.png" alt="CEMP" className="h-10 w-auto" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{links()}</nav>

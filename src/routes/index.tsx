@@ -599,7 +599,7 @@ function Marketplace() {
               </CardContent>
             </Card>
           ) : (
-            <div className="rounded-lg border border-border">
+            <div className="rounded-lg border border-border bg-muted">
               {rows.map((l) => {
                 const counterparty = (
                   l as unknown as {

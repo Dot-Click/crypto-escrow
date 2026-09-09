@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, Menu, Plus, Tag, User } from "lucide-react";
+import { ArrowLeftRight, LogOut, Menu, Plus, Settings, ShieldCheck, Tag, User, Wallet } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,10 +19,10 @@ import {
 // "Marketplace" nav item — everything below needs an account, so it's only
 // added to the nav when signed in.
 const AUTH_NAV = [
-  { to: "/trades", label: "Trades" },
-  { to: "/wallet", label: "Wallet" },
-  { to: "/profile", label: "Profile" },
-  { to: "/settings", label: "Settings" },
+  { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
+  { to: "/wallet", label: "Wallet", icon: Wallet },
+  { to: "/profile", label: "Profile", icon: User },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 
@@ -32,7 +32,7 @@ export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const nav = [
     ...(user ? AUTH_NAV : []),
-    ...(isAdmin ? [{ to: "/admin", label: "Admin" } as const] : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : []),
   ];
 
   // The marketing hero (now at "/landing", not the "/" homepage anymore)
@@ -53,9 +53,10 @@ export function SiteHeader() {
         key={item.to}
         to={item.to}
         onClick={onClick}
-        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        activeProps={{ className: "text-sm text-foreground font-medium" }}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        activeProps={{ className: "flex items-center gap-1.5 text-sm text-foreground font-medium" }}
       >
+        <item.icon className="size-4" />
         {item.label}
       </Link>
     ));
@@ -70,7 +71,7 @@ export function SiteHeader() {
     >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">
         <Link to="/" className="flex items-center">
-          <img src="/logo.svg" alt="CEMP" className="h-6 w-auto" />
+          <img src="/logo.png" alt="CEMP" className="h-6 w-auto" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{links()}</nav>

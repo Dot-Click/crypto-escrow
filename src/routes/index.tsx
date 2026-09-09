@@ -13,7 +13,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, SlidersHorizontal, Tag, X } from "lucide-react";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  ChevronDown,
+  Info,
+  Layers,
+  Plus,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Tag,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
@@ -122,6 +134,7 @@ function Marketplace() {
   const [methodFilters, setMethodFilters] = useState<string[]>([]);
   const [methodPickerOpen, setMethodPickerOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [amount, setAmount] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
@@ -133,6 +146,7 @@ function Marketplace() {
     setCountryFilter("all");
     setMethodFilters([]);
     setTagFilter([]);
+    setAmount("");
   };
 
   const fetchPrices = useServerFn(getMarketPrices);
@@ -187,6 +201,14 @@ function Marketplace() {
     const usdPriceOf = (l: ListingRow) => resolveListingPriceUsd(l, prices, fx) ?? Number(l.price);
 
     let out = allListings;
+    const amountNum = Number(amount);
+    if (amount.trim() && Number.isFinite(amountNum) && amountNum > 0) {
+      out = out.filter((l) => {
+        const min = l.min_amount != null ? Number(l.min_amount) : 0;
+        const max = l.max_amount != null ? Number(l.max_amount) : Infinity;
+        return amountNum >= min && amountNum <= max;
+      });
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       out = out.filter(
@@ -199,7 +221,7 @@ function Marketplace() {
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
     return out;
-  }, [allListings, marketPrices.data, fxRates.data, search, sort]);
+  }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
 
   // Display currency for the hero rate ticker — "Any Fiat" has no single
   // rate to show, so it falls back to USD.
@@ -257,17 +279,17 @@ function Marketplace() {
       </div>
 
       {/* Desktop filter bar — one row (Buy/Sell, crypto, payment method,
-          fiat, create-offer, filters). Amount and refresh were both tried
-          here and removed per request, same as on the mobile bar below.
-          Country/Tags/Sort share the same "Filters" sheet both bars use. */}
+          fiat, amount, create-offer, filters, refresh), matching
+          SafeTheTrade's layout. Country/Tags/Sort share the same "Filters"
+          sheet both bars use. */}
       <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-card/40 p-2 lg:flex">
         <Button
           type="button"
           onClick={() => setSide("sell")}
           className={
             side === "sell"
-              ? "h-10 shrink-0 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-              : "h-10 shrink-0 gap-1.5 bg-muted text-foreground hover:bg-muted/80"
+              ? "h-10 shrink-0 gap-1.5 rounded-full bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+              : "h-10 shrink-0 gap-1.5 rounded-full bg-muted px-4 text-foreground hover:bg-muted/80"
           }
         >
           <ArrowDownCircle className="size-4" /> Buy
@@ -277,8 +299,8 @@ function Marketplace() {
           onClick={() => setSide("buy")}
           className={
             side === "buy"
-              ? "h-10 shrink-0 gap-1.5 bg-green-600 text-white hover:bg-green-600/90"
-              : "h-10 shrink-0 gap-1.5 bg-muted text-foreground hover:bg-muted/80"
+              ? "h-10 shrink-0 gap-1.5 rounded-full bg-green-600 px-4 text-white hover:bg-green-600/90"
+              : "h-10 shrink-0 gap-1.5 rounded-full bg-muted px-4 text-foreground hover:bg-muted/80"
           }
         >
           <ArrowUpCircle className="size-4" /> Sell
@@ -306,7 +328,7 @@ function Marketplace() {
 
         <button
           type="button"
-          className="flex h-10 w-48 shrink-0 items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
+          className="flex h-10 w-44 shrink-0 items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
           onClick={() => setMethodPickerOpen(true)}
         >
           <span className="flex items-center gap-2 truncate">
@@ -328,7 +350,7 @@ function Marketplace() {
         </button>
 
         <Select value={currency} onValueChange={setCurrency}>
-          <SelectTrigger className="h-10 w-32 shrink-0">
+          <SelectTrigger className="h-10 w-28 shrink-0">
             <SelectValue placeholder="Any Fiat" />
           </SelectTrigger>
           <SelectContent>
@@ -344,6 +366,20 @@ function Marketplace() {
           </SelectContent>
         </Select>
 
+        <div className="relative h-10 w-40 shrink-0">
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Enter Amount"
+            className="h-10 pr-16"
+          />
+          <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground">
+            <span className={`fi fi-${CURRENCIES.find((c) => c.code === heroCurrency)?.flagCode ?? "us"}`} aria-hidden />
+            {heroCurrency}
+          </span>
+        </div>
+
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Button type="button" className="h-10 gap-1.5" asChild>
             <Link to="/listings/new">
@@ -352,6 +388,17 @@ function Marketplace() {
           </Button>
           <Button type="button" variant="outline" className="h-10 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" /> Filters
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-10 w-10 shrink-0"
+            aria-label="Refresh offers"
+            disabled={listings.isRefetching}
+            onClick={() => listings.refetch()}
+          >
+            <RefreshCw className={`size-4 ${listings.isRefetching ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>
@@ -446,7 +493,21 @@ function Marketplace() {
           </SelectContent>
         </Select>
 
-        <div className="grid grid-cols-[1fr_auto] gap-2">
+        <div className="relative h-11 w-full">
+          <Input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Enter Amount"
+            className="h-11 pr-16"
+          />
+          <span className="pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-xs text-muted-foreground">
+            <span className={`fi fi-${CURRENCIES.find((c) => c.code === heroCurrency)?.flagCode ?? "us"}`} aria-hidden />
+            {heroCurrency}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto_auto] gap-2">
           <Button type="button" className="h-11 gap-1.5" asChild>
             <Link to="/listings/new">
               <Plus className="size-4" /> Create an offer
@@ -454,6 +515,17 @@ function Marketplace() {
           </Button>
           <Button type="button" variant="outline" className="h-11 gap-1.5" onClick={() => setMoreFiltersOpen(true)}>
             <SlidersHorizontal className="size-4" /> Filters
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 shrink-0"
+            aria-label="Refresh offers"
+            disabled={listings.isRefetching}
+            onClick={() => listings.refetch()}
+          >
+            <RefreshCw className={`size-4 ${listings.isRefetching ? "animate-spin" : ""}`} />
           </Button>
         </div>
       </div>
@@ -520,9 +592,9 @@ function Marketplace() {
         </SheetContent>
       </Sheet>
 
-      <div className="space-y-3">
+      <div>
           {listings.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading offers…</p>
+            <p className="py-6 text-sm text-muted-foreground">Loading offers…</p>
           ) : rows.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -530,57 +602,62 @@ function Marketplace() {
               </CardContent>
             </Card>
           ) : (
-            rows.map((l) => {
-              const counterparty = (
-                l as unknown as {
-                  profiles: { display_name: string; trades_completed: number; country: string | null } | null;
-                }
-              ).profiles;
-              const price = priceOf(l);
-              const symbol = currencySymbol(l.fiat_currency);
-              const margin = Number(l.margin_percent);
-              const previewFiat = l.min_amount != null ? Number(l.min_amount) : 10;
-              const preview = computeReceiveAmount(previewFiat, price, PLATFORM_FEE_PERCENT);
-              return (
-                <Card key={l.id}>
-                  <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
+            <div className="rounded-lg border border-border">
+              {rows.map((l) => {
+                const counterparty = (
+                  l as unknown as {
+                    profiles: { display_name: string; trades_completed: number; country: string | null } | null;
+                  }
+                ).profiles;
+                const price = priceOf(l);
+                const symbol = currencySymbol(l.fiat_currency);
+                const margin = Number(l.margin_percent);
+                const previewFiat = l.min_amount != null ? Number(l.min_amount) : 10;
+                const preview = computeReceiveAmount(previewFiat, price, PLATFORM_FEE_PERCENT);
+                const primaryMethod = l.accepted_payment_methods[0];
+                return (
+                  <div
+                    key={l.id}
+                    className="flex flex-col gap-3 border-b border-border p-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+                  >
+                    {/* Trader — avatar with an online dot, name + flag, trust stats */}
+                    <div className="flex w-full items-center gap-3 sm:w-52 sm:shrink-0">
+                      <div className="relative shrink-0">
                         <UserAvatar
                           userId={l.seller_id}
                           displayName={counterparty?.display_name ?? "Trader"}
-                          className="size-8 shrink-0"
+                          className="size-10"
                         />
-                        <span className="flex items-center gap-1.5 text-base font-semibold">
-                          <CoinIcon code={l.crypto_type} className="size-5" />
-                          {COIN_FULL_NAME[l.crypto_type] ?? l.crypto_type}
-                        </span>
-                        {counterparty?.country ? (
-                          <span className={`fi fi-${counterparty.country.toLowerCase()}`} aria-hidden />
-                        ) : null}
+                        <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                      </div>
+                      <div className="min-w-0">
                         <Link
                           to="/traders/$userId"
                           params={{ userId: l.seller_id }}
-                          className="transition-opacity hover:opacity-80"
+                          className="flex items-center gap-1.5 truncate text-sm font-medium hover:underline"
                         >
-                          <Badge variant="outline">{counterparty?.display_name ?? "Trader"}</Badge>
+                          {counterparty?.country ? (
+                            <span className={`fi fi-${counterparty.country.toLowerCase()}`} aria-hidden />
+                          ) : null}
+                          {counterparty?.display_name ?? "Trader"}
                         </Link>
-                        <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
-                        {(l.blocked_countries ?? []).length > 0 ? (
-                          <Badge
-                            variant="outline"
-                            className="font-normal text-muted-foreground"
-                            title={`Blocked: ${l.blocked_countries.map((code) => COUNTRIES.find((c) => c.code === code)?.name ?? code).join(", ")}`}
-                          >
-                            {l.blocked_countries.length} {l.blocked_countries.length === 1 ? "country" : "countries"} blocked
-                          </Badge>
-                        ) : null}
+                        <div className="flex items-center gap-1.5">
+                          <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
+                          <span className="text-xs text-muted-foreground">
+                            {counterparty?.trades_completed ?? 0} Trades
+                          </span>
+                        </div>
                       </div>
-                      <div className="mono flex items-center gap-2 text-sm text-muted-foreground">
+                    </div>
+
+                    {/* Price — coin icon, rate, margin badge, trade range */}
+                    <div className="w-full sm:w-44 sm:shrink-0">
+                      <div className="mono flex items-center gap-1.5 text-sm font-semibold">
+                        <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
                         {symbol}
-                        {price.toLocaleString()} per {l.crypto_type}
+                        {price.toLocaleString()}
                         {l.fixed_price != null ? (
-                          <span className="text-muted-foreground">(fixed)</span>
+                          <span className="text-xs font-normal text-muted-foreground">fixed</span>
                         ) : margin !== 0 ? (
                           <Badge
                             className={
@@ -596,46 +673,82 @@ function Marketplace() {
                       </div>
                       {l.min_amount != null && l.max_amount != null ? (
                         <p className="text-xs text-muted-foreground">
-                          Range: {symbol}
+                          {symbol}
                           {Number(l.min_amount).toLocaleString()} – {symbol}
                           {Number(l.max_amount).toLocaleString()}
                         </p>
                       ) : null}
-                      {price ? (
-                        <p className="text-xs text-muted-foreground">
-                          Pay {symbol}
-                          {previewFiat.toLocaleString()} · Receive {preview.netCrypto.toFixed(8)} {l.crypto_type}
-                        </p>
-                      ) : null}
-                      <div className="flex flex-wrap gap-1.5">
-                        {l.accepted_payment_methods.map((m) => (
-                          <Badge key={m} variant="secondary" className="gap-1 font-normal">
-                            <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3" />
-                            {m}
-                          </Badge>
-                        ))}
-                        {(l.tags ?? []).map((t) => (
-                          <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
-                            {offerTagLabel(t)}
-                          </Badge>
-                        ))}
-                      </div>
-                      {l.terms ? (
-                        <p className="max-w-prose text-xs text-muted-foreground">{l.terms}</p>
-                      ) : null}
                     </div>
-                    <Button className="w-full sm:w-auto" onClick={() => startTrade(l)}>
-                      {l.side === "sell" ? "Buy" : "Sell"}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })
+
+                    {/* Pay / Receive — matches SafeTheTrade's two-column preview */}
+                    <div className="hidden w-40 shrink-0 md:block">
+                      <p className="text-xs text-muted-foreground">Pay</p>
+                      <p className="truncate text-sm font-medium">
+                        {primaryMethod ? providerForMethod(primaryMethod) : "—"}
+                        {l.accepted_payment_methods.length > 1 ? (
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">
+                            +{l.accepted_payment_methods.length - 1}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                    <div className="hidden w-36 shrink-0 md:block">
+                      <p className="text-xs text-muted-foreground">Receive ({l.crypto_type})</p>
+                      <p className="mono truncate text-sm font-medium">
+                        {price ? preview.netCrypto.toFixed(8) : "—"}
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" size="icon" aria-label="Offer details">
+                            <Info className="size-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 space-y-2 text-sm" align="end">
+                          <div className="flex flex-wrap gap-1.5">
+                            {l.accepted_payment_methods.map((m) => (
+                              <Badge key={m} variant="secondary" className="gap-1 font-normal">
+                                <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3" />
+                                {m}
+                              </Badge>
+                            ))}
+                            {(l.tags ?? []).map((t) => (
+                              <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
+                                {offerTagLabel(t)}
+                              </Badge>
+                            ))}
+                          </div>
+                          {(l.blocked_countries ?? []).length > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Blocked:{" "}
+                              {l.blocked_countries
+                                .map((code) => COUNTRIES.find((c) => c.code === code)?.name ?? code)
+                                .join(", ")}
+                            </p>
+                          ) : null}
+                          {l.terms ? <p className="text-xs text-muted-foreground">{l.terms}</p> : null}
+                          {!l.terms && (l.blocked_countries ?? []).length === 0 && (l.tags ?? []).length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No extra details for this offer.</p>
+                          ) : null}
+                        </PopoverContent>
+                      </Popover>
+                      <Button className="gap-1.5" onClick={() => startTrade(l)}>
+                        <CoinIcon code={l.crypto_type} className="size-4" />
+                        {l.side === "sell" ? "Buy" : "Sell"}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
           {listings.hasNextPage ? (
             <Button
               variant="outline"
-              className="w-full"
+              className="mt-3 w-full"
               disabled={listings.isFetchingNextPage}
               onClick={() => listings.fetchNextPage()}
             >

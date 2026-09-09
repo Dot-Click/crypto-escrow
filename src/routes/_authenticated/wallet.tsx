@@ -59,6 +59,8 @@ const TYPE_LABEL: Record<string, string> = {
   escrow_hold: "Escrow hold",
   escrow_release: "Escrow release",
   escrow_refund: "Escrow refund",
+  swap_out: "Swap (sent)",
+  swap_in: "Swap (received)",
 };
 
 const CLAIM_STATUS_LABEL: Record<string, string> = {
@@ -184,7 +186,7 @@ function WalletPage() {
     : 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold">Wallet</h1>
         <p className="text-sm text-muted-foreground">

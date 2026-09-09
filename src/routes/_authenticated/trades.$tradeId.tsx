@@ -248,7 +248,7 @@ function TradeRoom() {
   const statusTone = STATUS_TONE[t.status] ?? STATUS_TONE["pending"];
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-6 lg:h-[calc(100dvh-3.5rem)]">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col px-4 py-6 lg:h-[calc(100dvh-3.5rem)]">
       <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2 shrink-0">
         <Link to="/trades">
           <ArrowLeft className="mr-1 size-4" /> All trades

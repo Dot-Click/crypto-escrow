@@ -111,7 +111,7 @@ function TradesPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Trade history</h1>
@@ -157,7 +157,7 @@ function TradesPage() {
         </Card>
       </div>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-[9rem_9rem_1fr]">
+      <div className="mb-4 grid gap-3 rounded-lg border border-border bg-muted p-3 sm:grid-cols-[9rem_9rem_1fr]">
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger>
             <SelectValue />

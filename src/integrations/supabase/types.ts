@@ -343,6 +343,56 @@ export type Database = {
           },
         ]
       }
+      limit_orders: {
+        Row: {
+          id: string
+          user_id: string
+          from_crypto: string
+          to_crypto: string
+          from_amount: number
+          target_rate: number
+          status: string
+          filled_amount: number | null
+          created_at: string
+          filled_at: string | null
+          cancelled_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          from_crypto: string
+          to_crypto: string
+          from_amount: number
+          target_rate: number
+          status?: string
+          filled_amount?: number | null
+          created_at?: string
+          filled_at?: string | null
+          cancelled_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          from_crypto?: string
+          to_crypto?: string
+          from_amount?: number
+          target_rate?: number
+          status?: string
+          filled_amount?: number | null
+          created_at?: string
+          filled_at?: string | null
+          cancelled_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "limit_orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listing_payment_methods: {
         Row: {
           id: string
@@ -1217,6 +1267,8 @@ export type Database = {
         | "escrow_hold"
         | "escrow_release"
         | "escrow_refund"
+        | "swap_out"
+        | "swap_in"
     }
     CompositeTypes: {
       [_ in never]: never

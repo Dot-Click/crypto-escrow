@@ -248,7 +248,7 @@ function Marketplace() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
       {/* Hero — headline + live reference rate, matching the reference
           design. Reads off the same marketPrices/fxRates queries the
           listing cards already use, just at the currently selected
@@ -273,16 +273,13 @@ function Marketplace() {
             </span>
           ) : null}
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Escrow-protected offers · testnet only, no real funds
-        </p>
       </div>
 
       {/* Desktop filter bar — one row (Buy/Sell, crypto, payment method,
           fiat, amount, create-offer, filters, refresh), matching
           SafeTheTrade's layout. Country/Tags/Sort share the same "Filters"
           sheet both bars use. */}
-      <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-card/40 p-2 lg:flex">
+      <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-muted p-2 lg:flex">
         <Button
           type="button"
           onClick={() => setSide("sell")}
@@ -407,7 +404,7 @@ function Marketplace() {
           layout. Country, Tags and Sort live in the "Filters" sheet below
           instead of cluttering the main bar — the desktop bar above keeps
           everything inline since it has the room. */}
-      <div className="mb-4 space-y-2 lg:hidden">
+      <div className="mb-4 space-y-2 rounded-lg border border-border bg-muted p-2 lg:hidden">
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"

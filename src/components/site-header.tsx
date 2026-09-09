@@ -1,5 +1,16 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ArrowLeftRight, LogOut, Menu, Plus, Settings, ShieldCheck, Tag, User, Wallet } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ListOrdered,
+  LogOut,
+  Menu,
+  Repeat,
+  Settings,
+  ShieldCheck,
+  Tag,
+  User,
+  Wallet,
+} from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,16 +26,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// The logo already links to "/" (the marketplace), so there's no separate
-// "Marketplace" nav item — everything below needs an account, so it's only
-// added to the nav when signed in.
+// Matches SafeTheTrade's nav row — icon + label, one line. The logo already
+// links to "/" (the marketplace), so there's no separate "Marketplace" item.
+// Everything here needs an account, so it's only shown when signed in.
 const AUTH_NAV = [
   { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
+  { to: "/offers", label: "My Offers", icon: Tag },
+  { to: "/swap", label: "Swap", icon: Repeat },
+  { to: "/limit-orders", label: "Limit Order", icon: ListOrdered },
   { to: "/wallet", label: "Wallet", icon: Wallet },
-  { to: "/profile", label: "Profile", icon: User },
-  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
-
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
@@ -69,7 +80,7 @@ export function SiteHeader() {
           : "sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur"
       }
     >
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-4 px-4">
+      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 px-4">
         <Link to="/" className="flex items-center">
           <img src="/logo.png" alt="CEMP" className="h-6 w-auto" />
         </Link>
@@ -79,20 +90,9 @@ export function SiteHeader() {
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {user ? (
             <>
-              <Button asChild size="sm" className="gap-1.5">
-                <Link to="/listings/new">
-                  <Plus className="size-4" />
-                  <span className="hidden sm:inline">Create Offer</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link to="/offers">
-                  <Tag className="size-4" />
-                  <span className="hidden sm:inline">My Offers</span>
-                </Link>
-              </Button>
-
-              <div className="h-6 w-px bg-border" />
+              <span className="hidden text-sm text-muted-foreground sm:inline">
+                {profile?.display_name ?? "Trader"}
+              </span>
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -118,6 +118,11 @@ export function SiteHeader() {
                       <User className="size-4" /> Profile
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer">
+                      <Settings className="size-4" /> Settings
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut} className="cursor-pointer">
                     <LogOut className="size-4" /> Sign out
                   </DropdownMenuItem>
@@ -132,21 +137,14 @@ export function SiteHeader() {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-64">
                   <nav className="mt-10 flex flex-col gap-5">
-                    <Link
-                      to="/listings/new"
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-2 text-sm font-medium text-foreground"
-                    >
-                      <Plus className="size-4" /> Create Offer
-                    </Link>
-                    <Link
-                      to="/offers"
-                      onClick={() => setOpen(false)}
-                      className="flex items-center gap-2 text-sm font-medium text-foreground"
-                    >
-                      <Tag className="size-4" /> My Offers
-                    </Link>
                     {links(() => setOpen(false))}
+                    <Link
+                      to="/settings"
+                      onClick={() => setOpen(false)}
+                      className="flex items-center gap-2 text-sm font-medium text-foreground"
+                    >
+                      <Settings className="size-4" /> Settings
+                    </Link>
                   </nav>
                 </SheetContent>
               </Sheet>

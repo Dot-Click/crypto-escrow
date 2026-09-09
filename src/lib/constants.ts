@@ -8,6 +8,9 @@ export const CRYPTO_TYPES = [
 /** Deducted from the buyer's crypto payout when escrow releases; locked into trade.fee_amount at open time. */
 export const PLATFORM_FEE_PERCENT = 1;
 
+/** Deducted from the crypto-to-crypto Swap feature's output amount (instant swaps and filled limit orders alike). */
+export const SWAP_FEE_PERCENT = 0.5;
+
 /**
  * Fallback payment window for trades opened on a listing with its time
  * limit disabled. A trade must always have an expires_at — a null value

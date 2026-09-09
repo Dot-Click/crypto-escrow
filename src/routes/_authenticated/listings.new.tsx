@@ -325,7 +325,7 @@ function NewListing() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-24 pt-8">
+    <div className="mx-auto w-full max-w-[1400px] px-4 pb-24 pt-8">
       <Card>
         <CardHeader>
           <CardTitle>Create an offer</CardTitle>

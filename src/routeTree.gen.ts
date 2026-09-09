@@ -16,14 +16,17 @@ import { Route as FeesRouteImport } from './routes/fees'
 import { Route as LandingRouteImport } from './routes/landing'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedLimitOrdersRouteImport } from './routes/_authenticated/limit-orders'
 import { Route as AuthenticatedOffersRouteImport } from './routes/_authenticated/offers'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSwapRouteImport } from './routes/_authenticated/swap'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
 import { Route as TradersUserIdRouteImport } from './routes/traders.$userId'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
 import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
 import { Route as AuthenticatedTradesTradeIdRouteImport } from './routes/_authenticated/trades.$tradeId'
+import { Route as ApiPublicCronExecuteLimitOrdersRouteImport } from './routes/api/public/cron/execute-limit-orders'
 import { Route as ApiPublicCronExpireTradesRouteImport } from './routes/api/public/cron/expire-trades'
 import { Route as ApiPublicWebhooksBtcpayRouteImport } from './routes/api/public/webhooks/btcpay'
 import { Route as ApiPublicWebhooksTelegramRouteImport } from './routes/api/public/webhooks/telegram'
@@ -63,6 +66,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLimitOrdersRoute =
+  AuthenticatedLimitOrdersRouteImport.update({
+    id: '/limit-orders',
+    path: '/limit-orders',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOffersRoute = AuthenticatedOffersRouteImport.update({
   id: '/offers',
   path: '/offers',
@@ -76,6 +85,11 @@ const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSwapRoute = AuthenticatedSwapRouteImport.update({
+  id: '/swap',
+  path: '/swap',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
@@ -105,6 +119,12 @@ const AuthenticatedTradesTradeIdRoute =
     id: '/trades/$tradeId',
     path: '/trades/$tradeId',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicCronExecuteLimitOrdersRoute =
+  ApiPublicCronExecuteLimitOrdersRouteImport.update({
+    id: '/api/public/cron/execute-limit-orders',
+    path: '/api/public/cron/execute-limit-orders',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicCronExpireTradesRoute =
   ApiPublicCronExpireTradesRouteImport.update({
@@ -137,14 +157,17 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/swap': typeof AuthenticatedSwapRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades/': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/execute-limit-orders': typeof ApiPublicCronExecuteLimitOrdersRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
@@ -157,14 +180,17 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/swap': typeof AuthenticatedSwapRoute
   '/wallet': typeof AuthenticatedWalletRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/trades': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/execute-limit-orders': typeof ApiPublicCronExecuteLimitOrdersRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
@@ -179,14 +205,17 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/_authenticated/offers': typeof AuthenticatedOffersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/swap': typeof AuthenticatedSwapRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
   '/_authenticated/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
   '/_authenticated/trades/': typeof AuthenticatedTradesIndexRoute
+  '/api/public/cron/execute-limit-orders': typeof ApiPublicCronExecuteLimitOrdersRoute
   '/api/public/cron/expire-trades': typeof ApiPublicCronExpireTradesRoute
   '/api/public/webhooks/btcpay': typeof ApiPublicWebhooksBtcpayRoute
   '/api/public/webhooks/telegram': typeof ApiPublicWebhooksTelegramRoute
@@ -201,14 +230,17 @@ export interface FileRouteTypes {
     | '/landing'
     | '/transparency'
     | '/admin'
+    | '/limit-orders'
     | '/offers'
     | '/profile'
     | '/settings'
+    | '/swap'
     | '/wallet'
     | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades/'
+    | '/api/public/cron/execute-limit-orders'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
@@ -221,14 +253,17 @@ export interface FileRouteTypes {
     | '/landing'
     | '/transparency'
     | '/admin'
+    | '/limit-orders'
     | '/offers'
     | '/profile'
     | '/settings'
+    | '/swap'
     | '/wallet'
     | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
     | '/trades'
+    | '/api/public/cron/execute-limit-orders'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
@@ -242,14 +277,17 @@ export interface FileRouteTypes {
     | '/landing'
     | '/transparency'
     | '/_authenticated/admin'
+    | '/_authenticated/limit-orders'
     | '/_authenticated/offers'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
+    | '/_authenticated/swap'
     | '/_authenticated/wallet'
     | '/traders/$userId'
     | '/_authenticated/listings/new'
     | '/_authenticated/trades/$tradeId'
     | '/_authenticated/trades/'
+    | '/api/public/cron/execute-limit-orders'
     | '/api/public/cron/expire-trades'
     | '/api/public/webhooks/btcpay'
     | '/api/public/webhooks/telegram'
@@ -264,6 +302,7 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   TransparencyRoute: typeof TransparencyRoute
   TradersUserIdRoute: typeof TradersUserIdRoute
+  ApiPublicCronExecuteLimitOrdersRoute: typeof ApiPublicCronExecuteLimitOrdersRoute
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
   ApiPublicWebhooksBtcpayRoute: typeof ApiPublicWebhooksBtcpayRoute
   ApiPublicWebhooksTelegramRoute: typeof ApiPublicWebhooksTelegramRoute
@@ -321,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/limit-orders': {
+      id: '/_authenticated/limit-orders'
+      path: '/limit-orders'
+      fullPath: '/limit-orders'
+      preLoaderRoute: typeof AuthenticatedLimitOrdersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/offers': {
       id: '/_authenticated/offers'
       path: '/offers'
@@ -340,6 +386,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/swap': {
+      id: '/_authenticated/swap'
+      path: '/swap'
+      fullPath: '/swap'
+      preLoaderRoute: typeof AuthenticatedSwapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/wallet': {
@@ -377,6 +430,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTradesTradeIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/cron/execute-limit-orders': {
+      id: '/api/public/cron/execute-limit-orders'
+      path: '/api/public/cron/execute-limit-orders'
+      fullPath: '/api/public/cron/execute-limit-orders'
+      preLoaderRoute: typeof ApiPublicCronExecuteLimitOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/expire-trades': {
       id: '/api/public/cron/expire-trades'
       path: '/api/public/cron/expire-trades'
@@ -410,9 +470,11 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedLimitOrdersRoute: typeof AuthenticatedLimitOrdersRoute
   AuthenticatedOffersRoute: typeof AuthenticatedOffersRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSwapRoute: typeof AuthenticatedSwapRoute
   AuthenticatedWalletRoute: typeof AuthenticatedWalletRoute
   AuthenticatedListingsNewRoute: typeof AuthenticatedListingsNewRoute
   AuthenticatedTradesTradeIdRoute: typeof AuthenticatedTradesTradeIdRoute
@@ -421,9 +483,11 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedLimitOrdersRoute: AuthenticatedLimitOrdersRoute,
   AuthenticatedOffersRoute: AuthenticatedOffersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSwapRoute: AuthenticatedSwapRoute,
   AuthenticatedWalletRoute: AuthenticatedWalletRoute,
   AuthenticatedListingsNewRoute: AuthenticatedListingsNewRoute,
   AuthenticatedTradesTradeIdRoute: AuthenticatedTradesTradeIdRoute,
@@ -441,6 +505,7 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   TransparencyRoute: TransparencyRoute,
   TradersUserIdRoute: TradersUserIdRoute,
+  ApiPublicCronExecuteLimitOrdersRoute: ApiPublicCronExecuteLimitOrdersRoute,
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,
   ApiPublicWebhooksBtcpayRoute: ApiPublicWebhooksBtcpayRoute,
   ApiPublicWebhooksTelegramRoute: ApiPublicWebhooksTelegramRoute,

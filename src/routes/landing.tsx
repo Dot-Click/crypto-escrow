@@ -165,7 +165,7 @@ function LandingHero() {
           <IsometricBarCluster flip />
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pb-4">
+        <div className="relative mx-auto flex w-full max-w-[1400px] flex-1 flex-col px-4 pb-4">
           <div className="relative mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center pt-14 text-center md:pt-0">
             {/* floating crypto badges — pushed far out from the headline */}
             <div className="pointer-events-none absolute left-2 top-1/4 hidden flex-col gap-6 md:flex lg:-left-16 xl:-left-36">

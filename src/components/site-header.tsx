@@ -15,10 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Marketplace ("/") is public — shown regardless of auth state, same as the
-// logo, which links there too. Everything else here needs an account, so
-// it's only added to the nav when signed in.
-const PUBLIC_NAV = [{ to: "/", label: "Marketplace" }] as const;
+// The logo already links to "/" (the marketplace), so there's no separate
+// "Marketplace" nav item — everything below needs an account, so it's only
+// added to the nav when signed in.
 const AUTH_NAV = [
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
@@ -32,7 +31,6 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const nav = [
-    ...PUBLIC_NAV,
     ...(user ? AUTH_NAV : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin" } as const] : []),
   ];

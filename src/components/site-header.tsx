@@ -15,8 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const NAV = [
-  { to: "/marketplace", label: "Marketplace" },
+// Marketplace is public — shown regardless of auth state. Everything else
+// here needs an account, so it's only added to the nav when signed in.
+const PUBLIC_NAV = [{ to: "/marketplace", label: "Marketplace" }] as const;
+const AUTH_NAV = [
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
   { to: "/profile", label: "Profile" },
@@ -28,7 +30,11 @@ export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const nav = isAdmin ? [...NAV, { to: "/admin", label: "Admin" } as const] : NAV;
+  const nav = [
+    ...PUBLIC_NAV,
+    ...(user ? AUTH_NAV : []),
+    ...(isAdmin ? [{ to: "/admin", label: "Admin" } as const] : []),
+  ];
 
   // The hero on "/" has its own dark background and glow — the header
   // floats transparently over it there (signed in or not), the same way
@@ -68,7 +74,7 @@ export function SiteHeader() {
           <img src="/logo.svg" alt="CEMP" className="h-6 w-auto" />
         </Link>
 
-        <nav className="ml-6 hidden items-center gap-6 md:flex">{user ? links() : null}</nav>
+        <nav className="ml-6 hidden items-center gap-6 md:flex">{links()}</nav>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {user ? (
@@ -146,9 +152,17 @@ export function SiteHeader() {
               </Sheet>
             </>
           ) : (
-            <Button size="sm" asChild>
-              <Link to="/auth">Sign in</Link>
-            </Button>
+            <>
+              <Link
+                to="/marketplace"
+                className="text-sm text-muted-foreground transition-colors hover:text-foreground md:hidden"
+              >
+                Marketplace
+              </Link>
+              <Button size="sm" asChild>
+                <Link to="/auth">Sign in</Link>
+              </Button>
+            </>
           )}
         </div>
       </div>

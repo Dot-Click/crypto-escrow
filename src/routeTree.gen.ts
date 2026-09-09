@@ -13,9 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FeesRouteImport } from './routes/fees'
+import { Route as MarketplaceRouteImport } from './routes/marketplace'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedOffersRouteImport } from './routes/_authenticated/offers'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -48,6 +48,11 @@ const FeesRoute = FeesRouteImport.update({
   path: '/fees',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketplaceRoute = MarketplaceRouteImport.update({
+  id: '/marketplace',
+  path: '/marketplace',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TransparencyRoute = TransparencyRouteImport.update({
   id: '/transparency',
   path: '/transparency',
@@ -58,12 +63,6 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedMarketplaceRoute =
-  AuthenticatedMarketplaceRouteImport.update({
-    id: '/marketplace',
-    path: '/marketplace',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedOffersRoute = AuthenticatedOffersRouteImport.update({
   id: '/offers',
   path: '/offers',
@@ -135,9 +134,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
+  '/marketplace': typeof MarketplaceRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -155,9 +154,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
+  '/marketplace': typeof MarketplaceRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
-  '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/offers': typeof AuthenticatedOffersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -177,9 +176,9 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
+  '/marketplace': typeof MarketplaceRoute
   '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
-  '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/offers': typeof AuthenticatedOffersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -199,9 +198,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/fees'
+    | '/marketplace'
     | '/transparency'
     | '/admin'
-    | '/marketplace'
     | '/offers'
     | '/profile'
     | '/settings'
@@ -219,9 +218,9 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/fees'
+    | '/marketplace'
     | '/transparency'
     | '/admin'
-    | '/marketplace'
     | '/offers'
     | '/profile'
     | '/settings'
@@ -240,9 +239,9 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/fees'
+    | '/marketplace'
     | '/transparency'
     | '/_authenticated/admin'
-    | '/_authenticated/marketplace'
     | '/_authenticated/offers'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
@@ -262,6 +261,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   FeesRoute: typeof FeesRoute
+  MarketplaceRoute: typeof MarketplaceRoute
   TransparencyRoute: typeof TransparencyRoute
   TradersUserIdRoute: typeof TradersUserIdRoute
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
@@ -300,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/marketplace': {
+      id: '/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof MarketplaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/transparency': {
       id: '/transparency'
       path: '/transparency'
@@ -312,13 +319,6 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/marketplace': {
-      id: '/_authenticated/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/offers': {
@@ -410,7 +410,6 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
-  AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedOffersRoute: typeof AuthenticatedOffersRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -422,7 +421,6 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
-  AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedOffersRoute: AuthenticatedOffersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -440,6 +438,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   FeesRoute: FeesRoute,
+  MarketplaceRoute: MarketplaceRoute,
   TransparencyRoute: TransparencyRoute,
   TradersUserIdRoute: TradersUserIdRoute,
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,

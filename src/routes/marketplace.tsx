@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { createTrade } from "@/lib/trades.functions";
+import { getPublicListings } from "@/lib/public-marketplace.functions";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { useMemo, useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, ChevronDown, Layers, Plus, Search, SlidersHorizontal, Tag, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
@@ -43,7 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export const Route = createFileRoute("/_authenticated/marketplace")({
+export const Route = createFileRoute("/marketplace")({
   head: () => ({
     meta: [
       { title: "Marketplace — CEMP" },
@@ -113,7 +113,8 @@ function TagFilterPopover({
 }
 
 function Marketplace() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [crypto, setCrypto] = useState("all");
   const [currency, setCurrency] = useState("all");
@@ -148,28 +149,27 @@ function Marketplace() {
     refetchInterval: 5 * 60_000,
   });
 
+  // Onto the public listings feed — no account needed to browse, matching
+  // SafeTheTrade/BitValve. Starting an actual trade still requires signing
+  // in (gated below at the Buy/Sell button).
+  const fetchListings = useServerFn(getPublicListings);
   const LISTINGS_PAGE_SIZE = 10;
   const listings = useInfiniteQuery({
-    queryKey: ["listings", side, crypto, currency, countryFilter, methodFilters, tagFilter],
+    queryKey: ["public-listings", side, crypto, currency, countryFilter, methodFilters, tagFilter],
     initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      let query = supabase
-        .from("listings")
-        .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed, country)")
-        .eq("status", "active")
-        .eq("side", side);
-      if (crypto !== "all") query = query.eq("crypto_type", crypto);
-      if (currency !== "all") query = query.eq("fiat_currency", currency);
-      if (countryFilter !== "all") query = query.not("blocked_countries", "cs", `{${countryFilter}}`);
-      if (methodFilters.length > 0) query = query.overlaps("accepted_payment_methods", methodFilters);
-      if (tagFilter.length > 0) query = query.overlaps("tags", tagFilter);
-
-      const { data, error } = await query
-        .order("created_at", { ascending: false })
-        .range(pageParam, pageParam + LISTINGS_PAGE_SIZE - 1);
-      if (error) throw error;
-      return data;
-    },
+    queryFn: ({ pageParam }) =>
+      fetchListings({
+        data: {
+          side,
+          crypto,
+          currency,
+          countryFilter,
+          methodFilters,
+          tagFilter,
+          pageParam,
+          pageSize: LISTINGS_PAGE_SIZE,
+        },
+      }),
     getNextPageParam: (lastPage, allPages) =>
       lastPage.length === LISTINGS_PAGE_SIZE ? allPages.length * LISTINGS_PAGE_SIZE : undefined,
   });
@@ -213,6 +213,17 @@ function Marketplace() {
       : methodFilters.length === 1
         ? providerForMethod(methodFilters[0]!)
         : `${methodFilters.length} Payment Methods`;
+
+  // Browsing is open to everyone; starting a trade is not — send a
+  // signed-out visitor to sign in instead of opening the trade dialog.
+  const startTrade = (l: ListingRow) => {
+    if (!user) {
+      toast.info("Sign in to start a trade");
+      navigate({ to: "/auth" });
+      return;
+    }
+    setActive(l);
+  };
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -565,7 +576,7 @@ function Marketplace() {
                           </Badge>
                         ) : null}
                       </div>
-                      <p className="mono flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="mono flex items-center gap-2 text-sm text-muted-foreground">
                         {symbol}
                         {price.toLocaleString()} per {l.crypto_type}
                         {l.fixed_price != null ? (
@@ -582,7 +593,7 @@ function Marketplace() {
                             {margin}%
                           </Badge>
                         ) : null}
-                      </p>
+                      </div>
                       {l.min_amount != null && l.max_amount != null ? (
                         <p className="text-xs text-muted-foreground">
                           Range: {symbol}
@@ -613,7 +624,7 @@ function Marketplace() {
                         <p className="max-w-prose text-xs text-muted-foreground">{l.terms}</p>
                       ) : null}
                     </div>
-                    <Button className="w-full sm:w-auto" onClick={() => setActive(l)}>
+                    <Button className="w-full sm:w-auto" onClick={() => startTrade(l)}>
                       {l.side === "sell" ? "Buy" : "Sell"}
                     </Button>
                   </CardContent>

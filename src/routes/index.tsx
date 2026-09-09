@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ShieldCheck, MessagesSquare, Users, ArrowRight, ArrowUpRight, Lock } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
 import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
@@ -136,8 +135,6 @@ const FEATURE_CARDS = [
 ];
 
 function LandingHero() {
-  const { user } = useAuth();
-
   return (
     <div className="flex h-dvh flex-col overflow-hidden overflow-x-clip">
       {/* ---------- Hero ---------- */}
@@ -207,8 +204,8 @@ function LandingHero() {
 
             <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Button size="lg" className="rounded-full px-7" asChild>
-                <Link to={user ? "/marketplace" : "/auth"}>
-                  {user ? "Go to Marketplace" : "Start Trading"} <ArrowRight className="size-4" />
+                <Link to="/marketplace">
+                  Browse the Marketplace <ArrowRight className="size-4" />
                 </Link>
               </Button>
             </div>

@@ -102,7 +102,7 @@ function AuthPage() {
         // Fails open to "no step-up configured" rather than stranding a
         // user who was never asked to set one up.
       }
-      if (active) navigate({ to: "/marketplace", replace: true });
+      if (active) navigate({ to: "/", replace: true });
     })();
     return () => {
       active = false;
@@ -113,7 +113,7 @@ function AuthPage() {
     setEmailStepUpBusy(true);
     try {
       await verifyEmailStepUp({ data: { code: emailStepUpCode } });
-      navigate({ to: "/marketplace", replace: true });
+      navigate({ to: "/", replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Incorrect code");
     } finally {
@@ -134,7 +134,7 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/marketplace", replace: true });
+    navigate({ to: "/", replace: true });
   };
 
   // Prefill from a referral link (e.g. cemp.app/auth?ref=ABC12345) — a

@@ -15,9 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Marketplace is public — shown regardless of auth state. Everything else
-// here needs an account, so it's only added to the nav when signed in.
-const PUBLIC_NAV = [{ to: "/marketplace", label: "Marketplace" }] as const;
+// Marketplace ("/") is public — shown regardless of auth state, same as the
+// logo, which links there too. Everything else here needs an account, so
+// it's only added to the nav when signed in.
+const PUBLIC_NAV = [{ to: "/", label: "Marketplace" }] as const;
 const AUTH_NAV = [
   { to: "/trades", label: "Trades" },
   { to: "/wallet", label: "Wallet" },
@@ -36,12 +37,12 @@ export function SiteHeader() {
     ...(isAdmin ? [{ to: "/admin", label: "Admin" } as const] : []),
   ];
 
-  // The hero on "/" has its own dark background and glow — the header
-  // floats transparently over it there (signed in or not), the same way
-  // it always has for signed-out visitors. Every other page gets the
-  // solid, sticky bar since they don't have hero art behind them.
+  // The marketing hero (now at "/landing", not the "/" homepage anymore)
+  // has its own dark background and glow — the header floats transparently
+  // over it there. Every other page, including the marketplace at "/", gets
+  // the solid, sticky bar since they don't have hero art behind them.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isHome = pathname === "/";
+  const isHome = pathname === "/landing";
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -152,17 +153,9 @@ export function SiteHeader() {
               </Sheet>
             </>
           ) : (
-            <>
-              <Link
-                to="/marketplace"
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground md:hidden"
-              >
-                Marketplace
-              </Link>
-              <Button size="sm" asChild>
-                <Link to="/auth">Sign in</Link>
-              </Button>
-            </>
+            <Button size="sm" asChild>
+              <Link to="/auth">Sign in</Link>
+            </Button>
           )}
         </div>
       </div>

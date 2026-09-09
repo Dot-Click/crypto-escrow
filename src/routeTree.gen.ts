@@ -13,7 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as FeesRouteImport } from './routes/fees'
-import { Route as MarketplaceRouteImport } from './routes/marketplace'
+import { Route as LandingRouteImport } from './routes/landing'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedOffersRouteImport } from './routes/_authenticated/offers'
@@ -48,9 +48,9 @@ const FeesRoute = FeesRouteImport.update({
   path: '/fees',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MarketplaceRoute = MarketplaceRouteImport.update({
-  id: '/marketplace',
-  path: '/marketplace',
+const LandingRoute = LandingRouteImport.update({
+  id: '/landing',
+  path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TransparencyRoute = TransparencyRouteImport.update({
@@ -134,7 +134,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/offers': typeof AuthenticatedOffersRoute
@@ -154,7 +154,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/offers': typeof AuthenticatedOffersRoute
@@ -176,7 +176,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/fees': typeof FeesRoute
-  '/marketplace': typeof MarketplaceRoute
+  '/landing': typeof LandingRoute
   '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/offers': typeof AuthenticatedOffersRoute
@@ -198,7 +198,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/fees'
-    | '/marketplace'
+    | '/landing'
     | '/transparency'
     | '/admin'
     | '/offers'
@@ -218,7 +218,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/fees'
-    | '/marketplace'
+    | '/landing'
     | '/transparency'
     | '/admin'
     | '/offers'
@@ -239,7 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/fees'
-    | '/marketplace'
+    | '/landing'
     | '/transparency'
     | '/_authenticated/admin'
     | '/_authenticated/offers'
@@ -261,7 +261,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   FeesRoute: typeof FeesRoute
-  MarketplaceRoute: typeof MarketplaceRoute
+  LandingRoute: typeof LandingRoute
   TransparencyRoute: typeof TransparencyRoute
   TradersUserIdRoute: typeof TradersUserIdRoute
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
@@ -300,11 +300,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/marketplace': {
-      id: '/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof MarketplaceRouteImport
+    '/landing': {
+      id: '/landing'
+      path: '/landing'
+      fullPath: '/landing'
+      preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/transparency': {
@@ -438,7 +438,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   FeesRoute: FeesRoute,
-  MarketplaceRoute: MarketplaceRoute,
+  LandingRoute: LandingRoute,
   TransparencyRoute: TransparencyRoute,
   TradersUserIdRoute: TradersUserIdRoute,
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,

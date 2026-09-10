@@ -5,11 +5,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  BadgeCheck,
   Bell,
   ChevronDown,
   CreditCard,
   Lock,
+  MessageSquareText,
+  ShieldQuestion,
   Tag,
+  Upload,
   User as UserIcon,
   X,
   type LucideIcon,
@@ -30,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertDialog,
@@ -68,7 +73,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
 });
 
-type MenuKey = "profile" | "security" | "payments" | "danger";
+type MenuKey = "profile" | "security" | "payments" | "verification" | "feedback" | "danger";
 
 function MenuRow({
   icon: Icon,
@@ -321,6 +326,79 @@ function ProfilePage() {
     }
   };
 
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+
+  const submitFeedback = async () => {
+    if (!user) return;
+    const message = feedbackMessage.trim();
+    if (message.length < 5) {
+      toast.error("Tell us a bit more — at least 5 characters");
+      return;
+    }
+    setFeedbackBusy(true);
+    const { error } = await supabase
+      .from("feedback")
+      .insert({ user_id: user.id, message, page_path: window.location.pathname });
+    setFeedbackBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setFeedbackMessage("");
+    toast.success("Thanks — your feedback was sent");
+  };
+
+  const verificationInput = useRef<HTMLInputElement>(null);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+
+  const myVerificationRequest = useQuery({
+    queryKey: ["my-verification-request", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("verification_requests")
+        .select("id, status, note, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const submitVerification = async (file: File | undefined) => {
+    if (!file || !user) return;
+    if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
+      toast.error("Use a JPEG, PNG, WebP image or a PDF");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("File must be 8 MB or smaller");
+      return;
+    }
+    setVerificationBusy(true);
+    try {
+      const path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("verification-docs")
+        .upload(path, file, { contentType: file.type || "application/octet-stream" });
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { error: insertError } = await supabase
+        .from("verification_requests")
+        .insert({ user_id: user.id, document_path: path });
+      if (insertError) throw new Error(insertError.message);
+
+      await queryClient.invalidateQueries({ queryKey: ["my-verification-request", user.id] });
+      toast.success("ID submitted — an admin will review it shortly");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't submit your ID");
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
+
   const closeAccountFn = useServerFn(closeAccount);
   const closeAccountMutation = useMutation({
     mutationFn: () => closeAccountFn(),
@@ -345,7 +423,10 @@ function ProfilePage() {
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{profile?.display_name ?? "Trader"}</p>
+            <p className="flex items-center gap-1.5 truncate font-semibold">
+              {profile?.display_name ?? "Trader"}
+              {profile?.is_verified ? <BadgeCheck className="size-4 shrink-0 text-primary" /> : null}
+            </p>
             <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <TraderLevelBadge tradesCompleted={profile?.trades_completed ?? 0} />
@@ -620,6 +701,91 @@ function ProfilePage() {
             subtitle="Email and push preferences"
             to="/settings"
           />
+
+          <MenuRow
+            icon={BadgeCheck}
+            title="Identity verification"
+            subtitle={
+              myVerificationRequest.data?.status === "approved"
+                ? "Verified"
+                : myVerificationRequest.data?.status === "pending"
+                  ? "Submitted — awaiting review"
+                  : myVerificationRequest.data?.status === "rejected"
+                    ? "Submission rejected — try again"
+                    : "Send your ID to an admin for manual review"
+            }
+            open={openSection === "verification"}
+            onToggle={() => toggleSection("verification")}
+          >
+            {myVerificationRequest.data?.status === "approved" ? (
+              <p className="flex items-center gap-1.5 text-sm text-primary">
+                <BadgeCheck className="size-4" /> Your identity has been verified.
+              </p>
+            ) : (
+              <>
+                {myVerificationRequest.data?.status === "pending" ? (
+                  <p className="text-sm text-muted-foreground">
+                    Your ID is in the review queue. You'll see the result here once an admin checks it.
+                  </p>
+                ) : myVerificationRequest.data?.status === "rejected" ? (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="font-medium text-destructive">Not approved</p>
+                    {myVerificationRequest.data?.note ? (
+                      <p className="mt-1 text-muted-foreground">{myVerificationRequest.data.note}</p>
+                    ) : null}
+                    <p className="mt-1 text-muted-foreground">You can submit a new document below.</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Upload a photo of a government ID (passport, driver's license, national ID). An
+                    admin reviews it manually — it's never shown to other traders.
+                  </p>
+                )}
+                {myVerificationRequest.data?.status !== "pending" ? (
+                  <div>
+                    <input
+                      ref={verificationInput}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
+                      className="hidden"
+                      onChange={(e) => void submitVerification(e.target.files?.[0])}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={verificationBusy}
+                      onClick={() => verificationInput.current?.click()}
+                      className="gap-1.5"
+                    >
+                      <Upload className="size-4" />
+                      {verificationBusy ? "Uploading…" : "Upload ID"}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </MenuRow>
+
+          <MenuRow
+            icon={MessageSquareText}
+            title="Send feedback"
+            subtitle="Tell us what's broken or missing"
+            open={openSection === "feedback"}
+            onToggle={() => toggleSection("feedback")}
+          >
+            <Textarea
+              value={feedbackMessage}
+              onChange={(e) => setFeedbackMessage(e.target.value)}
+              placeholder="What's working, what isn't, what you'd like to see…"
+              rows={3}
+            />
+            <Button size="sm" disabled={feedbackBusy || !feedbackMessage.trim()} onClick={submitFeedback}>
+              {feedbackBusy ? "Sending…" : "Send feedback"}
+            </Button>
+          </MenuRow>
+
+          <LinkRow icon={ShieldQuestion} title="Support & FAQ" subtitle="Get help or read common questions" to="/support" />
 
           <MenuRow
             icon={AlertTriangle}

@@ -486,7 +486,7 @@ function TradeRoom() {
                     className="mono flex items-center gap-1 text-xs hover:text-primary"
                     title="Copy full trade ID"
                   >
-                    {t.id.slice(0, 8)}…{t.id.slice(-4)}
+                    #{t.id.slice(0, 8).toUpperCase()}
                     <Copy className="size-3" />
                   </button>
                 </div>

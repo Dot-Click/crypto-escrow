@@ -12,8 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedLimitOrdersRouteImport } from './routes/_authenticated/limit-orders'
@@ -22,6 +26,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSwapRouteImport } from './routes/_authenticated/swap'
 import { Route as AuthenticatedWalletRouteImport } from './routes/_authenticated/wallet'
+import { Route as ListingsIdRouteImport } from './routes/listings.$id'
 import { Route as TradersUserIdRouteImport } from './routes/traders.$userId'
 import { Route as AuthenticatedListingsNewRouteImport } from './routes/_authenticated/listings.new'
 import { Route as AuthenticatedTradesIndexRouteImport } from './routes/_authenticated/trades.index'
@@ -46,6 +51,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FeesRoute = FeesRouteImport.update({
   id: '/fees',
   path: '/fees',
@@ -54,6 +64,21 @@ const FeesRoute = FeesRouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TransparencyRoute = TransparencyRouteImport.update({
@@ -96,6 +121,11 @@ const AuthenticatedWalletRoute = AuthenticatedWalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ListingsIdRoute = ListingsIdRouteImport.update({
+  id: '/listings/$id',
+  path: '/listings/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TradersUserIdRoute = TradersUserIdRouteImport.update({
   id: '/traders/$userId',
@@ -153,8 +183,12 @@ const ApiPublicWebhooksTelegramSetupRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/fees': typeof FeesRoute
   '/landing': typeof LandingRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/limit-orders': typeof AuthenticatedLimitOrdersRoute
@@ -163,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/listings/$id': typeof ListingsIdRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
@@ -176,8 +211,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/fees': typeof FeesRoute
   '/landing': typeof LandingRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/limit-orders': typeof AuthenticatedLimitOrdersRoute
@@ -186,6 +225,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/swap': typeof AuthenticatedSwapRoute
   '/wallet': typeof AuthenticatedWalletRoute
+  '/listings/$id': typeof ListingsIdRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/listings/new': typeof AuthenticatedListingsNewRoute
   '/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
@@ -201,8 +241,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/faq': typeof FaqRoute
   '/fees': typeof FeesRoute
   '/landing': typeof LandingRoute
+  '/privacy': typeof PrivacyRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/limit-orders': typeof AuthenticatedLimitOrdersRoute
@@ -211,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/swap': typeof AuthenticatedSwapRoute
   '/_authenticated/wallet': typeof AuthenticatedWalletRoute
+  '/listings/$id': typeof ListingsIdRoute
   '/traders/$userId': typeof TradersUserIdRoute
   '/_authenticated/listings/new': typeof AuthenticatedListingsNewRoute
   '/_authenticated/trades/$tradeId': typeof AuthenticatedTradesTradeIdRoute
@@ -226,8 +271,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/faq'
     | '/fees'
     | '/landing'
+    | '/privacy'
+    | '/support'
+    | '/terms'
     | '/transparency'
     | '/admin'
     | '/limit-orders'
@@ -236,6 +285,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/swap'
     | '/wallet'
+    | '/listings/$id'
     | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
@@ -249,8 +299,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/faq'
     | '/fees'
     | '/landing'
+    | '/privacy'
+    | '/support'
+    | '/terms'
     | '/transparency'
     | '/admin'
     | '/limit-orders'
@@ -259,6 +313,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/swap'
     | '/wallet'
+    | '/listings/$id'
     | '/traders/$userId'
     | '/listings/new'
     | '/trades/$tradeId'
@@ -273,8 +328,12 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/faq'
     | '/fees'
     | '/landing'
+    | '/privacy'
+    | '/support'
+    | '/terms'
     | '/transparency'
     | '/_authenticated/admin'
     | '/_authenticated/limit-orders'
@@ -283,6 +342,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/swap'
     | '/_authenticated/wallet'
+    | '/listings/$id'
     | '/traders/$userId'
     | '/_authenticated/listings/new'
     | '/_authenticated/trades/$tradeId'
@@ -298,9 +358,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  FaqRoute: typeof FaqRoute
   FeesRoute: typeof FeesRoute
   LandingRoute: typeof LandingRoute
+  PrivacyRoute: typeof PrivacyRoute
+  SupportRoute: typeof SupportRoute
+  TermsRoute: typeof TermsRoute
   TransparencyRoute: typeof TransparencyRoute
+  ListingsIdRoute: typeof ListingsIdRoute
   TradersUserIdRoute: typeof TradersUserIdRoute
   ApiPublicCronExecuteLimitOrdersRoute: typeof ApiPublicCronExecuteLimitOrdersRoute
   ApiPublicCronExpireTradesRoute: typeof ApiPublicCronExpireTradesRoute
@@ -332,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fees': {
       id: '/fees'
       path: '/fees'
@@ -344,6 +416,27 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/transparency': {
@@ -401,6 +494,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/wallet'
       preLoaderRoute: typeof AuthenticatedWalletRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/listings/$id': {
+      id: '/listings/$id'
+      path: '/listings/$id'
+      fullPath: '/listings/$id'
+      preLoaderRoute: typeof ListingsIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/traders/$userId': {
       id: '/traders/$userId'
@@ -501,9 +601,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  FaqRoute: FaqRoute,
   FeesRoute: FeesRoute,
   LandingRoute: LandingRoute,
+  PrivacyRoute: PrivacyRoute,
+  SupportRoute: SupportRoute,
+  TermsRoute: TermsRoute,
   TransparencyRoute: TransparencyRoute,
+  ListingsIdRoute: ListingsIdRoute,
   TradersUserIdRoute: TradersUserIdRoute,
   ApiPublicCronExecuteLimitOrdersRoute: ApiPublicCronExecuteLimitOrdersRoute,
   ApiPublicCronExpireTradesRoute: ApiPublicCronExpireTradesRoute,

@@ -3,7 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { createTrade } from "@/lib/trades.functions";
-import { getPublicListings } from "@/lib/public-marketplace.functions";
+import { getPublicListing, getPublicListings } from "@/lib/public-marketplace.functions";
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -56,6 +56,10 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): { listing?: string } => {
+    const listing = typeof search["listing"] === "string" ? (search["listing"] as string) : undefined;
+    return listing ? { listing } : {};
+  },
   head: () => ({
     meta: [
       { title: "CEMP — Peer-to-peer crypto trading with escrow" },
@@ -139,6 +143,37 @@ function Marketplace() {
   const [sort, setSort] = useState<SortKey>("newest");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+
+  // A shared /listings/$id link ("Copy link" on an offer, or the offer
+  // detail page's "Start trade" button) lands here with ?listing=<id> —
+  // fetch that one listing directly and open the same dialog a marketplace
+  // card would, then drop the param so refreshing/sharing the URL later
+  // doesn't re-open it.
+  const { listing: deepLinkedListingId } = Route.useSearch();
+  const fetchOneListing = useServerFn(getPublicListing);
+  useEffect(() => {
+    if (!deepLinkedListingId) return;
+    if (!user) {
+      toast.info("Sign in to start a trade");
+      void navigate({ to: "/auth" });
+      return;
+    }
+    let cancelled = false;
+    fetchOneListing({ data: { id: deepLinkedListingId } })
+      .then((l) => {
+        if (!cancelled) setActive(l as unknown as ListingRow);
+      })
+      .catch((e) => {
+        if (!cancelled) toast.error(e instanceof Error ? e.message : "Couldn't load that offer");
+      })
+      .finally(() => {
+        if (!cancelled) void navigate({ to: "/", search: {}, replace: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkedListingId, user]);
 
   const resetFilters = () => {
     setCrypto("all");

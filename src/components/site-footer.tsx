@@ -1,10 +1,14 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 
-// Public, unauthenticated pages — grows as more of them ship (fees, FAQ, terms…).
+// Public, unauthenticated pages.
 const PUBLIC_PAGES = [
   { to: "/transparency", label: "Transparency" },
   { to: "/fees", label: "Fees" },
+  { to: "/faq", label: "FAQ" },
+  { to: "/support", label: "Support" },
+  { to: "/terms", label: "Terms" },
+  { to: "/privacy", label: "Privacy" },
 ] as const;
 
 export function SiteFooter() {

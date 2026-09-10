@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Copy, Loader2, Lock, Zap } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowDownUp, ArrowUpFromLine, Copy, Loader2, Lock, Zap } from "lucide-react";
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
@@ -187,11 +187,18 @@ function WalletPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Wallet</h1>
-        <p className="text-sm text-muted-foreground">
-          Escrow holds lock part of your balance until a trade resolves.
-        </p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Wallet</h1>
+          <p className="text-sm text-muted-foreground">
+            Escrow holds lock part of your balance until a trade resolves.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/swap">
+            <ArrowDownUp className="size-4" /> Swap
+          </Link>
+        </Button>
       </div>
 
       {overview.isLoading ? (

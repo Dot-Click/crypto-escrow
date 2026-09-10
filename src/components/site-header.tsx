@@ -5,7 +5,6 @@ import {
   Menu,
   Settings,
   ShieldCheck,
-  Store,
   Tag,
   User,
   Wallet,
@@ -26,26 +25,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // Matches SafeTheTrade's nav row — icon + label, one line. Swap and Limit
-// Order aren't standalone nav destinations: Swap lives inside the Wallet
-// page (it's a wallet operation, not its own product surface) and Limit
-// Order isn't a thing P2P escrow platforms like this one expose up front —
-// so neither gets a top-level icon anymore.
+// Order aren't standalone nav destinations: Swap is reachable from the
+// Wallet page and Limit Order isn't a thing P2P escrow platforms like this
+// one expose up front — so neither gets a top-level icon. The logo already
+// links to "/" (the marketplace), so there's no separate Marketplace item
+// here either — that used to duplicate the logo link.
 const AUTH_NAV = [
   { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
   { to: "/offers", label: "My Offers", icon: Tag },
   { to: "/wallet", label: "Wallet", icon: Wallet },
 ] as const;
 
-// Shown to everyone, signed in or not — the marketplace is publicly
-// browsable, and the logo link alone wasn't a clear enough entry point.
-const MARKETPLACE_NAV = { to: "/", label: "Marketplace", icon: Store } as const;
-
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const nav = [
-    MARKETPLACE_NAV,
     ...(user ? AUTH_NAV : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : []),
   ];

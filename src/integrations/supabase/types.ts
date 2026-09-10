@@ -249,6 +249,38 @@ export type Database = {
           },
         ]
       }
+      feedback: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          page_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          page_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          page_path?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hd_wallet_state: {
         Row: {
           last_scanned_block: number | null
@@ -345,43 +377,43 @@ export type Database = {
       }
       limit_orders: {
         Row: {
-          id: string
-          user_id: string
-          from_crypto: string
-          to_crypto: string
-          from_amount: number
-          target_rate: number
-          status: string
-          filled_amount: number | null
-          created_at: string
-          filled_at: string | null
           cancelled_at: string | null
+          created_at: string
+          filled_amount: number | null
+          filled_at: string | null
+          from_amount: number
+          from_crypto: string
+          id: string
+          status: string
+          target_rate: number
+          to_crypto: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          from_crypto: string
-          to_crypto: string
-          from_amount: number
-          target_rate: number
-          status?: string
-          filled_amount?: number | null
-          created_at?: string
-          filled_at?: string | null
           cancelled_at?: string | null
+          created_at?: string
+          filled_amount?: number | null
+          filled_at?: string | null
+          from_amount: number
+          from_crypto: string
+          id?: string
+          status?: string
+          target_rate: number
+          to_crypto: string
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          from_crypto?: string
-          to_crypto?: string
-          from_amount?: number
-          target_rate?: number
-          status?: string
-          filled_amount?: number | null
-          created_at?: string
-          filled_at?: string | null
           cancelled_at?: string | null
+          created_at?: string
+          filled_amount?: number | null
+          filled_at?: string | null
+          from_amount?: number
+          from_crypto?: string
+          id?: string
+          status?: string
+          target_rate?: number
+          to_crypto?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -669,6 +701,7 @@ export type Database = {
           email: string | null
           email_notifications: boolean
           id: string
+          is_verified: boolean
           login_email_verification: boolean
           referral_code: string
           referred_by: string | null
@@ -687,6 +720,7 @@ export type Database = {
           email?: string | null
           email_notifications?: boolean
           id: string
+          is_verified?: boolean
           login_email_verification?: boolean
           referral_code?: string
           referred_by?: string | null
@@ -705,6 +739,7 @@ export type Database = {
           email?: string | null
           email_notifications?: boolean
           id?: string
+          is_verified?: boolean
           login_email_verification?: boolean
           referral_code?: string
           referred_by?: string | null
@@ -1108,6 +1143,54 @@ export type Database = {
           },
         ]
       }
+      verification_requests: {
+        Row: {
+          created_at: string
+          document_path: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["verification_status"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_path: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_path?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verification_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wallets: {
         Row: {
           balance: number
@@ -1219,13 +1302,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "withdrawals_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -1246,6 +1322,7 @@ export type Database = {
         Returns: boolean
       }
       trigger_edge_function: { Args: { _name: string }; Returns: number }
+      trigger_execute_limit_orders: { Args: never; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
@@ -1269,6 +1346,7 @@ export type Database = {
         | "escrow_refund"
         | "swap_out"
         | "swap_in"
+      verification_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1416,7 +1494,10 @@ export const Constants = {
         "escrow_hold",
         "escrow_release",
         "escrow_refund",
+        "swap_out",
+        "swap_in",
       ],
+      verification_status: ["pending", "approved", "rejected"],
     },
   },
 } as const

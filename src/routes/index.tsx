@@ -31,13 +31,13 @@ import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
-import { CRYPTO_TYPES, PLATFORM_FEE_PERCENT } from "@/lib/constants";
+import { CRYPTO_TYPES } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
 import { OFFER_TAGS, offerTagLabel } from "@/lib/offer-tags";
 import { providerForMethod, railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
-import { computeReceiveAmount, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
+import { computeReceiveAmount, escrowFeePercentForMethod, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -645,8 +645,8 @@ function Marketplace() {
                 const symbol = currencySymbol(l.fiat_currency);
                 const margin = Number(l.margin_percent);
                 const previewFiat = l.min_amount != null ? Number(l.min_amount) : 10;
-                const preview = computeReceiveAmount(previewFiat, price, PLATFORM_FEE_PERCENT);
                 const primaryMethod = l.accepted_payment_methods[0];
+                const preview = computeReceiveAmount(previewFiat, price, escrowFeePercentForMethod(primaryMethod));
                 return (
                   <div
                     key={l.id}
@@ -868,7 +868,8 @@ function StartTradeDialog({
   const valid =
     !!listing && !!payment && !!price && parsed > 0 && !rangeError && !notVerifiedEnough && !countryBlocked;
 
-  const receive = price ? computeReceiveAmount(parsed, price, PLATFORM_FEE_PERCENT) : null;
+  const feePercent = escrowFeePercentForMethod(payment || listing?.accepted_payment_methods[0]);
+  const receive = price ? computeReceiveAmount(parsed, price, feePercent) : null;
 
   const start = useMutation({
     mutationFn: async () => {
@@ -962,7 +963,7 @@ function StartTradeDialog({
               </div>
               <p className="text-xs text-muted-foreground">
                 Rate {symbol}
-                {price.toFixed(2)} per {listing?.crypto_type} · {PLATFORM_FEE_PERCENT}% fee included
+                {price.toFixed(2)} per {listing?.crypto_type} · {feePercent}% fee included
               </p>
               {listing?.payment_window_minutes ? (
                 <p className="text-xs text-muted-foreground">

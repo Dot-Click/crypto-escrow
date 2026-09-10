@@ -879,6 +879,8 @@ export type Database = {
           crypto_type: string
           expires_at: string | null
           fee_amount: number
+          fee_percent: number | null
+          fee_rail: string | null
           fiat_currency: string
           id: string
           listing_id: string | null
@@ -896,6 +898,8 @@ export type Database = {
           crypto_type: string
           expires_at?: string | null
           fee_amount?: number
+          fee_percent?: number | null
+          fee_rail?: string | null
           fiat_currency?: string
           id?: string
           listing_id?: string | null
@@ -913,6 +917,8 @@ export type Database = {
           crypto_type?: string
           expires_at?: string | null
           fee_amount?: number
+          fee_percent?: number | null
+          fee_rail?: string | null
           fiat_currency?: string
           id?: string
           listing_id?: string | null

@@ -7,11 +7,20 @@ export const CRYPTO_TYPES = [
   { code: "LTC", label: "Litecoin" },
 ] as const;
 
-/** Deducted from the buyer's crypto payout when escrow releases; locked into trade.fee_amount at open time. */
-export const PLATFORM_FEE_PERCENT = 1;
+/**
+ * Escrow fee, deducted from the buyer's crypto payout when escrow releases and
+ * locked into trade.fee_amount at open time. Tiered by the payment rail the
+ * buyer pays over — see escrowFeePercentForMethod in @/lib/pricing.
+ */
+export const ESCROW_FEE_PERCENT_BY_RAIL: Record<string, number> = {
+  gift_card: 1.99,
+  bank_transfer: 0.4,
+};
+/** Applied to any rail not listed above (mobile money, online wallets, cash, cards, crypto, goods & services). */
+export const ESCROW_FEE_PERCENT_DEFAULT = 0.59;
 
 /** Deducted from the crypto-to-crypto Swap feature's output amount (instant swaps and filled limit orders alike). */
-export const SWAP_FEE_PERCENT = 0.5;
+export const SWAP_FEE_PERCENT = 0;
 
 /**
  * Fallback payment window for trades opened on a listing with its time

@@ -1,5 +1,14 @@
 // Shared trade math — used by both the client-side calculators (listing form,
 // start-trade dialog) and the server-side escrow engine, so they never drift.
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
+import { ESCROW_FEE_PERCENT_BY_RAIL, ESCROW_FEE_PERCENT_DEFAULT } from "@/lib/constants";
+
+/** Escrow fee percent for a given payment-method string, tiered by its rail. */
+export function escrowFeePercentForMethod(method: string | null | undefined): number {
+  if (!method) return ESCROW_FEE_PERCENT_DEFAULT;
+  const rail = railKeyForMethod(method);
+  return (rail && ESCROW_FEE_PERCENT_BY_RAIL[rail]) ?? ESCROW_FEE_PERCENT_DEFAULT;
+}
 
 /**
  * A seller's listing price = live USD market price, converted into the

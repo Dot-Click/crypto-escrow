@@ -4,8 +4,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { enforceRateLimit } from "@/lib/rate-limit.server";
 import { getMarketPrice } from "@/lib/market-price.server";
 import { getFxRate } from "@/lib/fx-rate.server";
-import { computeEffectivePrice, computeReceiveAmount } from "@/lib/pricing";
-import { PLATFORM_FEE_PERCENT, DEFAULT_MAX_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
+import { computeEffectivePrice, computeReceiveAmount, escrowFeePercentForMethod } from "@/lib/pricing";
+import { DEFAULT_MAX_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
+import { railKeyForMethod } from "@/lib/payment-taxonomy";
 
 type TradeRow = {
   id: string;
@@ -199,10 +200,11 @@ export async function openTrade(params: {
           Number(listing.margin_percent),
           await getFxRate(listing.fiat_currency),
         );
+  const feePercent = escrowFeePercentForMethod(params.paymentMethod);
   const { grossCrypto, feeCrypto, netCrypto } = computeReceiveAmount(
     params.fiatAmount,
     effectivePrice,
-    PLATFORM_FEE_PERCENT,
+    feePercent,
   );
   // No listing-level inventory cap: how much a seller can actually cover is
   // enforced below by their live wallet balance, same as SafeTheTrade — the
@@ -245,6 +247,8 @@ export async function openTrade(params: {
       amount: grossCrypto,
       price: effectivePrice,
       fee_amount: feeCrypto,
+      fee_percent: feePercent,
+      fee_rail: railKeyForMethod(params.paymentMethod),
       payout_amount: netCrypto,
       // Always set, even when the seller disabled the explicit time limit —
       // a null expires_at can never expire (see DEFAULT_MAX_PAYMENT_WINDOW_MINUTES).

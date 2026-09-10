@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PLATFORM_FEE_PERCENT } from "@/lib/constants";
+import { ESCROW_FEE_PERCENT_BY_RAIL, ESCROW_FEE_PERCENT_DEFAULT, SWAP_FEE_PERCENT } from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -15,10 +15,25 @@ export const Route = createFileRoute("/fees")({
 
 const TRADING_FEES = [
   {
-    fee: "Escrow fee",
-    amount: `${PLATFORM_FEE_PERCENT}%`,
+    fee: "Escrow fee — gift cards",
+    amount: `${ESCROW_FEE_PERCENT_BY_RAIL.gift_card}%`,
+    notes: "Seller pays. Taken from the crypto amount when a trade releases.",
+  },
+  {
+    fee: "Escrow fee — bank transfer",
+    amount: `${ESCROW_FEE_PERCENT_BY_RAIL.bank_transfer}%`,
+    notes: "Seller pays. Taken from the crypto amount when a trade releases.",
+  },
+  {
+    fee: "Escrow fee — other methods",
+    amount: `${ESCROW_FEE_PERCENT_DEFAULT}%`,
     notes:
-      "Taken from the crypto amount when a trade releases. Shown in the buyer's receive amount before the trade opens — what you see is what you get.",
+      "Seller pays. Covers every other payment rail (mobile money, online wallets, cash, cards, crypto, goods & services).",
+  },
+  {
+    fee: "Crypto swap",
+    amount: SWAP_FEE_PERCENT > 0 ? `${SWAP_FEE_PERCENT}%` : "Free",
+    notes: "Converting between coins in your wallet at the live market rate.",
   },
   {
     fee: "Posting an offer",

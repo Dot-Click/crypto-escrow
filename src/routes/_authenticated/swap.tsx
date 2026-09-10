@@ -75,7 +75,8 @@ function SwapPage() {
         <CardHeader>
           <CardTitle>Swap</CardTitle>
           <CardDescription>
-            Instantly convert between coins in your wallet at the live market rate — {SWAP_FEE_PERCENT}% fee.
+            Instantly convert between coins in your wallet at the live market rate —{" "}
+            {SWAP_FEE_PERCENT > 0 ? `${SWAP_FEE_PERCENT}% fee` : "free"}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -163,7 +164,8 @@ function SwapPage() {
             <p className="text-xs text-muted-foreground">Choose two different coins.</p>
           ) : quote.data ? (
             <p className="text-xs text-muted-foreground">
-              1 {fromCrypto} ≈ {quote.data.rate.toFixed(8)} {toCrypto} · {SWAP_FEE_PERCENT}% fee included
+              1 {fromCrypto} ≈ {quote.data.rate.toFixed(8)} {toCrypto} ·{" "}
+              {SWAP_FEE_PERCENT > 0 ? `${SWAP_FEE_PERCENT}% fee included` : "no fee"}
             </p>
           ) : quote.isError ? (
             <p className="text-xs text-destructive">{(quote.error as Error).message}</p>

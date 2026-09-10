@@ -32,6 +32,7 @@ export const SWAP_FEE_PERCENT = 0;
 export const WITHDRAWAL_FIXED_FEE: Record<string, number> = {
   "USDT:BEP20": 0.8,
   "BTC:ONCHAIN": 0.000026,
+  "BTC:LIGHTNING": 0.000008,
 };
 
 /**

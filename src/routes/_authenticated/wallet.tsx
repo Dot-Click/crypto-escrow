@@ -8,6 +8,7 @@ import { AlertTriangle, ArrowDownToLine, ArrowDownUp, ArrowUpFromLine, Copy, Loa
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
+import { requestLightningWithdrawal } from "@/lib/lightning-withdrawal.functions";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
 import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
 import { withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -74,6 +76,7 @@ function WalletPage() {
   const qc = useQueryClient();
   const fetchOverview = useServerFn(getWalletOverview);
   const submitWithdrawal = useServerFn(requestWithdrawal);
+  const submitLightningWithdrawal = useServerFn(requestLightningWithdrawal);
   const fetchDepositAddresses = useServerFn(getMyDepositAddresses);
   const fetchMyClaims = useServerFn(listMyDepositClaims);
   const startLightningDeposit = useServerFn(createLightningDeposit);
@@ -82,8 +85,11 @@ function WalletPage() {
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
+  const [btcWithdrawMode, setBtcWithdrawMode] = useState<"onchain" | "lightning">("onchain");
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+  const [lnWithdrawAmountSats, setLnWithdrawAmountSats] = useState("");
+  const [lnWithdrawDestination, setLnWithdrawDestination] = useState("");
   const [stepUpCode, setStepUpCode] = useState("");
 
   const [lightningOpen, setLightningOpen] = useState(false);
@@ -151,6 +157,25 @@ function WalletPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const lightningWithdrawMutation = useMutation({
+    mutationFn: () =>
+      submitLightningWithdrawal({
+        data: {
+          amountSats: Number(lnWithdrawAmountSats),
+          destination: lnWithdrawDestination.trim(),
+          ...(withdrawalVerification !== "none" ? { stepUpCode } : {}),
+        },
+      }),
+    onSuccess: () => {
+      setLnWithdrawAmountSats("");
+      setLnWithdrawDestination("");
+      setStepUpCode("");
+      void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
+      toast.success("Lightning payment sent.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const lightningMutation = useMutation({
     mutationFn: () => startLightningDeposit({ data: { amountSats: Number(lnAmountSats) } }),
     onSuccess: (row) => setLnInvoice(row),
@@ -185,7 +210,8 @@ function WalletPage() {
   const availableToWithdraw = withdrawWallet
     ? withdrawWallet.balance - withdrawWallet.held_balance
     : 0;
-  const withdrawNetworkLabel = withdrawalNetworkLabel(withdrawCoin);
+  const isLightningWithdraw = withdrawCoin === "BTC" && btcWithdrawMode === "lightning";
+  const withdrawNetworkLabel = isLightningWithdraw ? "LIGHTNING" : withdrawalNetworkLabel(withdrawCoin);
   const withdrawFee =
     (withdrawNetworkLabel && WITHDRAWAL_FIXED_FEE[`${withdrawCoin}:${withdrawNetworkLabel}`]) || 0;
 
@@ -273,12 +299,19 @@ function WalletPage() {
                 className="grid gap-3 sm:grid-cols-[140px_1fr_auto] sm:items-end"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  withdrawMutation.mutate();
+                  if (isLightningWithdraw) lightningWithdrawMutation.mutate();
+                  else withdrawMutation.mutate();
                 }}
               >
                 <div className="space-y-2">
                   <Label>Coin</Label>
-                  <Select value={withdrawCoin} onValueChange={setWithdrawCoin}>
+                  <Select
+                    value={withdrawCoin}
+                    onValueChange={(v) => {
+                      setWithdrawCoin(v);
+                      if (v !== "BTC") setBtcWithdrawMode("onchain");
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -294,34 +327,94 @@ function WalletPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="wd-address">Destination address</Label>
-                  <Input
-                    id="wd-address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="bc1q…"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="wd-amount">Amount</Label>
-                  <Input
-                    id="wd-amount"
-                    inputMode="decimal"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground sm:col-span-2">
-                  Available: {availableToWithdraw} {withdrawCoin}
-                  {withdrawFee > 0 ? ` · Network fee: ${withdrawFee} ${withdrawCoin}` : null}
-                  {withdrawFee > 0 && amount && Number(amount) > withdrawFee
-                    ? ` · You'll send ${(Number(amount) - withdrawFee).toFixed(8)} ${withdrawCoin}`
-                    : null}
-                </p>
+
+                {withdrawCoin === "BTC" ? (
+                  <div className="flex gap-1.5 rounded-md bg-muted p-1 text-xs sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => setBtcWithdrawMode("onchain")}
+                      className={
+                        btcWithdrawMode === "onchain"
+                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                      }
+                    >
+                      On-chain
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBtcWithdrawMode("lightning")}
+                      className={
+                        btcWithdrawMode === "lightning"
+                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                      }
+                    >
+                      <Zap className="mr-1 inline size-3" /> Lightning
+                    </button>
+                  </div>
+                ) : null}
+
+                {isLightningWithdraw ? (
+                  <>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="wd-ln-destination">Lightning invoice or Lightning Address</Label>
+                      <Textarea
+                        id="wd-ln-destination"
+                        value={lnWithdrawDestination}
+                        onChange={(e) => setLnWithdrawDestination(e.target.value)}
+                        placeholder="lnbc1… or you@wallet.com"
+                        rows={2}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="wd-ln-amount">Amount (sats)</Label>
+                      <Input
+                        id="wd-ln-amount"
+                        inputMode="numeric"
+                        value={lnWithdrawAmountSats}
+                        onChange={(e) => setLnWithdrawAmountSats(e.target.value)}
+                        placeholder="50000"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-3">
+                      Available: {availableToWithdraw} BTC · Network fee: {withdrawFee} BTC
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="wd-address">Destination address</Label>
+                      <Input
+                        id="wd-address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="bc1q…"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="wd-amount">Amount</Label>
+                      <Input
+                        id="wd-amount"
+                        inputMode="decimal"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground sm:col-span-2">
+                      Available: {availableToWithdraw} {withdrawCoin}
+                      {withdrawFee > 0 ? ` · Network fee: ${withdrawFee} ${withdrawCoin}` : null}
+                      {withdrawFee > 0 && amount && Number(amount) > withdrawFee
+                        ? ` · You'll send ${(Number(amount) - withdrawFee).toFixed(8)} ${withdrawCoin}`
+                        : null}
+                    </p>
+                  </>
+                )}
 
                 {withdrawalVerification !== "none" ? (
                   <div className="space-y-2 sm:col-span-3">
@@ -357,9 +450,14 @@ function WalletPage() {
                 <Button
                   type="submit"
                   className="w-full sm:w-auto"
-                  disabled={withdrawMutation.isPending || (withdrawalVerification !== "none" && stepUpCode.length !== 6)}
+                  disabled={
+                    (isLightningWithdraw ? lightningWithdrawMutation.isPending : withdrawMutation.isPending) ||
+                    (withdrawalVerification !== "none" && stepUpCode.length !== 6)
+                  }
                 >
-                  {withdrawMutation.isPending ? "Submitting…" : "Withdraw"}
+                  {(isLightningWithdraw ? lightningWithdrawMutation.isPending : withdrawMutation.isPending)
+                    ? "Submitting…"
+                    : "Withdraw"}
                 </Button>
               </form>
             </CardContent>

@@ -108,6 +108,22 @@ export function isValidAddress(cryptoType: string, address: string, env: Network
   }
 }
 
+// Lightning withdrawal destinations are a completely different shape from an
+// on-chain address (bolt11 invoice, or a Lightning Address that resolves to
+// one via LNURL) — isValidAddress's on-chain switch can't and shouldn't be
+// stretched to cover them.
+const BOLT11_INVOICE = /^ln(bc|tb)[a-z0-9]+$/i;
+const LIGHTNING_ADDRESS = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+export type LightningDestination = { kind: "bolt11" | "address"; value: string };
+
+export function parseLightningDestination(input: string): LightningDestination | null {
+  const value = input.trim();
+  if (BOLT11_INVOICE.test(value)) return { kind: "bolt11", value };
+  if (LIGHTNING_ADDRESS.test(value)) return { kind: "address", value };
+  return null;
+}
+
 export function withdrawalError(cryptoType: string, amount: number, address: string, env: NetworkEnv = currentNetworkEnv()): string | null {
   const min = withdrawalMin(cryptoType, env);
   if (min == null) return "Unsupported coin";

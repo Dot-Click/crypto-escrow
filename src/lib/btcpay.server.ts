@@ -79,6 +79,52 @@ export async function createLightningInvoice(params: {
   return parseInvoice(await res.json());
 }
 
+/**
+ * Pays an arbitrary BOLT11 invoice out of the store's Lightning node — the
+ * outbound counterpart to createLightningInvoice, added for wallet
+ * withdrawals. Endpoint: POST /lightning/BTC/invoices/pay
+ * (GreenfieldLightningNodeApiController.Store.cs's Pay action), body
+ * `{ BOLT11, maxFeePercent, sendTimeout }` per PayLightningInvoiceRequest.cs.
+ *
+ * Requires the API key to carry the "Manage your store's Lightning node"
+ * permission — a materially more sensitive grant than the "create/view
+ * invoices" permission the deposit side uses, since it authorizes moving
+ * funds out. Use a separate, narrowly-scoped key for this if possible.
+ *
+ * BTCPay settles a Lightning payment synchronously within the request (or
+ * fails outright) — there is no "pending, check back later" state to poll,
+ * unlike invoice creation.
+ */
+export async function payLightningInvoice(params: {
+  bolt11: string;
+  maxFeePercent?: number;
+}): Promise<{ ok: true }> {
+  const { host, storeId, apiKey } = btcpayEnv();
+
+  const res = await fetch(`${host}/api/v1/stores/${storeId}/lightning/BTC/invoices/pay`, {
+    method: "POST",
+    headers: {
+      Authorization: `token ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      BOLT11: params.bolt11,
+      maxFeePercent: params.maxFeePercent ?? 3,
+      sendTimeout: 60,
+    }),
+    // Real Lightning payment attempts can legitimately take longer than the
+    // 15s timeout used for invoice creation/lookup above.
+    signal: AbortSignal.timeout(65_000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`BTCPay Lightning payment failed (${res.status}): ${text.slice(0, 300)}`);
+  }
+
+  return { ok: true };
+}
+
 /** Fetches the current status of a previously created Lightning invoice. */
 export async function getLightningInvoice(invoiceId: string): Promise<LightningInvoice> {
   const { host, storeId, apiKey } = btcpayEnv();

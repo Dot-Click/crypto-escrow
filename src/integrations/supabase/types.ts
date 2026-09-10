@@ -375,6 +375,63 @@ export type Database = {
           },
         ]
       }
+      lightning_withdrawals: {
+        Row: {
+          amount_btc: number
+          bolt11: string
+          btcpay_payment_id: string | null
+          created_at: string
+          error_message: string | null
+          fee_btc: number
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount_btc: number
+          bolt11: string
+          btcpay_payment_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          fee_btc?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount_btc?: number
+          bolt11?: string
+          btcpay_payment_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          fee_btc?: number
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lightning_withdrawals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lightning_withdrawals_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       limit_orders: {
         Row: {
           cancelled_at: string | null

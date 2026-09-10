@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CoinIcon } from "@/components/coin-icon";
@@ -86,11 +85,6 @@ function OffersPage() {
     void queryClient.invalidateQueries({ queryKey: ["listings"] });
   };
 
-  const copyOfferLink = (id: string) => {
-    void navigator.clipboard.writeText(`${window.location.origin}/listings/${id}`);
-    toast.success("Offer link copied");
-  };
-
   const setStatus = async (id: string, status: "active" | "paused") => {
     const { error } = await supabase.from("listings").update({ status }).eq("id", id);
     if (error) {
@@ -142,9 +136,6 @@ function OffersPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => copyOfferLink(l.id)} className="gap-1.5">
-                    <Link2 className="size-3.5" /> Copy link
-                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setEditing(l)}>
                     Edit
                   </Button>

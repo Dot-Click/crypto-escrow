@@ -19,7 +19,7 @@ export const getTraderProfile = createServerFn({ method: "GET" })
 
     const { data: profile, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, display_name, trades_completed, created_at, is_verified")
+      .select("id, display_name, trades_completed, created_at")
       .eq("id", data.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -30,13 +30,6 @@ export const getTraderProfile = createServerFn({ method: "GET" })
       .select("buyer_id, seller_id, crypto_type, amount, payment_method")
       .eq("status", "released")
       .or(`buyer_id.eq.${data.userId},seller_id.eq.${data.userId}`);
-
-    const { data: listings } = await supabaseAdmin
-      .from("listings")
-      .select("id, side, crypto_type, fiat_currency, price, min_amount, max_amount, accepted_payment_methods")
-      .eq("seller_id", data.userId)
-      .eq("status", "active")
-      .order("created_at", { ascending: false });
 
     const partners = new Set<string>();
     const volumeByCrypto = new Map<string, number>();
@@ -54,17 +47,6 @@ export const getTraderProfile = createServerFn({ method: "GET" })
       displayName: profile.display_name,
       tradesCompleted: profile.trades_completed,
       memberSince: profile.created_at,
-      isVerified: profile.is_verified,
-      activeListings: (listings ?? []).map((l) => ({
-        id: l.id,
-        side: l.side,
-        cryptoType: l.crypto_type,
-        fiatCurrency: l.fiat_currency,
-        price: Number(l.price),
-        minAmount: l.min_amount != null ? Number(l.min_amount) : null,
-        maxAmount: l.max_amount != null ? Number(l.max_amount) : null,
-        acceptedPaymentMethods: l.accepted_payment_methods,
-      })),
       uniquePartners: partners.size,
       volumeByCrypto: [...volumeByCrypto.entries()]
         .map(([cryptoType, amount]) => ({ cryptoType, amount }))

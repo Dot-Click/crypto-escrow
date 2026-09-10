@@ -10,7 +10,6 @@ export type Profile = {
   trades_completed: number;
   country: string | null;
   referral_code: string;
-  is_verified: boolean;
 };
 
 type AuthContextValue = {
@@ -41,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [{ data: p }, { data: roles }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, display_name, role, email, trades_completed, country, referral_code, is_verified")
+        .select("id, display_name, role, email, trades_completed, country, referral_code")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),

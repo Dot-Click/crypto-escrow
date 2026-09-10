@@ -1,10 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Users, ArrowLeftRight, BadgeCheck, Tag } from "lucide-react";
+import { Users, ArrowLeftRight } from "lucide-react";
 import { getTraderProfile } from "@/lib/trader-profile.functions";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
-import { currencySymbol } from "@/lib/currencies";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon } from "@/components/coin-icon";
@@ -52,11 +51,6 @@ function TraderProfilePage() {
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-xl font-semibold">{p.displayName}</h1>
-            {p.isVerified ? (
-              <Badge variant="outline" className="gap-1 border-primary/40 text-primary">
-                <BadgeCheck className="size-3.5" /> Verified
-              </Badge>
-            ) : null}
             <TraderLevelBadge tradesCompleted={p.tradesCompleted} />
           </div>
           <p className="text-sm text-muted-foreground">Trading since {formatDate(p.memberSince)}</p>
@@ -112,49 +106,6 @@ function TraderProfilePage() {
       ) : (
         <p className="text-sm text-muted-foreground">No completed trades yet.</p>
       )}
-
-      <div className="mt-6">
-        <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-          <Tag className="size-4 text-muted-foreground" />
-          Active offers
-        </div>
-        {p.activeListings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No active offers right now.</p>
-        ) : (
-          <div className="space-y-2">
-            {p.activeListings.map((l) => (
-              <Link
-                key={l.id}
-                to="/listings/$id"
-                params={{ id: l.id }}
-                className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="space-y-1">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <CoinIcon code={l.cryptoType} className="size-4" />
-                    {l.side === "sell" ? "Selling" : "Buying"} {l.cryptoType}
-                  </span>
-                  <p className="mono text-xs text-muted-foreground">
-                    {currencySymbol(l.fiatCurrency)}
-                    {l.price.toLocaleString()} / {l.cryptoType}
-                    {l.minAmount != null && l.maxAmount != null
-                      ? ` · ${currencySymbol(l.fiatCurrency)}${l.minAmount.toLocaleString()}–${currencySymbol(l.fiatCurrency)}${l.maxAmount.toLocaleString()}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {l.acceptedPaymentMethods.map((m) => (
-                    <Badge key={m} variant="secondary" className="gap-1 font-normal">
-                      <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3.5" />
-                      {m}
-                    </Badge>
-                  ))}
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

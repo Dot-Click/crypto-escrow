@@ -1,11 +1,12 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
+  ListOrdered,
   LogOut,
   Menu,
+  Repeat,
   Settings,
   ShieldCheck,
-  Store,
   Tag,
   User,
   Wallet,
@@ -25,27 +26,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Matches SafeTheTrade's nav row — icon + label, one line. Swap and Limit
-// Order aren't standalone nav destinations: Swap lives inside the Wallet
-// page (it's a wallet operation, not its own product surface) and Limit
-// Order isn't a thing P2P escrow platforms like this one expose up front —
-// so neither gets a top-level icon anymore.
+// Matches SafeTheTrade's nav row — icon + label, one line. The logo already
+// links to "/" (the marketplace), so there's no separate "Marketplace" item.
+// Everything here needs an account, so it's only shown when signed in.
 const AUTH_NAV = [
   { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
   { to: "/offers", label: "My Offers", icon: Tag },
+  { to: "/swap", label: "Swap", icon: Repeat },
+  { to: "/limit-orders", label: "Limit Order", icon: ListOrdered },
   { to: "/wallet", label: "Wallet", icon: Wallet },
 ] as const;
-
-// Shown to everyone, signed in or not — the marketplace is publicly
-// browsable, and the logo link alone wasn't a clear enough entry point.
-const MARKETPLACE_NAV = { to: "/", label: "Marketplace", icon: Store } as const;
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const nav = [
-    MARKETPLACE_NAV,
     ...(user ? AUTH_NAV : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : []),
   ];

@@ -1,5 +1,3 @@
-export const SUPPORT_EMAIL = "support@cemp.app";
-
 export const CRYPTO_TYPES = [
   { code: "BTC", label: "Bitcoin" },
   { code: "ETH", label: "Ethereum" },

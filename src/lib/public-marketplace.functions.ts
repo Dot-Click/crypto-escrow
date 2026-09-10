@@ -51,27 +51,3 @@ export const getPublicListings = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return listings;
   });
-
-/**
- * Single-listing lookup for the shareable /listings/$id page — same
- * unauthenticated access as getPublicListings above, so a link to an offer
- * works for someone who hasn't signed in yet.
- */
-export const getPublicListing = createServerFn({ method: "GET" })
-  .inputValidator((input: { id: string }) => {
-    if (!/^[0-9a-f-]{36}$/i.test(input.id)) throw new Error("Invalid listing id");
-    return input;
-  })
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: listing, error } = await supabaseAdmin
-      .from("listings")
-      .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed, country, is_verified)")
-      .eq("id", data.id)
-      .eq("status", "active")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!listing) throw new Error("This offer is no longer available");
-    return listing;
-  });

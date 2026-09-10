@@ -11,12 +11,9 @@ import {
   listAllTrades,
   listDepositClaims,
   listDisputes,
-  listFeedback,
   listMasterWallets,
-  listVerificationRequests,
   rejectDepositClaim,
   resolveDispute,
-  reviewVerificationRequest,
   upsertMasterWallet,
 } from "@/lib/admin.functions";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
@@ -109,8 +106,6 @@ function AdminPage() {
           <TabsTrigger value="disputes">Disputes</TabsTrigger>
           <TabsTrigger value="trades">All trades</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="verification">Verification</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="wallets">Wallet addresses</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
@@ -124,12 +119,6 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="deposits" className="mt-4">
           <DepositClaims />
-        </TabsContent>
-        <TabsContent value="verification" className="mt-4">
-          <VerificationRequests />
-        </TabsContent>
-        <TabsContent value="feedback" className="mt-4">
-          <Feedback />
         </TabsContent>
         <TabsContent value="wallets" className="mt-4">
           <MasterWallets />
@@ -651,170 +640,6 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
         ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-type VerificationRequestRow = Awaited<ReturnType<typeof listVerificationRequests>>[number];
-
-function VerificationRequests() {
-  const queryClient = useQueryClient();
-  const fetchRequests = useServerFn(listVerificationRequests);
-  const [status, setStatus] = useState<"pending" | "approved" | "rejected" | "all">("pending");
-  const q = useQuery({
-    queryKey: ["admin", "verification-requests", status],
-    queryFn: () => fetchRequests({ data: { status } }),
-  });
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Label className="text-sm">Status</Label>
-        <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="all">All</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading requests…</p>
-      ) : (q.data ?? []).length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No verification requests in this view.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {(q.data ?? []).map((r) => (
-            <VerificationRequestCard
-              key={r.id}
-              request={r}
-              onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin", "verification-requests"] })}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function VerificationRequestCard({ request, onChanged }: { request: VerificationRequestRow; onChanged: () => void }) {
-  const review = useServerFn(reviewVerificationRequest);
-  const [note, setNote] = useState("");
-  const user = request.user as { display_name: string; email: string } | null;
-
-  const reviewMutation = useMutation({
-    mutationFn: (approve: boolean) => review({ data: { requestId: request.id, approve, note } }),
-    onSuccess: (r) => {
-      toast.success(r.status === "approved" ? "Trader verified" : "Request rejected");
-      setNote("");
-      onChanged();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return (
-    <Card>
-      <CardContent className="space-y-3 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"}>
-            {request.status}
-          </Badge>
-          <span className="text-sm font-medium">{user?.display_name ?? "—"}</span>
-          <span className="text-xs text-muted-foreground">{user?.email ?? "—"}</span>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Submitted {new Date(request.created_at).toLocaleString()}
-          {request.reviewed_at ? ` · reviewed ${new Date(request.reviewed_at).toLocaleString()}` : ""}
-        </p>
-
-        {request.documentUrl ? (
-          <a
-            href={request.documentUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-block text-sm text-primary underline-offset-2 hover:underline"
-          >
-            View submitted document
-          </a>
-        ) : (
-          <p className="text-xs text-muted-foreground">Document link expired — reopen this tab to refresh it.</p>
-        )}
-
-        {request.note ? (
-          <p className="rounded-md border border-border bg-muted/30 p-2 text-xs">{request.note}</p>
-        ) : null}
-
-        {request.status === "pending" ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border p-3 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1.5">
-              <Label className="text-sm">Note (shown to the user if rejected)</Label>
-              <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Optional" />
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={reviewMutation.isPending}
-                onClick={() => reviewMutation.mutate(false)}
-              >
-                Reject
-              </Button>
-              <Button size="sm" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate(true)}>
-                Approve
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Feedback() {
-  const fetchFeedback = useServerFn(listFeedback);
-  const q = useQuery({ queryKey: ["admin", "feedback"], queryFn: () => fetchFeedback() });
-
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading feedback…</p>;
-  if ((q.data ?? []).length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          No feedback submitted yet.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {(q.data ?? []).map((f) => {
-        const user = f.user as { display_name: string; email: string } | null;
-        return (
-          <Card key={f.id}>
-            <CardContent className="space-y-1.5 py-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium">{user?.display_name ?? "—"}</span>
-                <span className="text-xs text-muted-foreground">{user?.email ?? "—"}</span>
-                <span className="text-xs text-muted-foreground">
-                  · {new Date(f.created_at).toLocaleString()}
-                  {f.page_path ? ` · ${f.page_path}` : ""}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap text-sm">{f.message}</p>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
   );
 }
 

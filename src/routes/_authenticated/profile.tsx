@@ -9,6 +9,7 @@ import {
   Bell,
   ChevronDown,
   CreditCard,
+  FileText,
   Lock,
   MessageSquareText,
   ShieldQuestion,
@@ -786,6 +787,8 @@ function ProfilePage() {
           </MenuRow>
 
           <LinkRow icon={ShieldQuestion} title="Support & FAQ" subtitle="Get help or read common questions" to="/support" />
+
+          <LinkRow icon={FileText} title="Terms & Privacy" subtitle="Read our terms of service and privacy policy" to="/terms" />
 
           <MenuRow
             icon={AlertTriangle}

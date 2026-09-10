@@ -9,7 +9,8 @@ import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
-import { CRYPTO_TYPES } from "@/lib/constants";
+import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
+import { withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
 import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -184,6 +185,9 @@ function WalletPage() {
   const availableToWithdraw = withdrawWallet
     ? withdrawWallet.balance - withdrawWallet.held_balance
     : 0;
+  const withdrawNetworkLabel = withdrawalNetworkLabel(withdrawCoin);
+  const withdrawFee =
+    (withdrawNetworkLabel && WITHDRAWAL_FIXED_FEE[`${withdrawCoin}:${withdrawNetworkLabel}`]) || 0;
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
@@ -313,6 +317,10 @@ function WalletPage() {
                 </div>
                 <p className="text-xs text-muted-foreground sm:col-span-2">
                   Available: {availableToWithdraw} {withdrawCoin}
+                  {withdrawFee > 0 ? ` · Network fee: ${withdrawFee} ${withdrawCoin}` : null}
+                  {withdrawFee > 0 && amount && Number(amount) > withdrawFee
+                    ? ` · You'll send ${(Number(amount) - withdrawFee).toFixed(8)} ${withdrawCoin}`
+                    : null}
                 </p>
 
                 {withdrawalVerification !== "none" ? (

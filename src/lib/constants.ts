@@ -23,6 +23,18 @@ export const ESCROW_FEE_PERCENT_DEFAULT = 0.59;
 export const SWAP_FEE_PERCENT = 0;
 
 /**
+ * Fixed platform withdrawal fee, in the coin's own unit, keyed by
+ * "{cryptoType}:{networkLabel}" (see withdrawalNetworkLabel in
+ * @/lib/withdrawal-validation). Only covers the networks the client's fee
+ * schedule specified — ETH and LTC withdrawals stay "network fee only" (no
+ * platform fee) since they weren't part of that schedule.
+ */
+export const WITHDRAWAL_FIXED_FEE: Record<string, number> = {
+  "USDT:BEP20": 0.8,
+  "BTC:ONCHAIN": 0.000026,
+};
+
+/**
  * Fallback payment window for trades opened on a listing with its time
  * limit disabled. A trade must always have an expires_at — a null value
  * can never satisfy expireStaleTrades's `.lt("expires_at", now)` filter,

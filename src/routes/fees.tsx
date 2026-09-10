@@ -1,5 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ESCROW_FEE_PERCENT_BY_RAIL, ESCROW_FEE_PERCENT_DEFAULT, SWAP_FEE_PERCENT } from "@/lib/constants";
+import {
+  ESCROW_FEE_PERCENT_BY_RAIL,
+  ESCROW_FEE_PERCENT_DEFAULT,
+  SWAP_FEE_PERCENT,
+  WITHDRAWAL_FIXED_FEE,
+} from "@/lib/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -55,10 +60,19 @@ const TRADING_FEES = [
 const WALLET_FEES = [
   { action: "Deposits", amount: "Free", notes: "We charge nothing to receive crypto." },
   {
-    action: "Withdrawals",
+    action: "Withdraw USDT (BEP20)",
+    amount: `${WITHDRAWAL_FIXED_FEE["USDT:BEP20"]} USDT`,
+    notes: "Flat fee, shown before you confirm.",
+  },
+  {
+    action: "Withdraw BTC (on-chain)",
+    amount: `${WITHDRAWAL_FIXED_FEE["BTC:ONCHAIN"]} BTC`,
+    notes: "Flat fee, shown before you confirm.",
+  },
+  {
+    action: "Withdraw ETH / LTC",
     amount: "Network fee only",
-    notes:
-      "No platform fee — you pay only what the blockchain itself charges to broadcast the transaction. The exact fee is shown before you confirm.",
+    notes: "No platform fee — you pay only what the blockchain itself charges to broadcast the transaction.",
   },
   {
     action: "Sending crypto into escrow",

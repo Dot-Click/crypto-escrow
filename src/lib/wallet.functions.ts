@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { CRYPTO_TYPES } from "@/lib/constants";
-import { CRYPTO_TO_NETWORK, withdrawalError } from "@/lib/withdrawal-validation";
+import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
+import { CRYPTO_TO_NETWORK, withdrawalError, withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
 
 const CODES = CRYPTO_TYPES.map((c) => c.code) as readonly string[];
 
@@ -101,6 +101,15 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       throw new Error(`Available balance is ${available} ${data.cryptoType}`);
     }
 
+    // Fixed platform fee, in the coin's own unit — deducted from the amount
+    // actually broadcast, not charged on top of what the user requested.
+    const networkLabel = withdrawalNetworkLabel(data.cryptoType);
+    const fee = (networkLabel && WITHDRAWAL_FIXED_FEE[`${data.cryptoType}:${networkLabel}`]) || 0;
+    if (data.amount <= fee) {
+      throw new Error(`Amount must exceed the ${fee} ${data.cryptoType} network fee`);
+    }
+    const netAmount = data.amount - fee;
+
     // Optimistic debit — a concurrent request will fail the CAS on `balance`
     // and never both drain the same balance.
     const { error: debitError, count } = await supabaseAdmin
@@ -138,7 +147,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
       crypto_type: data.cryptoType,
       network,
       destination_address: data.address,
-      amount: data.amount,
+      amount: netAmount,
       status: "pending",
     });
     if (wErr) {

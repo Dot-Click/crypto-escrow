@@ -40,6 +40,21 @@ export function cryptoToNetwork(cryptoType: string, env: NetworkEnv = currentNet
   return (env === "testnet" ? TESTNET_MAP : MAINNET_MAP)[cryptoType];
 }
 
+/**
+ * Human/fee-schedule label for the network a coin currently withdraws over —
+ * the key half of WITHDRAWAL_FIXED_FEE's "{cryptoType}:{networkLabel}" pairs.
+ * Only one network per coin exists today; once a coin gains a second option
+ * (e.g. USDT over TRC20) this becomes a parameter instead of a lookup.
+ */
+const WITHDRAWAL_NETWORK_LABEL: Record<string, string> = {
+  BTC: "ONCHAIN",
+  USDT: "BEP20",
+};
+
+export function withdrawalNetworkLabel(cryptoType: string): string | null {
+  return WITHDRAWAL_NETWORK_LABEL[cryptoType] ?? null;
+}
+
 /** Alias kept for callers written before the env flag existed. */
 export const CRYPTO_TO_NETWORK = new Proxy(
   {} as Record<string, SupportedNetwork>,

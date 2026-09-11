@@ -37,6 +37,19 @@ export const WITHDRAWAL_FIXED_FEE: Record<string, number> = {
 };
 
 /**
+ * Kill switch for TRC20 (Tron) withdrawal — the master_wallets collector row
+ * for TRON_MAINNET/TRON_TESTNET is still a placeholder (see
+ * supabase/migrations/20260911_04_seed_tron_collectors.sql), so a TRC20
+ * withdrawal today would debit the user immediately and only get refunded
+ * hours later once broadcast-withdrawals exhausts its retry attempts — a bad
+ * failure mode for something the UI otherwise makes look instant. Flip this
+ * to true only after: scripts/derive-tron-collector.mjs has been run against
+ * the real deployed mnemonic, the resulting address is funded with TRX, and
+ * its master_wallets row is flipped `active = true`.
+ */
+export const TRC20_WITHDRAWAL_ENABLED = false;
+
+/**
  * Fallback payment window for trades opened on a listing with its time
  * limit disabled. A trade must always have an expires_at — a null value
  * can never satisfy expireStaleTrades's `.lt("expires_at", now)` filter,

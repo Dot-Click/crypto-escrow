@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
+import { CRYPTO_TYPES, TRC20_WITHDRAWAL_ENABLED, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
 import {
   cryptoToNetwork,
   currentNetworkEnv,
@@ -69,6 +69,9 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     const amount = Number(input.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
     const address = String(input.address ?? "").trim();
+    if (input.cryptoType === "USDT" && input.network === "TRC20" && !TRC20_WITHDRAWAL_ENABLED) {
+      throw new Error("USDT withdrawal over TRC20 isn't available yet — use BEP20 instead.");
+    }
     const network = input.cryptoType === "USDT" ? input.network : undefined;
     const env = currentNetworkEnv();
     const resolvedNetwork = input.cryptoType === "USDT" ? resolveUsdtNetwork(network, env) : cryptoToNetwork(input.cryptoType, env);

@@ -10,7 +10,7 @@ import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
 import { requestLightningWithdrawal } from "@/lib/lightning-withdrawal.functions";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
-import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
+import { CRYPTO_TYPES, TRC20_WITHDRAWAL_ENABLED, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
 import { withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
 import { CoinIcon } from "@/components/coin-icon";
 import { Button } from "@/components/ui/button";
@@ -374,14 +374,16 @@ function WalletPage() {
                     </button>
                     <button
                       type="button"
+                      disabled={!TRC20_WITHDRAWAL_ENABLED}
                       onClick={() => setUsdtNetwork("TRC20")}
+                      title={TRC20_WITHDRAWAL_ENABLED ? undefined : "Coming soon"}
                       className={
-                        usdtNetwork === "TRC20"
+                        usdtNetwork === "TRC20" && TRC20_WITHDRAWAL_ENABLED
                           ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
-                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                          : "flex-1 rounded px-2 py-1 text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       }
                     >
-                      TRC20
+                      TRC20{TRC20_WITHDRAWAL_ENABLED ? "" : " (soon)"}
                     </button>
                   </div>
                 ) : null}

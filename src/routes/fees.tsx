@@ -65,6 +65,16 @@ const WALLET_FEES = [
     notes: "Flat fee, shown before you confirm.",
   },
   {
+    action: "Withdraw USDT (TRC20)",
+    amount: `${WITHDRAWAL_FIXED_FEE["USDT:TRC20"]} USDT`,
+    notes: "Flat fee, shown before you confirm.",
+  },
+  {
+    action: "Withdraw BTC (Lightning)",
+    amount: `${WITHDRAWAL_FIXED_FEE["BTC:LIGHTNING"]} BTC`,
+    notes: "Flat fee. Pay out to a Lightning invoice or Lightning Address — settles in seconds.",
+  },
+  {
     action: "Withdraw BTC (on-chain)",
     amount: `${WITHDRAWAL_FIXED_FEE["BTC:ONCHAIN"]} BTC`,
     notes: "Flat fee, shown before you confirm.",
@@ -78,6 +88,11 @@ const WALLET_FEES = [
     action: "Sending crypto into escrow",
     amount: "Free",
     notes: "Opening a trade moves your wallet balance into escrow internally — it never touches a blockchain, so there's nothing to pay.",
+  },
+  {
+    action: "Internal transfers between users",
+    amount: "Free",
+    notes: "Escrow release between a trade's buyer and seller carries no fee beyond the escrow fee already shown above.",
   },
 ];
 

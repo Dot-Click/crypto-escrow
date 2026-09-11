@@ -13,8 +13,8 @@
 //     that decrypts the seed inside Supabase Edge Functions.
 //   - WALLET_ENCRYPTED_SEED (ciphertext blob, base64) — the mnemonic
 //     encrypted with the master key.
-//   - The public collector addresses for BTC / LTC / ETH / BSC, to paste
-//     into the seed-mainnet-collectors migration before running it.
+//   - The public collector addresses for BTC / LTC / ETH / BSC / TRON, to
+//     paste into the seed-mainnet-collectors migration before running it.
 //
 // Where to put the outputs:
 //   MASTER_KEY + ENCRYPTED_SEED    -> Supabase project secrets, via
@@ -32,7 +32,7 @@
 // Dependencies (dev only; not shipped to the runtime):
 //   npm install --no-save bip39 bip32 tiny-secp256k1 bitcoinjs-lib ethers
 
-import { randomBytes, createCipheriv } from "node:crypto";
+import { randomBytes, createCipheriv, createHash } from "node:crypto";
 import * as bip39 from "bip39";
 import { BIP32Factory } from "bip32";
 import * as ecc from "tiny-secp256k1";
@@ -89,6 +89,46 @@ function deriveEvm(seed, path, label) {
   return { label, address: hdNode.address };
 }
 
+// Tron uses the same secp256k1 key + address hash as Ethereum — a Tron
+// address is that same 20-byte value, base58check-encoded with a 0x41
+// prefix instead of shown as "0x...". See the matching comment in
+// supabase/functions/_shared/hd-wallet.ts for the full explanation.
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+function base58Encode(bytes) {
+  const digits = [0];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+  let leadingZeros = 0;
+  for (const byte of bytes) {
+    if (byte === 0) leadingZeros++;
+    else break;
+  }
+  return BASE58_ALPHABET[0].repeat(leadingZeros) + digits.reverse().map((d) => BASE58_ALPHABET[d]).join("");
+}
+
+function tronAddressFromEvmAddress(evmAddress) {
+  const body = Buffer.from(evmAddress.replace(/^0x/i, ""), "hex");
+  const payload = Buffer.concat([Buffer.from([0x41]), body]);
+  const checksum = createHash("sha256").update(createHash("sha256").update(payload).digest()).digest();
+  return base58Encode(Buffer.concat([payload, checksum.subarray(0, 4)]));
+}
+
+function deriveTron(seed, path, label) {
+  const hdNode = ethers.HDNodeWallet.fromSeed(seed).derivePath(path);
+  return { label, address: tronAddressFromEvmAddress(hdNode.address) };
+}
+
 function main() {
   console.log("=".repeat(72));
   console.log("CEMP mainnet HD wallet seed generator — OFFLINE USE ONLY");
@@ -112,12 +152,14 @@ function main() {
   const ltcMain = deriveUtxo(seed, LITECOIN_MAINNET, `m/84'/2'/0'/0/${COLLECTOR_INDEX}`, "LTC_MAINNET collector");
   const ethMain = deriveEvm(seed, `m/44'/60'/0'/0/${COLLECTOR_INDEX}`, "ETH_MAINNET collector");
   const bscMain = deriveEvm(seed, `m/44'/60'/0'/0/${COLLECTOR_INDEX}`, "BSC_MAINNET collector (same key as ETH)");
+  const tronMain = deriveTron(seed, `m/44'/195'/0'/0/${COLLECTOR_INDEX}`, "TRON_MAINNET collector");
 
   // Testnet collectors (coin_type 1 for both BTC and LTC per SLIP-44).
   const btcTest = deriveUtxo(seed, bitcoin.networks.testnet, `m/84'/1'/0'/0/${COLLECTOR_INDEX}`, "BTC_TESTNET collector");
   const ltcTest = deriveUtxo(seed, LITECOIN_TESTNET, `m/84'/1'/0'/0/${COLLECTOR_INDEX}`, "LTC_TESTNET collector");
   const ethTest = deriveEvm(seed, `m/44'/60'/0'/0/${COLLECTOR_INDEX}`, "ETH_SEPOLIA collector (same key as ETH_MAINNET)");
   const bscTest = deriveEvm(seed, `m/44'/60'/0'/0/${COLLECTOR_INDEX}`, "BSC_TESTNET collector (same key as ETH_MAINNET)");
+  const tronTest = deriveTron(seed, `m/44'/195'/0'/0/${COLLECTOR_INDEX}`, "TRON_TESTNET collector (Nile)");
 
   console.log("-- 1. MNEMONIC (write this on paper, DO NOT store digitally) --");
   console.log();
@@ -135,17 +177,19 @@ function main() {
   console.log();
   console.log("-- 3a. MAINNET COLLECTORS (paste into seed_mainnet_collectors.sql) --");
   console.log();
-  console.log("  BTC_MAINNET  ->  " + btcMain.address);
-  console.log("  LTC_MAINNET  ->  " + ltcMain.address);
-  console.log("  ETH_MAINNET  ->  " + ethMain.address);
-  console.log("  BSC_MAINNET  ->  " + bscMain.address);
+  console.log("  BTC_MAINNET   ->  " + btcMain.address);
+  console.log("  LTC_MAINNET   ->  " + ltcMain.address);
+  console.log("  ETH_MAINNET   ->  " + ethMain.address);
+  console.log("  BSC_MAINNET   ->  " + bscMain.address);
+  console.log("  TRON_MAINNET  ->  " + tronMain.address);
   console.log();
   console.log("-- 3b. TESTNET COLLECTORS (paste into seed_testnet_collectors.sql) --");
   console.log();
-  console.log("  BTC_TESTNET  ->  " + btcTest.address);
-  console.log("  LTC_TESTNET  ->  " + ltcTest.address);
-  console.log("  ETH_SEPOLIA  ->  " + ethTest.address);
-  console.log("  BSC_TESTNET  ->  " + bscTest.address);
+  console.log("  BTC_TESTNET   ->  " + btcTest.address);
+  console.log("  LTC_TESTNET   ->  " + ltcTest.address);
+  console.log("  ETH_SEPOLIA   ->  " + ethTest.address);
+  console.log("  BSC_TESTNET   ->  " + bscTest.address);
+  console.log("  TRON_TESTNET  ->  " + tronTest.address + "  (Nile)");
   console.log();
   console.log("=".repeat(72));
   console.log("After copying outputs:");

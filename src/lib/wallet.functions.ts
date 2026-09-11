@@ -1,7 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CRYPTO_TYPES, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
-import { CRYPTO_TO_NETWORK, withdrawalError, withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
+import {
+  cryptoToNetwork,
+  currentNetworkEnv,
+  resolveUsdtNetwork,
+  withdrawalError,
+  withdrawalNetworkLabel,
+  type UsdtNetworkChoice,
+} from "@/lib/withdrawal-validation";
 
 const CODES = CRYPTO_TYPES.map((c) => c.code) as readonly string[];
 
@@ -51,14 +58,23 @@ export const getWalletOverview = createServerFn({ method: "GET" })
  */
 export const requestWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { cryptoType: string; amount: number; address: string; stepUpCode?: string }) => {
+  .inputValidator((input: {
+    cryptoType: string;
+    amount: number;
+    address: string;
+    network?: UsdtNetworkChoice;
+    stepUpCode?: string;
+  }) => {
     if (!CODES.includes(input.cryptoType)) throw new Error("Unsupported coin");
     const amount = Number(input.amount);
     if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid amount");
     const address = String(input.address ?? "").trim();
-    const err = withdrawalError(input.cryptoType, amount, address);
+    const network = input.cryptoType === "USDT" ? input.network : undefined;
+    const env = currentNetworkEnv();
+    const resolvedNetwork = input.cryptoType === "USDT" ? resolveUsdtNetwork(network, env) : cryptoToNetwork(input.cryptoType, env);
+    const err = withdrawalError(input.cryptoType, amount, address, env, resolvedNetwork);
     if (err) throw new Error(err);
-    return { cryptoType: input.cryptoType, amount, address, stepUpCode: input.stepUpCode };
+    return { cryptoType: input.cryptoType, amount, address, network, stepUpCode: input.stepUpCode };
   })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -103,7 +119,7 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
 
     // Fixed platform fee, in the coin's own unit — deducted from the amount
     // actually broadcast, not charged on top of what the user requested.
-    const networkLabel = withdrawalNetworkLabel(data.cryptoType);
+    const networkLabel = withdrawalNetworkLabel(data.cryptoType, data.network);
     const fee = (networkLabel && WITHDRAWAL_FIXED_FEE[`${data.cryptoType}:${networkLabel}`]) || 0;
     if (data.amount <= fee) {
       throw new Error(`Amount must exceed the ${fee} ${data.cryptoType} network fee`);
@@ -120,7 +136,8 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
     if (debitError) throw new Error(debitError.message);
     if (count === 0) throw new Error("Balance changed while submitting — try again.");
 
-    const network = CRYPTO_TO_NETWORK[data.cryptoType];
+    const network =
+      data.cryptoType === "USDT" ? resolveUsdtNetwork(data.network) : cryptoToNetwork(data.cryptoType);
 
     const { data: tx, error: txErr } = await supabaseAdmin
       .from("transactions")

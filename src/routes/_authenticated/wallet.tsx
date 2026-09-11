@@ -86,6 +86,7 @@ function WalletPage() {
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [btcWithdrawMode, setBtcWithdrawMode] = useState<"onchain" | "lightning">("onchain");
+  const [usdtNetwork, setUsdtNetwork] = useState<"BEP20" | "TRC20">("BEP20");
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
   const [lnWithdrawAmountSats, setLnWithdrawAmountSats] = useState("");
@@ -144,6 +145,7 @@ function WalletPage() {
           cryptoType: withdrawCoin,
           amount: Number(amount),
           address: address.trim(),
+          ...(withdrawCoin === "USDT" ? { network: usdtNetwork } : {}),
           ...(withdrawalVerification !== "none" ? { stepUpCode } : {}),
         },
       }),
@@ -211,7 +213,9 @@ function WalletPage() {
     ? withdrawWallet.balance - withdrawWallet.held_balance
     : 0;
   const isLightningWithdraw = withdrawCoin === "BTC" && btcWithdrawMode === "lightning";
-  const withdrawNetworkLabel = isLightningWithdraw ? "LIGHTNING" : withdrawalNetworkLabel(withdrawCoin);
+  const withdrawNetworkLabel = isLightningWithdraw
+    ? "LIGHTNING"
+    : withdrawalNetworkLabel(withdrawCoin, withdrawCoin === "USDT" ? usdtNetwork : undefined);
   const withdrawFee =
     (withdrawNetworkLabel && WITHDRAWAL_FIXED_FEE[`${withdrawCoin}:${withdrawNetworkLabel}`]) || 0;
 
@@ -355,6 +359,33 @@ function WalletPage() {
                   </div>
                 ) : null}
 
+                {withdrawCoin === "USDT" ? (
+                  <div className="flex gap-1.5 rounded-md bg-muted p-1 text-xs sm:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => setUsdtNetwork("BEP20")}
+                      className={
+                        usdtNetwork === "BEP20"
+                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                      }
+                    >
+                      BEP20
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUsdtNetwork("TRC20")}
+                      className={
+                        usdtNetwork === "TRC20"
+                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                      }
+                    >
+                      TRC20
+                    </button>
+                  </div>
+                ) : null}
+
                 {isLightningWithdraw ? (
                   <>
                     <div className="space-y-2 sm:col-span-2">
@@ -391,7 +422,7 @@ function WalletPage() {
                         id="wd-address"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        placeholder="bc1q…"
+                        placeholder={withdrawCoin === "USDT" && usdtNetwork === "TRC20" ? "T…" : "bc1q…"}
                         required
                       />
                     </div>

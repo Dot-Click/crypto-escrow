@@ -18,6 +18,7 @@ import { getAdminDb, requireCronSecret } from "../_shared/db.ts";
 import {
   NETWORK_META,
   _internal_deriveEvmSigner,
+  _internal_deriveTronSigner,
   _internal_deriveUtxoChild,
   bitcoin,
   ethers,
@@ -31,11 +32,25 @@ import {
   evmGetNativeBalance,
   erc20Contract,
 } from "../_shared/rpc.ts";
+import {
+  tronGetTrc20Balance,
+  tronGetTrxBalance,
+  tronGetTransactionInfo,
+  tronGetTipHeight,
+  tronTransferTrc20,
+  TRON_USDT_DECIMALS,
+  type TronNetwork,
+} from "../_shared/tron.ts";
 
 const MAX_WITHDRAWAL_PER_TICK = 10;
 const MAX_EVM_GWEI = BigInt(Deno.env.get("MAX_EVM_GWEI") ?? "150");
 const MAX_FEE_RATIO = Number(Deno.env.get("MAX_FEE_RATIO") ?? "0.05"); // 5%
 const MAX_ATTEMPTS = 3;
+// Cap on TRX a single TRC20 transfer may burn for energy — the collector's
+// own staked bandwidth/energy covers it in the common case; this is a worst
+// -case ceiling, not the expected cost. 50 TRX is generously above typical
+// USDT-transfer energy cost even with zero staked energy.
+const TRON_FEE_LIMIT_SUN = Number(Deno.env.get("TRON_FEE_LIMIT_SUN") ?? "50000000");
 
 const COLLECTOR_INDEX = 0;
 
@@ -122,6 +137,9 @@ async function processOne(
 
   if (meta.chainKind === "utxo") {
     return broadcastUtxo(db, row, network as "BTC_MAINNET" | "LTC_MAINNET" | "BTC_TESTNET" | "LTC_TESTNET", master.address);
+  }
+  if (meta.chainKind === "tron") {
+    return broadcastTron(db, row, network as TronNetwork, master.address, master.token_contract_address ?? "");
   }
   if (network === "ETH_MAINNET" || network === "ETH_SEPOLIA") {
     return broadcastEth(db, row, network, master.address);
@@ -368,6 +386,69 @@ async function broadcastBscUsdt(
   }
 }
 
+// ---------- Tron USDT (TRC20) ----------
+
+async function broadcastTron(
+  db: ReturnType<typeof getAdminDb>,
+  row: WithdrawalRow,
+  network: TronNetwork,
+  collectorAddress: string,
+  tokenContract: string,
+): Promise<{ status: string; note?: string }> {
+  if (!tokenContract) {
+    await refund(db, row, "USDT (TRC20) contract not configured");
+    return { status: "refunded", note: "missing contract" };
+  }
+
+  const amount = ethers.parseUnits(row.amount, TRON_USDT_DECIMALS);
+  const balance = await tronGetTrc20Balance(network, collectorAddress, tokenContract);
+  if (balance < amount) {
+    await bumpAttempt(db, row, "collector short of USDT (TRC20)");
+    return { status: "deferred", note: "collector short" };
+  }
+
+  // Worst-case fee (if the collector has no staked energy) is TRON_FEE_LIMIT_SUN.
+  const trxBalance = await tronGetTrxBalance(network, collectorAddress);
+  if (trxBalance < BigInt(TRON_FEE_LIMIT_SUN)) {
+    await bumpAttempt(db, row, "collector short of TRX for energy/bandwidth");
+    return { status: "deferred", note: "trx short" };
+  }
+
+  const signer = await _internal_deriveTronSigner(network, COLLECTOR_INDEX);
+
+  try {
+    const txId = await tronTransferTrc20({
+      network,
+      ownerAddress: collectorAddress,
+      contractAddress: tokenContract,
+      toAddress: row.destination_address,
+      amountRaw: amount,
+      feeLimitSun: TRON_FEE_LIMIT_SUN,
+      signer,
+    });
+    await db
+      .from("withdrawals")
+      .update({
+        tx_hash: txId,
+        status: "broadcast",
+        last_attempt_at: new Date().toISOString(),
+        attempt_count: row.attempt_count + 1,
+      })
+      .eq("id", row.id);
+    await db
+      .from("transactions")
+      .update({ external_tx_hash: txId })
+      .eq("user_id", row.user_id)
+      .eq("type", "withdrawal")
+      .eq("external_address", row.destination_address)
+      .is("external_tx_hash", null);
+    return { status: "broadcast", note: txId };
+  } catch (e) {
+    await bumpAttempt(db, row, String(e));
+    return { status: "deferred", note: "tron broadcast failed" };
+  }
+}
+
 // ---------- Confirmation ----------
 
 async function confirmBroadcast(db: ReturnType<typeof getAdminDb>) {
@@ -399,6 +480,13 @@ async function confirmBroadcast(db: ReturnType<typeof getAdminDb>) {
 }
 
 async function isConfirmed(network: string, txHash: string): Promise<boolean> {
+  if (network === "TRON_MAINNET" || network === "TRON_TESTNET") {
+    const info = await tronGetTransactionInfo(network, txHash);
+    if (info.blockNumber == null || !info.success) return false;
+    const tip = await tronGetTipHeight(network);
+    // ~19 blocks is Tron's common "solidified" threshold (~57s at 3s/block).
+    return tip - info.blockNumber + 1 >= 19;
+  }
   const utxo = network === "BTC_MAINNET" || network === "LTC_MAINNET" || network === "BTC_TESTNET" || network === "LTC_TESTNET";
   if (utxo) {
     const tip = await utxoGetTipHeight(network as "BTC_MAINNET" | "LTC_MAINNET" | "BTC_TESTNET" | "LTC_TESTNET");

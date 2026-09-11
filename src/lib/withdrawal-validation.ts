@@ -9,8 +9,8 @@
 // difference is only which chain they broadcast on.
 
 export type SupportedNetwork =
-  | "BTC_MAINNET" | "LTC_MAINNET" | "ETH_MAINNET" | "BSC_MAINNET"
-  | "BTC_TESTNET" | "LTC_TESTNET" | "ETH_SEPOLIA" | "BSC_TESTNET";
+  | "BTC_MAINNET" | "LTC_MAINNET" | "ETH_MAINNET" | "BSC_MAINNET" | "TRON_MAINNET"
+  | "BTC_TESTNET" | "LTC_TESTNET" | "ETH_SEPOLIA" | "BSC_TESTNET" | "TRON_TESTNET";
 
 export type NetworkEnv = "mainnet" | "testnet";
 
@@ -40,18 +40,29 @@ export function cryptoToNetwork(cryptoType: string, env: NetworkEnv = currentNet
   return (env === "testnet" ? TESTNET_MAP : MAINNET_MAP)[cryptoType];
 }
 
+/** USDT's two withdrawal networks. Resolves which chain a withdrawal actually broadcasts on. */
+export type UsdtNetworkChoice = "BEP20" | "TRC20";
+
+export function resolveUsdtNetwork(
+  choice: UsdtNetworkChoice | undefined,
+  env: NetworkEnv = currentNetworkEnv(),
+): SupportedNetwork {
+  if (choice === "TRC20") return env === "testnet" ? "TRON_TESTNET" : "TRON_MAINNET";
+  return env === "testnet" ? "BSC_TESTNET" : "BSC_MAINNET";
+}
+
 /**
- * Human/fee-schedule label for the network a coin currently withdraws over —
- * the key half of WITHDRAWAL_FIXED_FEE's "{cryptoType}:{networkLabel}" pairs.
- * Only one network per coin exists today; once a coin gains a second option
- * (e.g. USDT over TRC20) this becomes a parameter instead of a lookup.
+ * Human/fee-schedule label for the network a coin withdraws over — the key
+ * half of WITHDRAWAL_FIXED_FEE's "{cryptoType}:{networkLabel}" pairs. Only
+ * USDT has more than one option today, so `networkChoice` is ignored for
+ * every other coin.
  */
 const WITHDRAWAL_NETWORK_LABEL: Record<string, string> = {
   BTC: "ONCHAIN",
-  USDT: "BEP20",
 };
 
-export function withdrawalNetworkLabel(cryptoType: string): string | null {
+export function withdrawalNetworkLabel(cryptoType: string, networkChoice?: UsdtNetworkChoice): string | null {
+  if (cryptoType === "USDT") return networkChoice === "TRC20" ? "TRC20" : "BEP20";
   return WITHDRAWAL_NETWORK_LABEL[cryptoType] ?? null;
 }
 
@@ -94,6 +105,9 @@ const LTC_TESTNET_ADDR = /^(tltc1[a-z0-9]{6,87}|[mQ][A-HJ-NP-Za-km-z1-9]{25,34})
 
 // EVM addresses look the same on every chain.
 const EVM_ADDRESS = /^0x[a-fA-F0-9]{40}$/;
+// Tron addresses are base58check, always 34 chars starting with "T" — same
+// shape on mainnet and its public testnet (Nile), so no env split needed.
+const TRON_ADDRESS = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
 
 export function isValidAddress(cryptoType: string, address: string, env: NetworkEnv = currentNetworkEnv()): boolean {
   const a = address.trim();
@@ -124,10 +138,23 @@ export function parseLightningDestination(input: string): LightningDestination |
   return null;
 }
 
-export function withdrawalError(cryptoType: string, amount: number, address: string, env: NetworkEnv = currentNetworkEnv()): string | null {
+/**
+ * `networkOverride` covers USDT's TRC20 option — its address shape (Tron
+ * base58check) is nothing like the EVM_ADDRESS regex isValidAddress uses for
+ * every other USDT withdrawal. Every other coin ignores this parameter.
+ */
+export function withdrawalError(
+  cryptoType: string,
+  amount: number,
+  address: string,
+  env: NetworkEnv = currentNetworkEnv(),
+  networkOverride?: SupportedNetwork,
+): string | null {
   const min = withdrawalMin(cryptoType, env);
   if (min == null) return "Unsupported coin";
   if (!(amount >= min)) return `Minimum withdrawal is ${min} ${cryptoType}`;
-  if (!isValidAddress(cryptoType, address, env)) return `Enter a valid ${cryptoType} address for ${env}`;
+  const isTron = networkOverride === "TRON_MAINNET" || networkOverride === "TRON_TESTNET";
+  const valid = isTron ? TRON_ADDRESS.test(address.trim()) : isValidAddress(cryptoType, address, env);
+  if (!valid) return `Enter a valid ${cryptoType} address for ${env}`;
   return null;
 }

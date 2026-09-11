@@ -47,14 +47,16 @@ export type SupportedNetwork =
   | "LTC_MAINNET"
   | "ETH_MAINNET"
   | "BSC_MAINNET"
+  | "TRON_MAINNET"
   | "BTC_TESTNET"
   | "LTC_TESTNET"
   | "ETH_SEPOLIA"
-  | "BSC_TESTNET";
+  | "BSC_TESTNET"
+  | "TRON_TESTNET";
 
 export const NETWORK_META: Record<SupportedNetwork, {
   cryptoType: string;
-  chainKind: "utxo" | "evm";
+  chainKind: "utxo" | "evm" | "tron";
   bip44Path: (i: number) => string;
   btcNetwork?: bitcoin.Network;
   evmChainId?: bigint;
@@ -87,6 +89,17 @@ export const NETWORK_META: Record<SupportedNetwork, {
     chainKind: "evm",
     bip44Path: (i) => `m/44'/60'/0'/0/${i}`,
     evmChainId: 56n,
+    isTestnet: false,
+  },
+  // Tron uses the same secp256k1 curve and address hash (keccak256 of the
+  // uncompressed pubkey, last 20 bytes) as Ethereum — a Tron address is that
+  // same 20-byte value, just base58check-encoded with a 0x41 prefix instead
+  // of shown as "0x...". See tronAddressFromEvmAddress below. SLIP-44 coin
+  // type 195 (https://github.com/satoshilabs/slips/blob/master/slip-0044.md).
+  TRON_MAINNET: {
+    cryptoType: "USDT",
+    chainKind: "tron",
+    bip44Path: (i) => `m/44'/195'/0'/0/${i}`,
     isTestnet: false,
   },
   // Testnet — coin_type 1 for UTXO (SLIP-44), chain-id 60 stays for EVM
@@ -122,9 +135,68 @@ export const NETWORK_META: Record<SupportedNetwork, {
     evmChainId: 97n,
     isTestnet: true,
   },
+  // Nile is Tron's standard public testnet (coin_type 195 is unchanged — Tron
+  // doesn't have a separate SLIP-44 testnet coin type the way BTC/LTC do).
+  TRON_TESTNET: {
+    cryptoType: "USDT",
+    chainKind: "tron",
+    bip44Path: (i) => `m/44'/195'/0'/0/${i}`,
+    isTestnet: true,
+  },
 };
 
 export const ALL_NETWORKS = Object.keys(NETWORK_META) as SupportedNetwork[];
+
+// ---------- Tron address encoding ----------
+// No Tron SDK dependency (tronweb is heavy and has a history of Deno
+// compatibility issues) — just the base58check encoding Tron uses on top of
+// the same 20-byte address ethers already computes for an EVM key.
+
+const BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+function base58Encode(bytes: Uint8Array): string {
+  const digits = [0];
+  for (const byte of bytes) {
+    let carry = byte;
+    for (let j = 0; j < digits.length; j++) {
+      carry += digits[j] << 8;
+      digits[j] = carry % 58;
+      carry = (carry / 58) | 0;
+    }
+    while (carry > 0) {
+      digits.push(carry % 58);
+      carry = (carry / 58) | 0;
+    }
+  }
+  let leadingZeros = 0;
+  for (const byte of bytes) {
+    if (byte === 0) leadingZeros++;
+    else break;
+  }
+  return BASE58_ALPHABET[0]!.repeat(leadingZeros) + digits.reverse().map((d) => BASE58_ALPHABET[d]).join("");
+}
+
+async function sha256(data: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+}
+
+/**
+ * Tron address = 0x41 prefix + the same 20-byte hash Ethereum uses for an
+ * address (keccak256 of the uncompressed pubkey, last 20 bytes) + a 4-byte
+ * double-SHA256 checksum, base58-encoded. Same underlying key, same 20
+ * bytes — Tron just displays it differently than Ethereum's "0x...".
+ */
+export async function tronAddressFromEvmAddress(evmAddress: string): Promise<string> {
+  const body = Buffer.from(evmAddress.replace(/^0x/i, ""), "hex");
+  const payload = new Uint8Array(21);
+  payload[0] = 0x41;
+  payload.set(body, 1);
+  const checksum = await sha256(await sha256(payload));
+  const full = new Uint8Array(25);
+  full.set(payload, 0);
+  full.set(checksum.slice(0, 4), 21);
+  return base58Encode(full);
+}
 
 // ---------- Secret unwrapping ----------
 
@@ -198,6 +270,9 @@ export async function deriveAddress(
   }
 
   const node = ethers.HDNodeWallet.fromSeed(seed).derivePath(meta.bip44Path(index));
+  if (meta.chainKind === "tron") {
+    return { network, index, address: await tronAddressFromEvmAddress(node.address) };
+  }
   return { network, index, address: node.address };
 }
 
@@ -211,6 +286,23 @@ export async function _internal_deriveEvmSigner(
 ): Promise<ethers.HDNodeWallet> {
   const meta = NETWORK_META[network];
   if (meta.chainKind !== "evm") throw new Error(`${network} is not an EVM network`);
+  const seed = await decryptSeedOnce();
+  return ethers.HDNodeWallet.fromSeed(seed).derivePath(meta.bip44Path(index));
+}
+
+/**
+ * INTERNAL: returns a signing wallet for a Tron network. Same key math as
+ * _internal_deriveEvmSigner (Tron uses secp256k1 + Ethereum-style recoverable
+ * ECDSA signatures too) — only the derivation path and address encoding
+ * differ, both handled elsewhere. Tron transaction signing (in
+ * _shared/tron.ts) uses this wallet's `.signingKey.sign(digest)`.
+ */
+export async function _internal_deriveTronSigner(
+  network: SupportedNetwork,
+  index: number,
+): Promise<ethers.HDNodeWallet> {
+  const meta = NETWORK_META[network];
+  if (meta.chainKind !== "tron") throw new Error(`${network} is not a Tron network`);
   const seed = await decryptSeedOnce();
   return ethers.HDNodeWallet.fromSeed(seed).derivePath(meta.bip44Path(index));
 }

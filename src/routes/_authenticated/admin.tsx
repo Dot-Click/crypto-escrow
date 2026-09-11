@@ -9,6 +9,7 @@ import {
   ArrowLeftRight,
   BadgeCheck,
   BarChart3,
+  ChevronDown,
   Gavel,
   Inbox,
   LayoutDashboard,
@@ -1072,6 +1073,7 @@ function AddMasterWalletCard({ onSaved }: { onSaved: () => void }) {
 
 function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSaved: () => void }) {
   const save = useServerFn(upsertMasterWallet);
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     cryptoType: wallet.crypto_type,
     network: wallet.network,
@@ -1094,15 +1096,22 @@ function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSave
 
   return (
     <Card className={cn("border-l-4", form.active ? "border-l-emerald-500" : "border-l-border")}>
-      <CardContent className="space-y-3 py-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <CoinIcon code={form.cryptoType || "?"} className="size-5" />
-          <span className="font-semibold">{form.cryptoType || "—"}</span>
-          <span className="mono text-sm text-muted-foreground">{form.network || "—"}</span>
-          <Badge variant={form.active ? "default" : "secondary"} className="ml-auto">
-            {form.active ? "Active" : "Inactive"}
-          </Badge>
-        </div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      >
+        <CoinIcon code={form.cryptoType || "?"} className="size-5 shrink-0" />
+        <span className="shrink-0 font-semibold">{form.cryptoType || "—"}</span>
+        <span className="mono shrink-0 text-sm text-muted-foreground">{form.network || "—"}</span>
+        <span className="mono hidden truncate text-xs text-muted-foreground sm:inline">{form.address}</span>
+        <Badge variant={form.active ? "default" : "secondary"} className="ml-auto shrink-0">
+          {form.active ? "Active" : "Inactive"}
+        </Badge>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open ? (
+        <CardContent className="space-y-3 border-t border-border pt-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-sm">Coin</Label>
@@ -1146,10 +1155,11 @@ function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSave
             <Label className="text-sm">Active (visible to users)</Label>
           </div>
         </div>
-        <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-          {mutation.isPending ? "Saving…" : "Save"}
-        </Button>
-      </CardContent>
+          <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+            {mutation.isPending ? "Saving…" : "Save"}
+          </Button>
+        </CardContent>
+      ) : null}
     </Card>
   );
 }

@@ -3,7 +3,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ShieldAlert } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowLeftRight,
+  BadgeCheck,
+  BarChart3,
+  Gavel,
+  Inbox,
+  LayoutDashboard,
+  Loader2,
+  Lock,
+  MessageSquareText,
+  Plus,
+  Search,
+  ShieldAlert,
+  Tag,
+  Users,
+  Wallet as WalletIcon,
+  type LucideIcon,
+} from "lucide-react";
 import {
   getAdminOverview,
   getDepositClaimLog,
@@ -22,6 +41,7 @@ import {
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 import { CoinIcon } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +57,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -74,16 +95,69 @@ function statusVariant(status: string) {
   return "secondary" as const;
 }
 
+/** Left-border accent so an admin can triage a list by color before reading a single word. */
+function accentBorder(variant: "default" | "destructive" | "secondary"): string {
+  if (variant === "destructive") return "border-l-4 border-l-destructive";
+  if (variant === "default") return "border-l-4 border-l-emerald-500";
+  return "border-l-4 border-l-amber-500";
+}
+
+function SectionHeader({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-4" />
+      </span>
+      <div>
+        <h2 className="text-sm font-semibold leading-none">{title}</h2>
+        <p className="mt-1 text-xs text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border py-10 text-sm text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" />
+      {label}
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, message }: { icon: LucideIcon; message: string }) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+        <Icon className="size-6 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">{message}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+const ADMIN_TABS = [
+  { value: "overview", label: "Overview", icon: LayoutDashboard },
+  { value: "disputes", label: "Disputes", icon: Gavel },
+  { value: "trades", label: "All trades", icon: ArrowLeftRight },
+  { value: "deposits", label: "Deposits", icon: ArrowDownToLine },
+  { value: "verification", label: "Verification", icon: BadgeCheck },
+  { value: "feedback", label: "Feedback", icon: MessageSquareText },
+  { value: "wallets", label: "Wallet addresses", icon: WalletIcon },
+] as const;
+
 function AdminPage() {
   const { isAdmin, loading } = useAuth();
 
-  if (loading) return <p className="p-6 text-sm text-muted-foreground">Checking access…</p>;
+  if (loading) return <LoadingState label="Checking access…" />;
 
   if (!isAdmin) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
-        <ShieldAlert className="mx-auto mb-3 size-8 text-destructive" />
-        <h1 className="text-xl font-semibold">Admin access required</h1>
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10">
+          <ShieldAlert className="size-7 text-destructive" />
+        </div>
+        <h1 className="mt-4 text-xl font-semibold">Admin access required</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           This dashboard is limited to platform administrators.
         </p>
@@ -96,22 +170,26 @@ function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Admin dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Platform activity, escrow exposure and dispute resolution
-        </p>
+      <div className="mb-6 flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <LayoutDashboard className="size-5" />
+        </span>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Admin dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Platform activity, escrow exposure and dispute resolution
+          </p>
+        </div>
       </div>
 
       <Tabs defaultValue="overview">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="disputes">Disputes</TabsTrigger>
-          <TabsTrigger value="trades">All trades</TabsTrigger>
-          <TabsTrigger value="deposits">Deposits</TabsTrigger>
-          <TabsTrigger value="verification">Verification</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback</TabsTrigger>
-          <TabsTrigger value="wallets">Wallet addresses</TabsTrigger>
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1.5">
+          {ADMIN_TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
+              <tab.icon className="size-3.5" />
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
         <TabsContent value="overview" className="mt-4">
           <Overview />
@@ -139,12 +217,32 @@ function AdminPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  tone = "default",
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  tone?: "default" | "warning";
+}) {
   return (
     <Card>
-      <CardContent className="py-4">
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mono mt-1 text-xl font-semibold">{value}</p>
+      <CardContent className="flex items-center gap-3 py-4">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-lg",
+            tone === "warning" ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+          <p className="mono text-xl font-semibold leading-tight">{value}</p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -154,23 +252,35 @@ function Overview() {
   const fetchOverview = useServerFn(getAdminOverview);
   const q = useQuery({ queryKey: ["admin", "overview"], queryFn: () => fetchOverview() });
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading stats…</p>;
+  if (q.isLoading) return <LoadingState label="Loading stats…" />;
   if (q.error) return <p className="text-sm text-destructive">{(q.error as Error).message}</p>;
   const d = q.data!;
 
   return (
     <div className="space-y-4">
+      <SectionHeader
+        icon={LayoutDashboard}
+        title="Overview"
+        description="Platform-wide activity at a glance."
+      />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Users" value={String(d.users)} />
-        <Stat label="Active offers" value={String(d.activeListings)} />
-        <Stat label="Trades" value={String(d.totalTrades)} />
-        <Stat label="Open disputes" value={String(d.openDisputes)} />
+        <Stat icon={Users} label="Users" value={String(d.users)} />
+        <Stat icon={Tag} label="Active offers" value={String(d.activeListings)} />
+        <Stat icon={ArrowLeftRight} label="Trades" value={String(d.totalTrades)} />
+        <Stat
+          icon={AlertTriangle}
+          label="Open disputes"
+          value={String(d.openDisputes)}
+          tone={d.openDisputes > 0 ? "warning" : "default"}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Trades by status</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BarChart3 className="size-4 text-muted-foreground" /> Trades by status
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {Object.keys(d.byStatus).length === 0 ? (
@@ -190,7 +300,9 @@ function Overview() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Escrow currently held</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Lock className="size-4 text-muted-foreground" /> Escrow currently held
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {Object.keys(d.held).length === 0 ? (
@@ -198,7 +310,9 @@ function Overview() {
             ) : (
               Object.entries(d.held).map(([coin, amount]) => (
                 <div key={coin} className="flex items-center justify-between text-sm">
-                  <span>{coin}</span>
+                  <span className="flex items-center gap-1.5">
+                    <CoinIcon code={coin} className="size-4" /> {coin}
+                  </span>
                   <span className="mono">{amount}</span>
                 </div>
               ))
@@ -223,6 +337,8 @@ function Disputes() {
 
   return (
     <div className="space-y-4">
+      <SectionHeader icon={Gavel} title="Disputes" description="Review evidence, then release or refund escrow." />
+
       <div className="flex items-center gap-3">
         <Label className="text-sm">Status</Label>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
@@ -238,13 +354,9 @@ function Disputes() {
       </div>
 
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading disputes…</p>
+        <LoadingState label="Loading disputes…" />
       ) : (q.data ?? []).length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No disputes in this view.
-          </CardContent>
-        </Card>
+        <EmptyState icon={Gavel} message="No disputes in this view." />
       ) : (
         <div className="space-y-3">
           {(q.data ?? []).map((d) => (
@@ -294,7 +406,7 @@ function DisputeCard({ dispute }: { dispute: DisputeRow }) {
   });
 
   return (
-    <Card>
+    <Card className={accentBorder(dispute.status === "open" ? "destructive" : "default")}>
       <CardContent className="space-y-4 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={dispute.status === "open" ? "destructive" : "default"}>{dispute.status}</Badge>
@@ -378,7 +490,7 @@ function DisputeCard({ dispute }: { dispute: DisputeRow }) {
         </div>
 
         {dispute.status === "open" ? (
-          <div className="space-y-3 rounded-md border border-border p-3">
+          <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-sm">Resolution</Label>
@@ -429,6 +541,12 @@ function AllTrades() {
 
   return (
     <div className="space-y-4">
+      <SectionHeader
+        icon={ArrowLeftRight}
+        title="All trades"
+        description="Every trade on the platform, searchable by id, name or email."
+      />
+
       <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger>
@@ -443,55 +561,75 @@ function AllTrades() {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by trade id, name or email"
-        />
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by trade id, name or email"
+          />
+        </div>
       </div>
 
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading trades…</p>
+        <LoadingState label="Loading trades…" />
       ) : rows.length === 0 ? (
+        <EmptyState icon={Inbox} message="No trades match this filter." />
+      ) : (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No trades match this filter.
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Trade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Parties</TableHead>
+                  <TableHead>Opened</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell>
+                      <span className="mono flex items-center gap-1.5 font-medium">
+                        <CoinIcon code={t.crypto_type} className="size-4" />
+                        {t.amount} {t.crypto_type}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(t.status)}>
+                        {TRADE_STATUS_LABEL[t.status as TradeStatus] ?? t.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        ${(t.amount * t.price).toLocaleString()}
+                        <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{t.payment_method ?? "—"}</span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {t.buyer?.display_name ?? "—"} ↔ {t.seller?.display_name ?? "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {new Date(t.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/trades/$tradeId" params={{ tradeId: t.id }}>
+                          Inspect
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-3">
-          {rows.map((t) => (
-            <Card key={t.id}>
-              <CardContent className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="mono flex items-center gap-1.5 font-semibold">
-                      <CoinIcon code={t.crypto_type} className="size-4" />
-                      {t.amount} {t.crypto_type}
-                    </span>
-                    <Badge variant={statusVariant(t.status)}>
-                      {TRADE_STATUS_LABEL[t.status as TradeStatus] ?? t.status}
-                    </Badge>
-                  </div>
-                  <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                    ${(t.amount * t.price).toLocaleString()} ·
-                    <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
-                    {t.payment_method ?? "—"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t.buyer?.display_name ?? "—"} (buyer) ↔ {t.seller?.display_name ?? "—"} (seller) ·{" "}
-                    {new Date(t.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
-                  <Link to="/trades/$tradeId" params={{ tradeId: t.id }}>
-                    Inspect
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
     </div>
   );
@@ -516,6 +654,12 @@ function DepositClaims() {
 
   return (
     <div className="space-y-4">
+      <SectionHeader
+        icon={ArrowDownToLine}
+        title="Deposit claims"
+        description="Manually-reported deposits pending automated or manual verification."
+      />
+
       <div className="flex items-center gap-3">
         <Label className="text-sm">Status</Label>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
@@ -532,13 +676,9 @@ function DepositClaims() {
       </div>
 
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading deposit claims…</p>
+        <LoadingState label="Loading deposit claims…" />
       ) : (q.data ?? []).length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No deposit claims in this view.
-          </CardContent>
-        </Card>
+        <EmptyState icon={ArrowDownToLine} message="No deposit claims in this view." />
       ) : (
         <div className="space-y-3">
           {(q.data ?? []).map((c) => (
@@ -575,7 +715,7 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
   });
 
   return (
-    <Card>
+    <Card className={accentBorder(claimStatusVariant(claim.status))}>
       <CardContent className="space-y-3 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={claimStatusVariant(claim.status)}>{claim.status}</Badge>
@@ -639,7 +779,7 @@ function DepositClaimCard({ claim, onChanged }: { claim: DepositClaimRow; onChan
         </div>
 
         {claim.status === "pending" ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border p-3 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
               <Label className="text-sm">Rejection reason</Label>
               <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Why this claim is being rejected" />
@@ -667,6 +807,12 @@ function VerificationRequests() {
 
   return (
     <div className="space-y-4">
+      <SectionHeader
+        icon={BadgeCheck}
+        title="Verification requests"
+        description="Manual ID review — approving sets the Verified badge on a trader's profile."
+      />
+
       <div className="flex items-center gap-3">
         <Label className="text-sm">Status</Label>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
@@ -683,13 +829,9 @@ function VerificationRequests() {
       </div>
 
       {q.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading requests…</p>
+        <LoadingState label="Loading requests…" />
       ) : (q.data ?? []).length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No verification requests in this view.
-          </CardContent>
-        </Card>
+        <EmptyState icon={BadgeCheck} message="No verification requests in this view." />
       ) : (
         <div className="space-y-3">
           {(q.data ?? []).map((r) => (
@@ -720,13 +862,13 @@ function VerificationRequestCard({ request, onChanged }: { request: Verification
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const variant = request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary";
+
   return (
-    <Card>
+    <Card className={accentBorder(variant)}>
       <CardContent className="space-y-3 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={request.status === "approved" ? "default" : request.status === "rejected" ? "destructive" : "secondary"}>
-            {request.status}
-          </Badge>
+          <Badge variant={variant}>{request.status}</Badge>
           <span className="text-sm font-medium">{user?.display_name ?? "—"}</span>
           <span className="text-xs text-muted-foreground">{user?.email ?? "—"}</span>
         </div>
@@ -754,7 +896,7 @@ function VerificationRequestCard({ request, onChanged }: { request: Verification
         ) : null}
 
         {request.status === "pending" ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border p-3 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-1.5">
               <Label className="text-sm">Note (shown to the user if rejected)</Label>
               <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Optional" />
@@ -783,37 +925,40 @@ function Feedback() {
   const fetchFeedback = useServerFn(listFeedback);
   const q = useQuery({ queryKey: ["admin", "feedback"], queryFn: () => fetchFeedback() });
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading feedback…</p>;
-  if ((q.data ?? []).length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          No feedback submitted yet.
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {(q.data ?? []).map((f) => {
-        const user = f.user as { display_name: string; email: string } | null;
-        return (
-          <Card key={f.id}>
-            <CardContent className="space-y-1.5 py-4">
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-medium">{user?.display_name ?? "—"}</span>
-                <span className="text-xs text-muted-foreground">{user?.email ?? "—"}</span>
-                <span className="text-xs text-muted-foreground">
-                  · {new Date(f.created_at).toLocaleString()}
-                  {f.page_path ? ` · ${f.page_path}` : ""}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap text-sm">{f.message}</p>
-            </CardContent>
-          </Card>
-        );
-      })}
+    <div className="space-y-4">
+      <SectionHeader
+        icon={MessageSquareText}
+        title="Feedback"
+        description="Free-form messages users sent from their profile page."
+      />
+
+      {q.isLoading ? (
+        <LoadingState label="Loading feedback…" />
+      ) : (q.data ?? []).length === 0 ? (
+        <EmptyState icon={MessageSquareText} message="No feedback submitted yet." />
+      ) : (
+        <div className="space-y-3">
+          {(q.data ?? []).map((f) => {
+            const user = f.user as { display_name: string; email: string } | null;
+            return (
+              <Card key={f.id}>
+                <CardContent className="space-y-1.5 py-4">
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium">{user?.display_name ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground">{user?.email ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground">
+                      · {new Date(f.created_at).toLocaleString()}
+                      {f.page_path ? ` · ${f.page_path}` : ""}
+                    </span>
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm">{f.message}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -825,19 +970,26 @@ function MasterWallets() {
   const fetchWallets = useServerFn(listMasterWallets);
   const q = useQuery({ queryKey: ["admin", "master-wallets"], queryFn: () => fetchWallets() });
 
-  if (q.isLoading) return <p className="text-sm text-muted-foreground">Loading wallet addresses…</p>;
-
   const onSaved = () => void queryClient.invalidateQueries({ queryKey: ["admin", "master-wallets"] });
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        The platform-owned addresses users deposit to. Add one row per coin/network pair before enabling deposits for it.
-      </p>
-      {(q.data ?? []).map((w) => (
-        <MasterWalletCard key={w.id} wallet={w} onSaved={onSaved} />
-      ))}
-      <AddMasterWalletCard onSaved={onSaved} />
+    <div className="space-y-4">
+      <SectionHeader
+        icon={WalletIcon}
+        title="Wallet addresses"
+        description="The platform-owned addresses users deposit to. Add one row per coin/network pair before enabling deposits for it."
+      />
+
+      {q.isLoading ? (
+        <LoadingState label="Loading wallet addresses…" />
+      ) : (
+        <div className="space-y-3">
+          {(q.data ?? []).map((w) => (
+            <MasterWalletCard key={w.id} wallet={w} onSaved={onSaved} />
+          ))}
+          <AddMasterWalletCard onSaved={onSaved} />
+        </div>
+      )}
     </div>
   );
 }
@@ -871,15 +1023,22 @@ function AddMasterWalletCard({ onSaved }: { onSaved: () => void }) {
 
   if (!open) {
     return (
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        + Add coin/network
-      </Button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+      >
+        <Plus className="size-4" /> Add coin/network
+      </button>
     );
   }
 
   return (
     <Card>
       <CardContent className="space-y-3 py-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Plus className="size-4 text-muted-foreground" /> New coin/network
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-sm">Coin (e.g. USDT)</Label>
@@ -934,8 +1093,16 @@ function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSave
   });
 
   return (
-    <Card>
+    <Card className={cn("border-l-4", form.active ? "border-l-emerald-500" : "border-l-border")}>
       <CardContent className="space-y-3 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <CoinIcon code={form.cryptoType || "?"} className="size-5" />
+          <span className="font-semibold">{form.cryptoType || "—"}</span>
+          <span className="mono text-sm text-muted-foreground">{form.network || "—"}</span>
+          <Badge variant={form.active ? "default" : "secondary"} className="ml-auto">
+            {form.active ? "Active" : "Inactive"}
+          </Badge>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-sm">Coin</Label>

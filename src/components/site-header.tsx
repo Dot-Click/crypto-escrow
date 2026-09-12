@@ -1,8 +1,10 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
+  LayoutGrid,
   LogOut,
   Menu,
+  Repeat,
   Settings,
   ShieldCheck,
   Tag,
@@ -24,16 +26,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Matches SafeTheTrade's nav row — icon + label, one line. Swap and Limit
-// Order aren't standalone nav destinations: Swap is reachable from the
-// Wallet page and Limit Order isn't a thing P2P escrow platforms like this
-// one expose up front — so neither gets a top-level icon. The logo already
-// links to "/" (the marketplace), so there's no separate Marketplace item
-// here either — that used to duplicate the logo link.
+// Marketplace and Swap are both top-level, one-click destinations — relying
+// on the logo alone to reach the marketplace, or burying Swap inside the
+// Wallet page, made both too easy to miss (client feedback).
 const AUTH_NAV = [
+  { to: "/", label: "Marketplace", icon: LayoutGrid },
   { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
   { to: "/offers", label: "My Offers", icon: Tag },
   { to: "/wallet", label: "Wallet", icon: Wallet },
+  { to: "/swap", label: "Swap", icon: Repeat },
 ] as const;
 
 export function SiteHeader() {

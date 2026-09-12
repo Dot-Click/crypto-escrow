@@ -37,17 +37,16 @@ export const WITHDRAWAL_FIXED_FEE: Record<string, number> = {
 };
 
 /**
- * Kill switch for TRC20 (Tron) withdrawal — the master_wallets collector row
- * for TRON_MAINNET/TRON_TESTNET is still a placeholder (see
- * supabase/migrations/20260911_04_seed_tron_collectors.sql), so a TRC20
- * withdrawal today would debit the user immediately and only get refunded
- * hours later once broadcast-withdrawals exhausts its retry attempts — a bad
- * failure mode for something the UI otherwise makes look instant. Flip this
- * to true only after: scripts/derive-tron-collector.mjs has been run against
- * the real deployed mnemonic, the resulting address is funded with TRX, and
- * its master_wallets row is flipped `active = true`.
+ * Kill switch for TRC20 (Tron) withdrawal. The TRON_MAINNET master_wallets
+ * collector row now has a real derived address (see
+ * supabase/migrations/20260911_04_seed_tron_collectors.sql) and is active.
+ * If that address is ever short on real TRX (needed to pay Tron transfer
+ * fees), a TRC20 withdrawal will debit the user immediately and only get
+ * refunded hours later once broadcast-withdrawals exhausts its retry
+ * attempts — a bad failure mode for something the UI otherwise makes look
+ * instant. Flip this back to false if the collector ever runs dry.
  */
-export const TRC20_WITHDRAWAL_ENABLED = false;
+export const TRC20_WITHDRAWAL_ENABLED = true;
 
 /**
  * Fallback payment window for trades opened on a listing with its time

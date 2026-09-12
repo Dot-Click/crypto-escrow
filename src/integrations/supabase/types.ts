@@ -1262,6 +1262,7 @@ export type Database = {
           external_deposit_address: string | null
           held_balance: number
           id: string
+          swap_locked_balance: number
           updated_at: string
           user_id: string
         }
@@ -1272,6 +1273,7 @@ export type Database = {
           external_deposit_address?: string | null
           held_balance?: number
           id?: string
+          swap_locked_balance?: number
           updated_at?: string
           user_id: string
         }
@@ -1282,6 +1284,7 @@ export type Database = {
           external_deposit_address?: string | null
           held_balance?: number
           id?: string
+          swap_locked_balance?: number
           updated_at?: string
           user_id?: string
         }

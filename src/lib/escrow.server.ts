@@ -40,19 +40,31 @@ const BUYER_DISPUTE_WAIT_MS = 30 * 60 * 1000;
 async function ensureWallet(userId: string, cryptoType: string) {
   const { data } = await supabaseAdmin
     .from("wallets")
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .eq("user_id", userId)
     .eq("crypto_type", cryptoType)
     .maybeSingle();
-  if (data) return { ...data, balance: Number(data.balance), held_balance: Number(data.held_balance) };
+  if (data) {
+    return {
+      ...data,
+      balance: Number(data.balance),
+      held_balance: Number(data.held_balance),
+      swap_locked_balance: Number(data.swap_locked_balance),
+    };
+  }
 
   const { data: created, error } = await supabaseAdmin
     .from("wallets")
     .insert({ user_id: userId, crypto_type: cryptoType })
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .single();
   if (error) throw new Error(error.message);
-  return { ...created, balance: Number(created.balance), held_balance: Number(created.held_balance) };
+  return {
+    ...created,
+    balance: Number(created.balance),
+    held_balance: Number(created.held_balance),
+    swap_locked_balance: Number(created.swap_locked_balance),
+  };
 }
 
 async function refundEscrow(trade: { id: string; seller_id: string; crypto_type: string; amount: number }) {
@@ -62,6 +74,11 @@ async function refundEscrow(trade: { id: string; seller_id: string; crypto_type:
     .update({
       balance: sellerWallet.balance + trade.amount,
       held_balance: Math.max(0, sellerWallet.held_balance - trade.amount),
+      // Restore whatever swap-restricted portion this hold may have drawn
+      // down — see the matching reduction in openTrade. Capped at what's
+      // actually free by requestWithdrawal's read, so over-restoring here
+      // is safe; under-restoring would let restricted funds leak out.
+      swap_locked_balance: sellerWallet.swap_locked_balance + trade.amount,
     })
     .eq("id", sellerWallet.id);
 
@@ -223,12 +240,16 @@ export async function openTrade(params: {
     );
   }
 
-  // Conditional debit: only succeeds while the free balance still covers the hold.
+  // Conditional debit: only succeeds while the free balance still covers the
+  // hold. Draws down any swap-restricted portion first — the funds are no
+  // longer free balance either way, and this is exactly the trading use a
+  // swap restriction permits.
   const { data: held, error: holdErr } = await supabaseAdmin
     .from("wallets")
     .update({
       balance: wallet.balance - grossCrypto,
       held_balance: wallet.held_balance + grossCrypto,
+      swap_locked_balance: Math.max(0, wallet.swap_locked_balance - grossCrypto),
     })
     .eq("id", wallet.id)
     .gte("balance", grossCrypto)
@@ -266,7 +287,11 @@ export async function openTrade(params: {
     // Roll the hold back so funds are never stranded.
     await supabaseAdmin
       .from("wallets")
-      .update({ balance: wallet.balance, held_balance: wallet.held_balance })
+      .update({
+        balance: wallet.balance,
+        held_balance: wallet.held_balance,
+        swap_locked_balance: wallet.swap_locked_balance,
+      })
       .eq("id", wallet.id);
     throw new Error(tradeErr?.message ?? "Could not open the trade");
   }

@@ -210,7 +210,7 @@ function WalletPage() {
   const wallets = overview.data?.wallets ?? [];
   const withdrawWallet = wallets.find((w) => w.crypto_type === withdrawCoin);
   const availableToWithdraw = withdrawWallet
-    ? withdrawWallet.balance - withdrawWallet.held_balance
+    ? withdrawWallet.balance - withdrawWallet.held_balance - withdrawWallet.swap_locked_balance
     : 0;
   const isLightningWithdraw = withdrawCoin === "BTC" && btcWithdrawMode === "lightning";
   const withdrawNetworkLabel = isLightningWithdraw
@@ -246,24 +246,38 @@ function WalletPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {wallets.map((w) => {
               const free = w.balance - w.held_balance;
+              const withdrawable = free - w.swap_locked_balance;
               return (
                 <Card key={w.id}>
                   <CardContent className="space-y-3 py-5">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="flex items-center gap-2 font-semibold">
                         <CoinIcon code={w.crypto_type} className="size-6" />
                         {w.crypto_type}
                       </span>
-                      {w.held_balance > 0 ? (
-                        <Badge variant="secondary" className="gap-1 font-normal">
-                          <Lock className="size-3" />
-                          {w.held_balance} in escrow
-                        </Badge>
-                      ) : null}
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        {w.held_balance > 0 ? (
+                          <Badge variant="secondary" className="gap-1 font-normal">
+                            <Lock className="size-3" />
+                            {w.held_balance} in escrow
+                          </Badge>
+                        ) : null}
+                        {w.swap_locked_balance > 0 ? (
+                          <Badge
+                            variant="secondary"
+                            className="gap-1 font-normal"
+                            title="From Swap or a filled limit order — usable for trading, not withdrawable"
+                          >
+                            <Lock className="size-3" />
+                            {w.swap_locked_balance} from swap
+                          </Badge>
+                        ) : null}
+                      </div>
                     </div>
                     <p className="mono text-2xl">{free}</p>
                     <p className="text-xs text-muted-foreground">
                       Available of {w.balance} {w.crypto_type} total
+                      {w.swap_locked_balance > 0 ? ` · ${withdrawable} withdrawable` : ""}
                     </p>
                     <Button
                       variant="outline"

@@ -1,19 +1,9 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import {
-  ArrowLeftRight,
-  LayoutGrid,
-  LogOut,
-  Menu,
-  Repeat,
-  Settings,
-  ShieldCheck,
-  Tag,
-  User,
-  Wallet,
-} from "lucide-react";
+import { ArrowLeftRight, LayoutGrid, LogOut, Menu, Repeat, Settings, Tag, User, Wallet } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ADMIN_TABS } from "@/lib/admin-nav";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/user-avatar";
@@ -30,21 +20,34 @@ import {
 // on the logo alone to reach the marketplace, or burying Swap inside the
 // Wallet page, made both too easy to miss (client feedback).
 const AUTH_NAV = [
-  { to: "/", label: "Marketplace", icon: LayoutGrid },
-  { to: "/trades", label: "My Trades", icon: ArrowLeftRight },
-  { to: "/offers", label: "My Offers", icon: Tag },
-  { to: "/wallet", label: "Wallet", icon: Wallet },
-  { to: "/swap", label: "Swap", icon: Repeat },
+  { to: "/", label: "Marketplace", icon: LayoutGrid, search: {}, strictActive: false },
+  { to: "/trades", label: "My Trades", icon: ArrowLeftRight, search: {}, strictActive: false },
+  { to: "/offers", label: "My Offers", icon: Tag, search: {}, strictActive: false },
+  { to: "/wallet", label: "Wallet", icon: Wallet, search: {}, strictActive: false },
+  { to: "/swap", label: "Swap", icon: Repeat, search: {}, strictActive: false },
 ] as const;
+
+// Admins get their own dedicated nav — the admin dashboard's sections,
+// not the trader-facing Marketplace/Wallet/Swap links (client feedback:
+// the nav looked identical for admins and regular traders).
+const ADMIN_NAV = ADMIN_TABS.map((tab) => ({
+  to: "/admin" as const,
+  label: tab.label,
+  icon: tab.icon,
+  // Overview is the default tab (no ?tab= in the URL), so its link points at
+  // an empty search — that's what makes it (and only it) match "/admin" bare.
+  search: tab.value === "overview" ? {} : { tab: tab.value },
+  // Every admin link shares the same "/admin" pathname, so only an exact
+  // search match tells them apart — unlike the trader nav below, which
+  // still wants prefix matching (e.g. a trade detail page keeps "My Trades" lit).
+  strictActive: true,
+}));
 
 export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const nav = [
-    ...(user ? AUTH_NAV : []),
-    ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck } as const] : []),
-  ];
+  const nav = !user ? [] : isAdmin ? ADMIN_NAV : AUTH_NAV;
 
   // The marketing hero (now at "/landing", not the "/" homepage anymore)
   // has its own dark background and glow — the header floats transparently
@@ -61,11 +64,13 @@ export function SiteHeader() {
   const links = (onClick?: () => void) =>
     nav.map((item) => (
       <Link
-        key={item.to}
+        key={`${item.to}:${item.label}`}
         to={item.to}
+        search={item.search}
         onClick={onClick}
         className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         activeProps={{ className: "flex items-center gap-1.5 text-sm text-foreground font-medium" }}
+        activeOptions={item.strictActive ? { exact: true, includeSearch: true } : { exact: false }}
       >
         <item.icon className="size-4" />
         {item.label}

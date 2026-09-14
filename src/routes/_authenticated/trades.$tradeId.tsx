@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Flag, Lock, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Copy, Flag, Lock, ShieldAlert, ThumbsDown, ThumbsUp } from "lucide-react";
 import {
   cancelTrade,
   getTrade,
@@ -12,7 +12,10 @@ import {
   releaseEscrow,
 } from "@/lib/trades.functions";
 import { reportTrade } from "@/lib/trade-reports.functions";
+import { submitTradeFeedback } from "@/lib/user-feedback.functions";
 import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,12 +105,15 @@ const STATUS_TONE: Record<string, string> = {
 
 function TradeRoom() {
   const { tradeId } = Route.useParams();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const fetchTrade = useServerFn(getTrade);
   const [reason, setReason] = useState("");
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [feedbackIsPositive, setFeedbackIsPositive] = useState<boolean | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState("");
 
   const trade = useQuery({
     queryKey: ["trade", tradeId],
@@ -206,6 +212,38 @@ function TradeRoom() {
       toast.success("Report submitted — an admin will take a look");
       setReportReason("");
       setReportOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const myFeedback = useQuery({
+    queryKey: ["my-trade-feedback", tradeId, user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_feedback")
+        .select("id, is_positive")
+        .eq("trade_id", tradeId)
+        .eq("rater_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const submitFeedbackFn = useServerFn(submitTradeFeedback);
+  const submitFeedback = useMutation({
+    mutationFn: () =>
+      submitFeedbackFn({
+        data: {
+          tradeId,
+          isPositive: feedbackIsPositive!,
+          ...(feedbackComment.trim() ? { comment: feedbackComment.trim() } : {}),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Thanks for the feedback");
+      void qc.invalidateQueries({ queryKey: ["my-trade-feedback", tradeId, user?.id] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -393,6 +431,69 @@ function TradeRoom() {
               </CardContent>
             </Card>
           )}
+
+          {/* Leave feedback — only once released, one rating per side. */}
+          {t.status === "released" ? (
+            <Card>
+              <CardContent className="space-y-3 py-4">
+                <p className="text-sm font-medium">Rate {counterparty?.display_name ?? "this trader"}</p>
+                {myFeedback.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : myFeedback.data ? (
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    {myFeedback.data.is_positive ? (
+                      <ThumbsUp className="size-4 text-success" />
+                    ) : (
+                      <ThumbsDown className="size-4 text-destructive" />
+                    )}
+                    You left {myFeedback.data.is_positive ? "positive" : "negative"} feedback on this trade.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={feedbackIsPositive === true ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => setFeedbackIsPositive(true)}
+                      >
+                        <ThumbsUp className="size-4" /> Positive
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={feedbackIsPositive === false ? "default" : "outline"}
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => setFeedbackIsPositive(false)}
+                      >
+                        <ThumbsDown className="size-4" /> Negative
+                      </Button>
+                    </div>
+                    {feedbackIsPositive !== null ? (
+                      <>
+                        <Textarea
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          placeholder="Add a comment (optional)"
+                          rows={2}
+                          maxLength={500}
+                        />
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          disabled={submitFeedback.isPending}
+                          onClick={() => submitFeedback.mutate()}
+                        >
+                          {submitFeedback.isPending ? "Submitting…" : "Submit feedback"}
+                        </Button>
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
 
           {/* Dispute status, if one exists */}
           {d.dispute ? (

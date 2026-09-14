@@ -15,6 +15,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/swap")({
+  validateSearch: (search: Record<string, unknown>): { from?: string } => {
+    const from = typeof search["from"] === "string" ? (search["from"] as string) : undefined;
+    return from ? { from } : {};
+  },
   head: () => ({
     meta: [
       { title: "Swap — CEMP" },
@@ -25,9 +29,11 @@ export const Route = createFileRoute("/_authenticated/swap")({
 });
 
 function SwapPage() {
+  const { from } = Route.useSearch();
   const qc = useQueryClient();
-  const [fromCrypto, setFromCrypto] = useState("BTC");
-  const [toCrypto, setToCrypto] = useState("ETH");
+  const initialFrom = from && CRYPTO_TYPES.some((c) => c.code === from) ? from : "BTC";
+  const [fromCrypto, setFromCrypto] = useState(initialFrom);
+  const [toCrypto, setToCrypto] = useState(initialFrom === "ETH" ? "BTC" : "ETH");
   const [amount, setAmount] = useState("");
 
   const fetchWallet = useServerFn(getWalletOverview);

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, ArrowDownToLine, ArrowDownUp, ArrowUpFromLine, Copy, Loader2, Lock, Zap } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowDownUp, ArrowUpFromLine, Copy, Loader2, Lock, Send, Zap } from "lucide-react";
 import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
@@ -84,6 +84,7 @@ function WalletPage() {
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
+  const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [btcWithdrawMode, setBtcWithdrawMode] = useState<"onchain" | "lightning">("onchain");
   const [usdtNetwork, setUsdtNetwork] = useState<"BEP20" | "TRC20">("BEP20");
@@ -153,6 +154,7 @@ function WalletPage() {
       setAmount("");
       setAddress("");
       setStepUpCode("");
+      setWithdrawDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
       toast.success("Withdrawal queued — it will broadcast within a few minutes.");
     },
@@ -172,6 +174,7 @@ function WalletPage() {
       setLnWithdrawAmountSats("");
       setLnWithdrawDestination("");
       setStepUpCode("");
+      setWithdrawDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
       toast.success("Lightning payment sent.");
     },
@@ -265,23 +268,46 @@ function WalletPage() {
                     <p className="text-xs text-muted-foreground">
                       Available of {w.balance} {w.crypto_type} total
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      onClick={() => setDepositCoin(w.crypto_type)}
-                    >
-                      <ArrowDownToLine className="size-4" /> Deposit {w.crypto_type}
-                    </Button>
-                    {w.crypto_type === "BTC" ? (
+                    <div className="grid grid-cols-3 gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => setLightningOpen(true)}
+                        onClick={() => {
+                          setWithdrawCoin(w.crypto_type);
+                          setBtcWithdrawMode("onchain");
+                          setAmount("");
+                          setAddress("");
+                          setLnWithdrawAmountSats("");
+                          setLnWithdrawDestination("");
+                          setStepUpCode("");
+                          setWithdrawDialogOpen(true);
+                        }}
                       >
-                        <Zap className="size-4" /> Deposit BTC via Lightning
+                        <Send className="size-4" /> Send
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setDepositCoin(w.crypto_type)}
+                      >
+                        <ArrowDownToLine className="size-4" /> Receive
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <Link to="/swap" search={{ from: w.crypto_type }}>
+                          <ArrowDownUp className="size-4" /> Swap
+                        </Link>
+                      </Button>
+                    </div>
+                    {w.crypto_type === "BTC" ? (
+                      <button
+                        type="button"
+                        onClick={() => setLightningOpen(true)}
+                        className="flex w-full items-center justify-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+                      >
+                        <Zap className="size-3" /> Receive via Lightning instead
+                      </button>
                     ) : null}
                   </CardContent>
                 </Card>
@@ -289,16 +315,16 @@ function WalletPage() {
             })}
           </div>
 
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ArrowUpFromLine className="size-4" /> Withdraw to an external wallet
-              </CardTitle>
-              <CardDescription>
-                Only free balance can be withdrawn — escrow holds stay locked.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
+            <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ArrowUpFromLine className="size-4" /> Send {withdrawCoin}
+                </DialogTitle>
+                <DialogDescription>
+                  Only free balance can be withdrawn — escrow holds stay locked.
+                </DialogDescription>
+              </DialogHeader>
               <form
                 className="grid gap-3 sm:grid-cols-[140px_1fr_auto] sm:items-end"
                 onSubmit={(e) => {
@@ -493,8 +519,8 @@ function WalletPage() {
                     : "Withdraw"}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
+            </DialogContent>
+          </Dialog>
 
           <Card className="mt-6">
             <CardHeader>

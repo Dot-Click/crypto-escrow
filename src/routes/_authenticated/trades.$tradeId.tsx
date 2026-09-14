@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { TradeChat } from "@/components/trade-chat";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
+import { TraderPreviewPopover } from "@/components/trader-preview-popover";
 import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
@@ -683,28 +684,26 @@ function TradeRoom() {
             page. */}
         <div className="flex flex-col gap-3 lg:h-full lg:min-h-0">
           <div className="flex shrink-0 items-center justify-between rounded-lg border border-border bg-card px-4 py-3">
-            <div className="flex items-center gap-3">
-              <UserAvatar
-                userId={counterpartyId}
-                displayName={counterparty?.display_name ?? "Trader"}
-                className="size-9 shrink-0 text-sm"
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/traders/$userId"
-                    params={{ userId: counterpartyId }}
-                    className="text-sm font-medium hover:underline"
-                  >
-                    {counterparty?.display_name ?? "Trader"}
-                  </Link>
-                  <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
+            <TraderPreviewPopover userId={counterpartyId} displayName={counterparty?.display_name ?? "Trader"}>
+              <div className="flex items-center gap-3">
+                <UserAvatar
+                  userId={counterpartyId}
+                  displayName={counterparty?.display_name ?? "Trader"}
+                  className="size-9 shrink-0 text-sm"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium hover:underline">
+                      {counterparty?.display_name ?? "Trader"}
+                    </span>
+                    <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {counterparty?.trades_completed ?? 0} completed trades
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {counterparty?.trades_completed ?? 0} completed trades
-                </p>
               </div>
-            </div>
+            </TraderPreviewPopover>
             <Badge variant="outline" className={statusTone}>
               {statusLabel}
             </Badge>

@@ -21,7 +21,7 @@ export const getTraderProfile = createServerFn({ method: "GET" })
 
     const { data: profile, error } = await supabaseAdmin
       .from("profiles")
-      .select("id, display_name, bio, trades_completed, created_at, is_verified, last_seen_at")
+      .select("id, display_name, bio, trades_completed, created_at, is_verified, last_seen_at, country")
       .eq("id", data.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -119,6 +119,7 @@ export const getTraderProfile = createServerFn({ method: "GET" })
       id: profile.id,
       displayName: profile.display_name,
       bio: profile.bio,
+      country: profile.country,
       tradesCompleted: profile.trades_completed,
       memberSince: profile.created_at,
       isVerified: profile.is_verified,

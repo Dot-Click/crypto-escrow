@@ -17,6 +17,7 @@ type TradeRow = {
   payout_amount: number;
   status: string;
   updated_at: string;
+  payment_claimed_at: string | null;
 };
 
 async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
@@ -24,7 +25,7 @@ async function loadTrade(tradeId: string, userId: string): Promise<TradeRow> {
 
   const { data, error } = await supabaseAdmin
     .from("trades")
-    .select("id, buyer_id, seller_id, crypto_type, amount, payout_amount, status, updated_at")
+    .select("id, buyer_id, seller_id, crypto_type, amount, payout_amount, status, updated_at, payment_claimed_at")
     .eq("id", tradeId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -322,22 +323,14 @@ export async function claimPayment(params: { tradeId: string; userId: string }) 
   if (trade.buyer_id !== params.userId) throw new Error("Only the buyer can confirm payment");
   if (trade.status !== "escrow_funded") throw new Error("Payment can only be confirmed while in escrow");
 
-  // Require proof of payment (an attachment from the buyer in the trade chat)
-  // before allowing the buyer to mark the trade as paid.
-  const { count, error: proofErr } = await supabaseAdmin
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("trade_id", trade.id)
-    .eq("sender_id", params.userId)
-    .not("attachment_url", "is", null);
-  if (proofErr) throw new Error(proofErr.message);
-  if (!count) {
-    throw new Error("Attach proof of payment in the chat before marking the trade as paid.");
-  }
-
+  // No proof-of-payment requirement — the buyer can mark a trade paid the
+  // moment they've actually sent it. Evidence (chat messages, an attached
+  // receipt if they choose to send one) stays available for the seller/an
+  // admin to review if it's ever disputed; it was never a precondition to
+  // clicking this button.
   const { error } = await supabaseAdmin
     .from("trades")
-    .update({ status: "payment_claimed" })
+    .update({ status: "payment_claimed", payment_claimed_at: new Date().toISOString() })
     .eq("id", trade.id)
     .eq("status", "escrow_funded");
   if (error) throw new Error(error.message);
@@ -438,8 +431,11 @@ export async function raiseDispute(params: { tradeId: string; reason: string; us
 
   // Seller can dispute the moment payment is claimed; the buyer must wait 30
   // minutes (giving the seller a fair window to confirm) before disputing.
+  // payment_claimed_at is set the instant claimPayment runs — updated_at is
+  // only a fallback for trades claimed before that column existed.
   if (params.userId === trade.buyer_id) {
-    const elapsedMs = Date.now() - new Date(trade.updated_at).getTime();
+    const claimedAt = trade.payment_claimed_at ?? trade.updated_at;
+    const elapsedMs = Date.now() - new Date(claimedAt).getTime();
     if (elapsedMs < BUYER_DISPUTE_WAIT_MS) {
       const minutesLeft = Math.ceil((BUYER_DISPUTE_WAIT_MS - elapsedMs) / 60_000);
       throw new Error(
@@ -465,4 +461,32 @@ export async function raiseDispute(params: { tradeId: string; reason: string; us
   await supabaseAdmin.from("trades").update({ status: "disputed" }).eq("id", trade.id);
   // Funds stay held until an admin resolves the dispute.
   return { status: "disputed" as const };
+}
+
+/**
+ * "Report a problem" — deliberately NOT a dispute. Disputes affect escrow
+ * resolution and are only openable in the payment_claimed window; a report
+ * is a flag for admin attention (chargebacks, abusive behavior, etc.) that
+ * either party can raise about any trade they were part of, at any time —
+ * including long after it's released or cancelled. No status restriction,
+ * no funds movement.
+ */
+export async function reportTradeProblem(params: { tradeId: string; reason: string; userId: string }) {
+  const trade = await loadTrade(params.tradeId, params.userId);
+
+  await enforceRateLimit({
+    userId: params.userId,
+    action: "trade_report",
+    limit: 5,
+    windowSeconds: 3600,
+  });
+
+  const { error } = await supabaseAdmin.from("trade_reports").insert({
+    trade_id: trade.id,
+    reporter_id: params.userId,
+    reason: params.reason,
+  });
+  if (error) throw new Error(error.message);
+
+  return { ok: true as const };
 }

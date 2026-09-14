@@ -11,7 +11,7 @@ import {
   openDispute,
   releaseEscrow,
 } from "@/lib/trades.functions";
-import { listMessages } from "@/lib/messages.functions";
+import { reportTrade } from "@/lib/trade-reports.functions";
 import { getTradePaymentDetails } from "@/lib/payment-methods.functions";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
 import { Input } from "@/components/ui/input";
@@ -105,6 +105,8 @@ function TradeRoom() {
   const qc = useQueryClient();
   const fetchTrade = useServerFn(getTrade);
   const [reason, setReason] = useState("");
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
 
   const trade = useQuery({
@@ -118,15 +120,6 @@ function TradeRoom() {
     queryKey: ["trade-payment-details", tradeId],
     queryFn: () => fetchPaymentDetails({ data: { tradeId } }),
   });
-
-  // Shares TradeChat's own query cache (same key) — no extra request. Used to
-  // require the buyer attach proof of payment before "Mark as Paid" unlocks.
-  const fetchMessages = useServerFn(listMessages);
-  const messages = useQuery({
-    queryKey: ["messages", tradeId],
-    queryFn: () => fetchMessages({ data: { tradeId } }),
-  });
-  const hasPaymentProof = (messages.data ?? []).some((m) => m.mine && m.attachment_url);
 
   const onSettled = (success: string) => ({
     onSuccess: () => {
@@ -206,6 +199,17 @@ function TradeRoom() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const reportFn = useServerFn(reportTrade);
+  const report = useMutation({
+    mutationFn: () => reportFn({ data: { tradeId, reason: reportReason } }),
+    onSuccess: () => {
+      toast.success("Report submitted — an admin will take a look");
+      setReportReason("");
+      setReportOpen(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (trade.isLoading) {
     return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Loading trade room…</p>;
   }
@@ -236,11 +240,12 @@ function TradeRoom() {
   // Dispute rules: only once the buyer has marked payment as sent. The seller
   // can dispute immediately at that point; the buyer must wait 30 minutes
   // from when they claimed payment, giving the seller time to confirm.
+  // payment_claimed_at falls back to updated_at only for trades claimed
+  // before that column existed (see raiseDispute in escrow.server.ts).
   const canOpenDispute = t.status === "payment_claimed";
+  const claimedAt = t.payment_claimed_at ?? t.updated_at;
   const buyerWaitMs =
-    canOpenDispute && isBuyer
-      ? 30 * 60 * 1000 - (Date.now() - new Date(t.updated_at).getTime())
-      : 0;
+    canOpenDispute && isBuyer ? 30 * 60 * 1000 - (Date.now() - new Date(claimedAt).getTime()) : 0;
   const buyerMustWait = isBuyer && buyerWaitMs > 0;
   const buyerWaitMinutes = Math.ceil(buyerWaitMs / 60_000);
 
@@ -328,11 +333,7 @@ function TradeRoom() {
                     </p>
                     <Button
                       className="w-full justify-center gap-2"
-                      disabled={
-                        t.status !== "escrow_funded" ||
-                        paid.isPending ||
-                        !hasPaymentProof
-                      }
+                      disabled={t.status !== "escrow_funded" || paid.isPending}
                       onClick={() => paid.mutate()}
                     >
                       {t.status === "escrow_funded" ? "Mark as Paid" : "Payment confirmed"}
@@ -341,10 +342,9 @@ function TradeRoom() {
                       ) : null}
                     </Button>
                     {t.status === "escrow_funded" ? (
-                      <p className={`text-xs ${hasPaymentProof ? "text-muted-foreground" : "text-warning"}`}>
-                        {hasPaymentProof
-                          ? "Proof of payment attached — you can mark this trade as paid."
-                          : "Attach your proof of payment (receipt or screenshot) in the chat first — you can't mark the trade as paid until you do."}
+                      <p className="text-xs text-muted-foreground">
+                        Only click this once you've actually sent the payment — the seller is notified
+                        immediately and can release escrow as soon as they confirm receipt.
                       </p>
                     ) : null}
                   </>
@@ -411,67 +411,108 @@ function TradeRoom() {
             </Card>
           ) : null}
 
-          {/* Other actions — Report a problem opens the real dispute flow */}
-          {active ? (
-            <Card>
-              <CardContent className="space-y-1 py-2">
-                <p className="px-1 pb-1 pt-2 text-xs font-medium text-muted-foreground">
-                  Other actions
-                </p>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 rounded-md px-1 py-2 text-left hover:bg-muted/50"
-                  onClick={() => setReportOpen(!reportOpen)}
-                  aria-expanded={reportOpen}
-                >
-                  <Flag className="size-4 text-muted-foreground" />
-                  <span>
-                    <span className="block text-sm font-medium">Report a problem</span>
-                    <span className="block text-xs text-muted-foreground">
-                      Open a dispute for an admin to review
-                    </span>
-                  </span>
-                </button>
+          {/* Other actions — Open a dispute (escrow-affecting, time-gated,
+              only while active) and Report a problem (not escrow-affecting,
+              no gating, available any time — even long after completion). */}
+          <Card>
+            <CardContent className="space-y-1 py-2">
+              <p className="px-1 pb-1 pt-2 text-xs font-medium text-muted-foreground">
+                Other actions
+              </p>
 
-                {reportOpen ? (
-                  <div className="space-y-2 border-t border-border p-2 pt-3">
-                    {!canOpenDispute ? (
-                      <p className="text-xs text-muted-foreground">
-                        Disputes open once the buyer has marked payment as sent.
-                      </p>
-                    ) : buyerMustWait ? (
-                      <p className="text-xs text-muted-foreground">
-                        You can open a dispute in {buyerWaitMinutes} more minute
-                        {buyerWaitMinutes === 1 ? "" : "s"} — this gives the seller time to confirm
-                        your payment.
-                      </p>
-                    ) : null}
-                    <Textarea
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      placeholder="Describe what happened (payment not received, wrong amount…)"
-                      rows={3}
-                      disabled={!canOpenDispute || buyerMustWait}
-                    />
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="w-full"
-                      disabled={
-                        !canOpenDispute ||
-                        buyerMustWait ||
-                        reason.trim().length < 10 ||
-                        dispute.isPending
-                      }
-                      onClick={() => dispute.mutate()}
-                    >
-                      Open dispute
-                    </Button>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ) : null}
+              {active ? (
+                <>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-md px-1 py-2 text-left hover:bg-muted/50"
+                    onClick={() => setDisputeOpen(!disputeOpen)}
+                    aria-expanded={disputeOpen}
+                  >
+                    <ShieldAlert className="size-4 text-muted-foreground" />
+                    <span>
+                      <span className="block text-sm font-medium">Open a dispute</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Payment not received, wrong amount — escrow stays held until an admin resolves it
+                      </span>
+                    </span>
+                  </button>
+
+                  {disputeOpen ? (
+                    <div className="space-y-2 border-t border-border p-2 pt-3">
+                      {!canOpenDispute ? (
+                        <p className="text-xs text-muted-foreground">
+                          Disputes open once the buyer has marked payment as sent.
+                        </p>
+                      ) : buyerMustWait ? (
+                        <p className="text-xs text-muted-foreground">
+                          You can open a dispute in {buyerWaitMinutes} more minute
+                          {buyerWaitMinutes === 1 ? "" : "s"} — this gives the seller time to confirm
+                          your payment.
+                        </p>
+                      ) : null}
+                      <Textarea
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="Describe what happened (payment not received, wrong amount…)"
+                        rows={3}
+                        disabled={!canOpenDispute || buyerMustWait}
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full"
+                        disabled={
+                          !canOpenDispute ||
+                          buyerMustWait ||
+                          reason.trim().length < 10 ||
+                          dispute.isPending
+                        }
+                        onClick={() => dispute.mutate()}
+                      >
+                        Open dispute
+                      </Button>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-md px-1 py-2 text-left hover:bg-muted/50"
+                onClick={() => setReportOpen(!reportOpen)}
+                aria-expanded={reportOpen}
+              >
+                <Flag className="size-4 text-muted-foreground" />
+                <span>
+                  <span className="block text-sm font-medium">Report a problem</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Chargebacks, abusive behavior — reviewed by an admin, doesn't affect escrow.
+                    Available any time, even after the trade is done.
+                  </span>
+                </span>
+              </button>
+
+              {reportOpen ? (
+                <div className="space-y-2 border-t border-border p-2 pt-3">
+                  <Textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    placeholder="Describe what happened"
+                    rows={3}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    disabled={reportReason.trim().length < 10 || report.isPending}
+                    onClick={() => report.mutate()}
+                  >
+                    {report.isPending ? "Submitting…" : "Submit report"}
+                  </Button>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
 
           {/* Trade information */}
           <Card>
@@ -512,15 +553,24 @@ function TradeRoom() {
                 </div>
                 {t.fee_amount > 0 ? (
                   <div>
-                    <p className="text-xs text-muted-foreground">Platform fee</p>
+                    <p className="text-xs text-muted-foreground">Escrow fee</p>
                     <p className="mono">
                       {t.fee_amount.toFixed(8)} {t.crypto_type}
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        deducted from escrow at release
-                      </span>
+                      {t.fee_percent != null ? (
+                        <span className="ml-1 text-xs text-muted-foreground">({t.fee_percent}%)</span>
+                      ) : null}
                     </p>
                   </div>
                 ) : null}
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    {isBuyer ? "You'll receive" : "Buyer receives"}
+                  </p>
+                  <p className="mono">
+                    {t.payout_amount.toFixed(8)} {t.crypto_type}
+                    <span className="ml-1 text-xs text-muted-foreground">at release</span>
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -568,15 +618,30 @@ function TradeRoom() {
             hideHeader
             className="flex h-[32rem] flex-col lg:h-full lg:min-h-0 lg:flex-1"
             banner={
-              <div className={`flex shrink-0 items-center gap-1.5 px-4 py-2.5 text-sm font-medium ${statusTone}`}>
-                <CoinIcon code={t.crypto_type} className="size-4" />
-                <span className="uppercase">{isBuyer ? "Buying" : "Selling"}</span> {t.amount}{" "}
-                {t.crypto_type} for {symbol}
-                {total.toLocaleString()} ({t.fiat_currency}) via{" "}
-                <span className="inline-flex items-center gap-1">
-                  <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
-                  {t.payment_method}
-                </span>
+              <div className={`flex shrink-0 flex-col gap-1 px-4 py-2.5 text-sm font-medium ${statusTone}`}>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <CoinIcon code={t.crypto_type} className="size-4" />
+                  <span className="uppercase">{isBuyer ? "Buying" : "Selling"}</span> {t.amount}{" "}
+                  {t.crypto_type} for {symbol}
+                  {total.toLocaleString()} ({t.fiat_currency}) via{" "}
+                  <span className="inline-flex items-center gap-1">
+                    <PaymentRailIcon railKey={railKeyForMethod(t.payment_method ?? "")} className="size-3.5" />
+                    {t.payment_method}
+                  </span>
+                </div>
+                {t.fee_amount > 0 ? (
+                  <p className="text-xs font-normal opacity-90">
+                    Escrow fee {t.fee_amount.toFixed(8)} {t.crypto_type}
+                    {t.fee_percent != null ? ` (${t.fee_percent}%)` : ""}
+                    {isBuyer
+                      ? ` · You'll receive ${t.payout_amount.toFixed(8)} ${t.crypto_type}`
+                      : " · deducted from escrow at release"}
+                  </p>
+                ) : isBuyer ? (
+                  <p className="text-xs font-normal opacity-90">
+                    No fee — you'll receive {t.payout_amount.toFixed(8)} {t.crypto_type}
+                  </p>
+                ) : null}
               </div>
             }
           />

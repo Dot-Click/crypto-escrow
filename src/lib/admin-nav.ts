@@ -2,6 +2,7 @@ import {
   ArrowDownToLine,
   ArrowLeftRight,
   BadgeCheck,
+  Flag,
   Gavel,
   LayoutDashboard,
   MessageSquareText,
@@ -11,6 +12,7 @@ import {
 export const ADMIN_TABS = [
   { value: "overview", label: "Overview", icon: LayoutDashboard },
   { value: "disputes", label: "Disputes", icon: Gavel },
+  { value: "reports", label: "Reports", icon: Flag },
   { value: "trades", label: "All trades", icon: ArrowLeftRight },
   { value: "deposits", label: "Deposits", icon: ArrowDownToLine },
   { value: "verification", label: "Verification", icon: BadgeCheck },

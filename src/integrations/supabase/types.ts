@@ -928,6 +928,54 @@ export type Database = {
           },
         ]
       }
+      trade_reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string
+          status: Database["public"]["Enums"]["trade_report_status"]
+          trade_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          reporter_id: string
+          status?: Database["public"]["Enums"]["trade_report_status"]
+          trade_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          status?: Database["public"]["Enums"]["trade_report_status"]
+          trade_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_reports_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trades: {
         Row: {
           amount: number
@@ -941,6 +989,7 @@ export type Database = {
           fiat_currency: string
           id: string
           listing_id: string | null
+          payment_claimed_at: string | null
           payment_method: string | null
           payout_amount: number
           price: number
@@ -960,6 +1009,7 @@ export type Database = {
           fiat_currency?: string
           id?: string
           listing_id?: string | null
+          payment_claimed_at?: string | null
           payment_method?: string | null
           payout_amount: number
           price: number
@@ -979,6 +1029,7 @@ export type Database = {
           fiat_currency?: string
           id?: string
           listing_id?: string | null
+          payment_claimed_at?: string | null
           payment_method?: string | null
           payout_amount?: number
           price?: number
@@ -1396,6 +1447,7 @@ export type Database = {
       listing_side: "sell" | "buy"
       listing_status: "active" | "paused" | "completed"
       profile_role: "buyer" | "seller" | "both"
+      trade_report_status: "open" | "reviewed"
       trade_status:
         | "pending"
         | "escrow_funded"
@@ -1545,6 +1597,7 @@ export const Constants = {
       listing_side: ["sell", "buy"],
       listing_status: ["active", "paused", "completed"],
       profile_role: ["buyer", "seller", "both"],
+      trade_report_status: ["open", "reviewed"],
       trade_status: [
         "pending",
         "escrow_funded",

@@ -268,6 +268,48 @@ export const reviewVerificationRequest = createServerFn({ method: "POST" })
     return { status: data.approve ? "approved" : "rejected" };
   });
 
+export const listTradeReports = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { status?: "open" | "reviewed" | "all" }) => input ?? {})
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let query = supabaseAdmin
+      .from("trade_reports")
+      .select(
+        "id, trade_id, reason, status, admin_notes, created_at, reporter_id, reporter:profiles!trade_reports_reporter_id_fkey(display_name, email), trade:trades!trade_reports_trade_id_fkey(crypto_type, amount, price, fiat_currency, status, buyer:profiles!trades_buyer_id_fkey(display_name), seller:profiles!trades_seller_id_fkey(display_name))",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (data.status && data.status !== "all") query = query.eq("status", data.status);
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const markTradeReportReviewed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reportId: string; adminNotes?: string }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(input.reportId)) throw new Error("Invalid report id");
+    if (input.adminNotes && input.adminNotes.length > 2000) throw new Error("Note is too long");
+    return { reportId: input.reportId, adminNotes: input.adminNotes?.trim() || null };
+  })
+  .handler(async ({ data, context }) => {
+    const { assertAdmin } = await import("@/lib/admin.server");
+    await assertAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error } = await supabaseAdmin
+      .from("trade_reports")
+      .update({ status: "reviewed", admin_notes: data.adminNotes })
+      .eq("id", data.reportId);
+    if (error) throw new Error(error.message);
+    return { status: "reviewed" as const };
+  });
+
 export const listFeedback = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

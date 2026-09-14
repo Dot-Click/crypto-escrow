@@ -39,7 +39,7 @@ export const getTrade = createServerFn({ method: "POST" })
     const { data: trade, error } = await supabaseAdmin
       .from("trades")
       .select(
-        "id, listing_id, crypto_type, amount, price, fee_amount, payout_amount, expires_at, fiat_currency, payment_method, status, created_at, updated_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
+        "id, listing_id, crypto_type, amount, price, fee_amount, fee_percent, payout_amount, expires_at, fiat_currency, payment_method, status, created_at, updated_at, payment_claimed_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name, trades_completed), seller:profiles!trades_seller_id_fkey(display_name, trades_completed)",
       )
       .eq("id", data.tradeId)
       .maybeSingle();
@@ -75,6 +75,7 @@ export const getTrade = createServerFn({ method: "POST" })
         amount: Number(trade.amount),
         price: Number(trade.price),
         fee_amount: Number(trade.fee_amount),
+        fee_percent: trade.fee_percent == null ? null : Number(trade.fee_percent),
         payout_amount: Number(trade.payout_amount),
       },
       terms,

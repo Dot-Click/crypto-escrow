@@ -10,6 +10,7 @@ import {
   BadgeCheck,
   BarChart3,
   ChevronDown,
+  Flag,
   Gavel,
   Inbox,
   LayoutDashboard,
@@ -34,7 +35,9 @@ import {
   listDisputes,
   listFeedback,
   listMasterWallets,
+  listTradeReports,
   listVerificationRequests,
+  markTradeReportReviewed,
   rejectDepositClaim,
   resolveDispute,
   reviewVerificationRequest,
@@ -180,6 +183,9 @@ function AdminPage() {
         </TabsContent>
         <TabsContent value="disputes" className="mt-0">
           <Disputes />
+        </TabsContent>
+        <TabsContent value="reports" className="mt-0">
+          <TradeReports />
         </TabsContent>
         <TabsContent value="trades" className="mt-0">
           <AllTrades />
@@ -504,6 +510,143 @@ function DisputeCard({ dispute }: { dispute: DisputeRow }) {
               onClick={() => mutation.mutate()}
             >
               {mutation.isPending ? "Resolving…" : "Resolve dispute"}
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+type TradeReportRow = Awaited<ReturnType<typeof listTradeReports>>[number];
+
+function TradeReports() {
+  const queryClient = useQueryClient();
+  const fetchReports = useServerFn(listTradeReports);
+  const [status, setStatus] = useState<"open" | "reviewed" | "all">("open");
+  const q = useQuery({
+    queryKey: ["admin", "trade-reports", status],
+    queryFn: () => fetchReports({ data: { status } }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        icon={Flag}
+        title="Reports"
+        description="Chargebacks, abusive behavior and other complaints — separate from disputes, doesn't affect escrow."
+      />
+
+      <div className="flex items-center gap-3">
+        <Label className="text-sm">Status</Label>
+        <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
+          <SelectTrigger className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="reviewed">Reviewed</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {q.isLoading ? (
+        <LoadingState label="Loading reports…" />
+      ) : (q.data ?? []).length === 0 ? (
+        <EmptyState icon={Flag} message="No reports in this view." />
+      ) : (
+        <div className="space-y-3">
+          {(q.data ?? []).map((r) => (
+            <TradeReportCard
+              key={r.id}
+              report={r}
+              onChanged={() => void queryClient.invalidateQueries({ queryKey: ["admin", "trade-reports"] })}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TradeReportCard({ report, onChanged }: { report: TradeReportRow; onChanged: () => void }) {
+  const review = useServerFn(markTradeReportReviewed);
+  const [adminNotes, setAdminNotes] = useState("");
+
+  const reporter = report.reporter as { display_name: string; email: string } | null;
+  const trade = report.trade as unknown as {
+    crypto_type: string;
+    amount: number;
+    price: number;
+    fiat_currency: string;
+    status: string;
+    buyer: { display_name: string } | null;
+    seller: { display_name: string } | null;
+  } | null;
+
+  const mutation = useMutation({
+    mutationFn: () => review({ data: { reportId: report.id, adminNotes } }),
+    onSuccess: () => {
+      toast.success("Report marked reviewed");
+      setAdminNotes("");
+      onChanged();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className={accentBorder(report.status === "open" ? "secondary" : "default")}>
+      <CardContent className="space-y-3 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={report.status === "open" ? "secondary" : "default"}>{report.status}</Badge>
+          {trade ? (
+            <>
+              <span className="mono flex items-center gap-1.5 text-sm font-semibold">
+                <CoinIcon code={trade.crypto_type} className="size-4" />
+                {Number(trade.amount)} {trade.crypto_type}
+              </span>
+              <Badge variant={statusVariant(trade.status)}>
+                {TRADE_STATUS_LABEL[trade.status as TradeStatus] ?? trade.status}
+              </Badge>
+            </>
+          ) : null}
+        </div>
+
+        <div className="text-sm text-muted-foreground">
+          {trade ? (
+            <p>
+              Buyer {trade.buyer?.display_name ?? "—"} · Seller {trade.seller?.display_name ?? "—"}
+            </p>
+          ) : null}
+          <p className="text-xs">
+            Reported by {reporter?.display_name ?? "—"} ({reporter?.email ?? "—"}) on{" "}
+            {new Date(report.created_at).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-sm">{report.reason}</div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/trades/$tradeId" params={{ tradeId: report.trade_id }}>
+              Open trade room
+            </Link>
+          </Button>
+        </div>
+
+        {report.admin_notes ? (
+          <p className="text-xs text-muted-foreground">Note: {report.admin_notes}</p>
+        ) : null}
+
+        {report.status === "open" ? (
+          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-sm">Note (optional)</Label>
+              <Textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={2} placeholder="What you did about this" />
+            </div>
+            <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+              {mutation.isPending ? "Saving…" : "Mark reviewed"}
             </Button>
           </div>
         ) : null}

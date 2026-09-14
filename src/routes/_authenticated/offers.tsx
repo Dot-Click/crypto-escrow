@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Link2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { MIN_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
 import { CoinIcon } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
@@ -279,8 +280,8 @@ function EditOfferDialog({
       toast.error("Select at least one payment method");
       return;
     }
-    if (timeLimitEnabled && (!timeLimitMinutes || Number(timeLimitMinutes) <= 0)) {
-      toast.error("Enter a payment time limit greater than zero, or turn it off");
+    if (timeLimitEnabled && (!timeLimitMinutes || Number(timeLimitMinutes) < MIN_PAYMENT_WINDOW_MINUTES)) {
+      toast.error(`Payment time limit must be at least ${MIN_PAYMENT_WINDOW_MINUTES} minutes, or turn it off`);
       return;
     }
     if (minTradesEnabled && (!minTradesRequired || Number(minTradesRequired) <= 0)) {
@@ -443,13 +444,18 @@ function EditOfferDialog({
               {timeLimitEnabled ? (
                 <div className="flex items-center gap-2">
                   <Input
+                    type="number"
                     inputMode="numeric"
+                    min={MIN_PAYMENT_WINDOW_MINUTES}
                     className="w-24"
                     value={timeLimitMinutes}
                     onChange={(e) => setTimeLimitMinutes(e.target.value)}
                   />
                   <span className="text-sm text-muted-foreground">minutes</span>
                 </div>
+              ) : null}
+              {timeLimitEnabled ? (
+                <p className="text-xs text-muted-foreground">Minimum {MIN_PAYMENT_WINDOW_MINUTES} minutes.</p>
               ) : null}
             </div>
 

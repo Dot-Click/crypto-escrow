@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { CRYPTO_TYPES } from "@/lib/constants";
+import { CRYPTO_TYPES, MIN_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
 import { currencySymbol } from "@/lib/currencies";
 import { CurrencyCombobox } from "@/components/currency-combobox";
 import { COUNTRIES } from "@/lib/countries";
@@ -230,8 +230,8 @@ function NewListing() {
 
   const submit = async () => {
     if (!user) return;
-    if (timeLimitEnabled && (!timeLimitMinutes || Number(timeLimitMinutes) <= 0)) {
-      toast.error("Enter a payment time limit greater than zero, or turn it off");
+    if (timeLimitEnabled && (!timeLimitMinutes || Number(timeLimitMinutes) < MIN_PAYMENT_WINDOW_MINUTES)) {
+      toast.error(`Payment time limit must be at least ${MIN_PAYMENT_WINDOW_MINUTES} minutes, or turn it off`);
       return;
     }
     if (minTradesEnabled && (!minTradesRequired || Number(minTradesRequired) <= 0)) {
@@ -642,7 +642,9 @@ function NewListing() {
                   {timeLimitEnabled ? (
                     <div className="flex items-center gap-2">
                       <Input
+                        type="number"
                         inputMode="numeric"
+                        min={MIN_PAYMENT_WINDOW_MINUTES}
                         className="w-24"
                         value={timeLimitMinutes}
                         onChange={(e) => setTimeLimitMinutes(e.target.value)}
@@ -653,7 +655,7 @@ function NewListing() {
                   ) : null}
                   <p className="hidden text-xs text-muted-foreground group-focus-within:block">
                     {timeLimitEnabled
-                      ? "The buyer must mark payment as sent within this window, or the trade auto-cancels and your escrow is refunded."
+                      ? `The buyer must mark payment as sent within this window, or the trade auto-cancels and your escrow is refunded. Minimum ${MIN_PAYMENT_WINDOW_MINUTES} minutes.`
                       : "No time limit — escrow stays held until the buyer pays or you cancel manually."}
                   </p>
                 </div>

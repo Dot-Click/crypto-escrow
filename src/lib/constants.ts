@@ -1,5 +1,9 @@
 export const SUPPORT_EMAIL = "support@cemp.app";
 
+/** A shorter window doesn't give a buyer a realistic chance to pay before
+ * the trade auto-cancels — see listings_payment_window_minutes_floor. */
+export const MIN_PAYMENT_WINDOW_MINUTES = 20;
+
 export const CRYPTO_TYPES = [
   { code: "BTC", label: "Bitcoin" },
   { code: "ETH", label: "Ethereum" },

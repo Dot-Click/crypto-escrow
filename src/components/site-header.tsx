@@ -141,13 +141,13 @@ export function SiteHeader() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
+                    <Link to="/traders/$userId" params={{ userId: user.id }} className="cursor-pointer">
                       <User className="size-4" /> Profile
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="size-4" /> Settings
+                    <Link to="/account" className="cursor-pointer">
+                      <Settings className="size-4" /> Account settings
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut} className="cursor-pointer">
@@ -166,11 +166,11 @@ export function SiteHeader() {
                   <nav className="mt-10 flex flex-col gap-5">
                     {links(() => setOpen(false))}
                     <Link
-                      to="/settings"
+                      to="/account"
                       onClick={() => setOpen(false)}
                       className="flex items-center gap-2 text-sm font-medium text-foreground"
                     >
-                      <Settings className="size-4" /> Settings
+                      <Settings className="size-4" /> Account settings
                     </Link>
                   </nav>
                 </SheetContent>

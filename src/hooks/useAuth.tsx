@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { touchPresence } from "@/lib/presence.functions";
+
+const PRESENCE_INTERVAL_MS = 4 * 60_000;
 
 export type Profile = {
   id: string;
@@ -74,6 +78,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  const touchPresenceFn = useServerFn(touchPresence);
+  const userId = session?.user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    void touchPresenceFn();
+    const interval = setInterval(() => void touchPresenceFn(), PRESENCE_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [userId, touchPresenceFn]);
 
   return (
     <AuthContext.Provider

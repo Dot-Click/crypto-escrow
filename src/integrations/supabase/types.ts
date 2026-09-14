@@ -751,6 +751,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bio: string | null
           closed_at: string | null
           country: string | null
           created_at: string
@@ -759,6 +760,7 @@ export type Database = {
           email_notifications: boolean
           id: string
           is_verified: boolean
+          last_seen_at: string
           login_email_verification: boolean
           referral_code: string
           referred_by: string | null
@@ -770,6 +772,7 @@ export type Database = {
           withdrawal_verification: string
         }
         Insert: {
+          bio?: string | null
           closed_at?: string | null
           country?: string | null
           created_at?: string
@@ -778,6 +781,7 @@ export type Database = {
           email_notifications?: boolean
           id: string
           is_verified?: boolean
+          last_seen_at?: string
           login_email_verification?: boolean
           referral_code?: string
           referred_by?: string | null
@@ -789,6 +793,7 @@ export type Database = {
           withdrawal_verification?: string
         }
         Update: {
+          bio?: string | null
           closed_at?: string | null
           country?: string | null
           created_at?: string
@@ -797,6 +802,7 @@ export type Database = {
           email_notifications?: boolean
           id?: string
           is_verified?: boolean
+          last_seen_at?: string
           login_email_verification?: boolean
           referral_code?: string
           referred_by?: string | null
@@ -1064,6 +1070,7 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          counterparty_id: string | null
           created_at: string
           crypto_type: string
           external_address: string | null
@@ -1079,6 +1086,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          counterparty_id?: string | null
           created_at?: string
           crypto_type: string
           external_address?: string | null
@@ -1094,6 +1102,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          counterparty_id?: string | null
           created_at?: string
           crypto_type?: string
           external_address?: string | null
@@ -1108,6 +1117,13 @@ export type Database = {
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "transactions_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "transactions_trade_id_fkey"
             columns: ["trade_id"]
@@ -1195,6 +1211,145 @@ export type Database = {
           {
             foreignKeyName: "user_deposit_addresses_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          is_positive: boolean
+          rated_user_id: string
+          rater_id: string
+          trade_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_positive: boolean
+          rated_user_id: string
+          rater_id: string
+          trade_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_positive?: boolean
+          rated_user_id?: string
+          rater_id?: string
+          trade_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_feedback_rated_user_id_fkey"
+            columns: ["rated_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_feedback_rater_id_fkey"
+            columns: ["rater_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_feedback_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "trades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_relationships: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          other_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          other_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          other_user_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_relationships_other_user_id_fkey"
+            columns: ["other_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_relationships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_reports: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          id: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          status: Database["public"]["Enums"]["trade_report_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          reason: string
+          reported_user_id: string
+          reporter_id: string
+          status?: Database["public"]["Enums"]["trade_report_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          reported_user_id?: string
+          reporter_id?: string
+          status?: Database["public"]["Enums"]["trade_report_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_reports_reported_user_id_fkey"
+            columns: ["reported_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -1419,6 +1574,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "withdrawals_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1464,6 +1626,8 @@ export type Database = {
         | "escrow_refund"
         | "swap_out"
         | "swap_in"
+        | "transfer_out"
+        | "transfer_in"
       verification_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -1615,6 +1779,8 @@ export const Constants = {
         "escrow_refund",
         "swap_out",
         "swap_in",
+        "transfer_out",
+        "transfer_in",
       ],
       verification_status: ["pending", "approved", "rejected"],
     },

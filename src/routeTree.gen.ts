@@ -19,6 +19,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TransparencyRouteImport } from './routes/transparency'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedLimitOrdersRouteImport } from './routes/_authenticated/limit-orders'
 import { Route as AuthenticatedOffersRouteImport } from './routes/_authenticated/offers'
@@ -84,6 +85,11 @@ const TransparencyRoute = TransparencyRouteImport.update({
   id: '/transparency',
   path: '/transparency',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/offers': typeof AuthenticatedOffersRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/offers': typeof AuthenticatedOffersRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/transparency': typeof TransparencyRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/limit-orders': typeof AuthenticatedLimitOrdersRoute
   '/_authenticated/offers': typeof AuthenticatedOffersRoute
@@ -269,6 +278,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/transparency'
+    | '/account'
     | '/admin'
     | '/limit-orders'
     | '/offers'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/transparency'
+    | '/account'
     | '/admin'
     | '/limit-orders'
     | '/offers'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/transparency'
+    | '/_authenticated/account'
     | '/_authenticated/admin'
     | '/_authenticated/limit-orders'
     | '/_authenticated/offers'
@@ -433,6 +445,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/transparency'
       preLoaderRoute: typeof TransparencyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
@@ -550,6 +569,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedLimitOrdersRoute: typeof AuthenticatedLimitOrdersRoute
   AuthenticatedOffersRoute: typeof AuthenticatedOffersRoute
@@ -562,6 +582,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedLimitOrdersRoute: AuthenticatedLimitOrdersRoute,
   AuthenticatedOffersRoute: AuthenticatedOffersRoute,

@@ -381,6 +381,16 @@ function Marketplace() {
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
 
+        <div className="relative h-10 w-48 shrink-0">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="BTC, bank transfer…"
+            className="h-10 pl-9"
+          />
+        </div>
+
         <Select value={currency} onValueChange={setCurrency}>
           <SelectTrigger className="h-10 w-28 shrink-0">
             <SelectValue placeholder="Any Fiat" />
@@ -507,6 +517,16 @@ function Marketplace() {
           </span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
+
+        <div className="relative h-11 w-full">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="BTC, bank transfer…"
+            className="h-11 pl-9"
+          />
+        </div>
 
         <Select value={currency} onValueChange={setCurrency}>
           <SelectTrigger className="h-11">

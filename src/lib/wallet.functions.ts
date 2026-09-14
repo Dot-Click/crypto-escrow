@@ -29,7 +29,7 @@ export const getWalletOverview = createServerFn({ method: "GET" })
     const [{ data: wallets }, { data: txs }] = await Promise.all([
       supabaseAdmin
         .from("wallets")
-        .select("id, crypto_type, balance, held_balance")
+        .select("id, crypto_type, balance, held_balance, swap_locked_balance")
         .eq("user_id", userId)
         .order("crypto_type"),
       supabaseAdmin
@@ -41,11 +41,15 @@ export const getWalletOverview = createServerFn({ method: "GET" })
     ]);
 
     return {
-      wallets: (wallets ?? []).map((w) => ({
-        ...w,
-        balance: Number(w.balance),
-        held_balance: Number(w.held_balance),
-      })),
+      wallets: (wallets ?? []).map((w) => {
+        const balance = Number(w.balance);
+        const held_balance = Number(w.held_balance);
+        // Capped at what's actually free — a stale/over-restored counter
+        // (see swap.server.ts / escrow.server.ts) can never claim more of
+        // the wallet is swap-locked than is actually sitting there unheld.
+        const swap_locked_balance = Math.min(Number(w.swap_locked_balance), Math.max(0, balance - held_balance));
+        return { ...w, balance, held_balance, swap_locked_balance };
+      }),
       transactions: (txs ?? []).map((t) => ({ ...t, amount: Number(t.amount) })),
     };
   });
@@ -108,14 +112,18 @@ export const requestWithdrawal = createServerFn({ method: "POST" })
 
     const { data: wallet, error } = await supabaseAdmin
       .from("wallets")
-      .select("id, balance, held_balance")
+      .select("id, balance, held_balance, swap_locked_balance")
       .eq("user_id", context.userId)
       .eq("crypto_type", data.cryptoType)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!wallet) throw new Error("Wallet not found");
 
-    const available = Number(wallet.balance) - Number(wallet.held_balance);
+    // Funds obtained via Swap (or a filled limit order) are usable for
+    // trading only, never withdrawable — see swap.server.ts.
+    const free = Number(wallet.balance) - Number(wallet.held_balance);
+    const swapLocked = Math.min(Number(wallet.swap_locked_balance), Math.max(0, free));
+    const available = free - swapLocked;
     if (data.amount > available) {
       throw new Error(`Available balance is ${available} ${data.cryptoType}`);
     }

@@ -24,6 +24,7 @@ import {
   Wallet as WalletIcon,
   type LucideIcon,
 } from "lucide-react";
+import { ADMIN_TAB_VALUES, type AdminTabValue } from "@/lib/admin-nav";
 import {
   getAdminOverview,
   getDepositClaimLog,
@@ -59,7 +60,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -71,6 +72,13 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/admin")({
+  validateSearch: (search: Record<string, unknown>): { tab?: AdminTabValue } => {
+    const tab =
+      typeof search["tab"] === "string" && (ADMIN_TAB_VALUES as string[]).includes(search["tab"])
+        ? (search["tab"] as AdminTabValue)
+        : undefined;
+    return tab ? { tab } : {};
+  },
   head: () => ({
     meta: [
       { title: "Admin dashboard — CEMP" },
@@ -137,18 +145,10 @@ function EmptyState({ icon: Icon, message }: { icon: LucideIcon; message: string
   );
 }
 
-const ADMIN_TABS = [
-  { value: "overview", label: "Overview", icon: LayoutDashboard },
-  { value: "disputes", label: "Disputes", icon: Gavel },
-  { value: "trades", label: "All trades", icon: ArrowLeftRight },
-  { value: "deposits", label: "Deposits", icon: ArrowDownToLine },
-  { value: "verification", label: "Verification", icon: BadgeCheck },
-  { value: "feedback", label: "Feedback", icon: MessageSquareText },
-  { value: "wallets", label: "Wallet addresses", icon: WalletIcon },
-] as const;
-
 function AdminPage() {
   const { isAdmin, loading } = useAuth();
+  const { tab = "overview" } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   if (loading) return <LoadingState label="Checking access…" />;
 
@@ -171,46 +171,29 @@ function AdminPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
-      <div className="mb-6 flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <LayoutDashboard className="size-5" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Admin dashboard</h1>
-          <p className="text-sm text-muted-foreground">
-            Platform activity, escrow exposure and dispute resolution
-          </p>
-        </div>
-      </div>
-
-      <Tabs defaultValue="overview">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/60 p-1.5">
-          {ADMIN_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className="gap-1.5">
-              <tab.icon className="size-3.5" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <TabsContent value="overview" className="mt-4">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => void navigate({ search: { tab: v as AdminTabValue } })}
+      >
+        <TabsContent value="overview" className="mt-0">
           <Overview />
         </TabsContent>
-        <TabsContent value="disputes" className="mt-4">
+        <TabsContent value="disputes" className="mt-0">
           <Disputes />
         </TabsContent>
-        <TabsContent value="trades" className="mt-4">
+        <TabsContent value="trades" className="mt-0">
           <AllTrades />
         </TabsContent>
-        <TabsContent value="deposits" className="mt-4">
+        <TabsContent value="deposits" className="mt-0">
           <DepositClaims />
         </TabsContent>
-        <TabsContent value="verification" className="mt-4">
+        <TabsContent value="verification" className="mt-0">
           <VerificationRequests />
         </TabsContent>
-        <TabsContent value="feedback" className="mt-4">
+        <TabsContent value="feedback" className="mt-0">
           <Feedback />
         </TabsContent>
-        <TabsContent value="wallets" className="mt-4">
+        <TabsContent value="wallets" className="mt-0">
           <MasterWallets />
         </TabsContent>
       </Tabs>
@@ -966,12 +949,52 @@ function Feedback() {
 
 type MasterWalletRow = Awaited<ReturnType<typeof listMasterWallets>>[number];
 
+function isMainnetNetwork(network: string): boolean {
+  return network.toUpperCase().includes("MAINNET");
+}
+
+function WalletNetworkGroup({
+  title,
+  description,
+  wallets,
+  onSaved,
+}: {
+  title: string;
+  description: string;
+  wallets: MasterWalletRow[];
+  onSaved: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      {wallets.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border py-6 text-center text-xs text-muted-foreground">
+          No {title.toLowerCase()} wallets yet.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {wallets.map((w) => (
+            <MasterWalletCard key={w.id} wallet={w} onSaved={onSaved} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MasterWallets() {
   const queryClient = useQueryClient();
   const fetchWallets = useServerFn(listMasterWallets);
   const q = useQuery({ queryKey: ["admin", "master-wallets"], queryFn: () => fetchWallets() });
 
   const onSaved = () => void queryClient.invalidateQueries({ queryKey: ["admin", "master-wallets"] });
+
+  const wallets = q.data ?? [];
+  const mainnetWallets = wallets.filter((w) => isMainnetNetwork(w.network));
+  const testnetWallets = wallets.filter((w) => !isMainnetNetwork(w.network));
 
   return (
     <div className="space-y-4">
@@ -984,10 +1007,19 @@ function MasterWallets() {
       {q.isLoading ? (
         <LoadingState label="Loading wallet addresses…" />
       ) : (
-        <div className="space-y-3">
-          {(q.data ?? []).map((w) => (
-            <MasterWalletCard key={w.id} wallet={w} onSaved={onSaved} />
-          ))}
+        <div className="space-y-6">
+          <WalletNetworkGroup
+            title="Mainnet"
+            description="Live networks — real funds move on these."
+            wallets={mainnetWallets}
+            onSaved={onSaved}
+          />
+          <WalletNetworkGroup
+            title="Testnet"
+            description="Test networks — safe for the demo, no real funds."
+            wallets={testnetWallets}
+            onSaved={onSaved}
+          />
           <AddMasterWalletCard onSaved={onSaved} />
         </div>
       )}
@@ -1043,19 +1075,35 @@ function AddMasterWalletCard({ onSaved }: { onSaved: () => void }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-sm">Coin (e.g. USDT)</Label>
-            <Input value={form.cryptoType} onChange={(e) => setForm({ ...form, cryptoType: e.target.value })} />
+            <Input
+              className="bg-input"
+              value={form.cryptoType}
+              onChange={(e) => setForm({ ...form, cryptoType: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-sm">Network code (e.g. USDT_TRC20)</Label>
-            <Input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} />
+            <Input
+              className="bg-input"
+              value={form.network}
+              onChange={(e) => setForm({ ...form, network: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className="text-sm">Label (shown to users)</Label>
-            <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+            <Input
+              className="bg-input"
+              value={form.label}
+              onChange={(e) => setForm({ ...form, label: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label className="text-sm">Address</Label>
-            <Input className="mono" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Input
+              className="mono bg-input"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
           </div>
         </div>
         <div className="flex gap-2">
@@ -1095,66 +1143,94 @@ function MasterWalletCard({ wallet, onSaved }: { wallet: MasterWalletRow; onSave
   });
 
   return (
-    <Card className={cn("border-l-4", form.active ? "border-l-emerald-500" : "border-l-border")}>
+    <Card
+      className={cn(
+        "border-l-4",
+        form.active ? "border-l-emerald-500" : "border-l-border",
+        open && "sm:col-span-2",
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-muted/40"
       >
         <CoinIcon code={form.cryptoType || "?"} className="size-5 shrink-0" />
         <span className="shrink-0 font-semibold">{form.cryptoType || "—"}</span>
         <span className="mono shrink-0 text-sm text-muted-foreground">{form.network || "—"}</span>
-        <span className="mono hidden truncate text-xs text-muted-foreground sm:inline">{form.address}</span>
+        <span className="mono hidden min-w-0 truncate text-xs text-muted-foreground sm:inline">{form.address}</span>
         <Badge variant={form.active ? "default" : "secondary"} className="ml-auto shrink-0">
           {form.active ? "Active" : "Inactive"}
         </Badge>
         <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
       {open ? (
-        <CardContent className="space-y-3 border-t border-border pt-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-sm">Coin</Label>
-            <Input value={form.cryptoType} onChange={(e) => setForm({ ...form, cryptoType: e.target.value })} />
+        <CardContent className="space-y-3 border-t border-border p-3 pt-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm">Coin</Label>
+              <Input
+                className="bg-input"
+                value={form.cryptoType}
+                onChange={(e) => setForm({ ...form, cryptoType: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Network code</Label>
+              <Input
+                className="bg-input"
+                value={form.network}
+                onChange={(e) => setForm({ ...form, network: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Label (shown to users)</Label>
+              <Input
+                className="bg-input"
+                value={form.label}
+                onChange={(e) => setForm({ ...form, label: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Address</Label>
+              <Input
+                className="mono bg-input"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Token contract address (leave blank for a native coin)</Label>
+              <Input
+                className="mono bg-input"
+                value={form.tokenContractAddress}
+                onChange={(e) => setForm({ ...form, tokenContractAddress: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-sm">Warning shown in the deposit dialog</Label>
+              <Textarea
+                className="bg-input"
+                rows={2}
+                value={form.warningMessage}
+                onChange={(e) => setForm({ ...form, warningMessage: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm">Min confirmations</Label>
+              <Input
+                className="bg-input"
+                type="number"
+                min={0}
+                value={form.minConfirmations}
+                onChange={(e) => setForm({ ...form, minConfirmations: Number(e.target.value) })}
+              />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+              <Label className="text-sm">Active (visible to users)</Label>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-sm">Network code</Label>
-            <Input value={form.network} onChange={(e) => setForm({ ...form, network: e.target.value })} />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-sm">Label (shown to users)</Label>
-            <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-sm">Address</Label>
-            <Input className="mono" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-sm">Token contract address (leave blank for a native coin)</Label>
-            <Input
-              className="mono"
-              value={form.tokenContractAddress}
-              onChange={(e) => setForm({ ...form, tokenContractAddress: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-sm">Warning shown in the deposit dialog</Label>
-            <Textarea rows={2} value={form.warningMessage} onChange={(e) => setForm({ ...form, warningMessage: e.target.value })} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-sm">Min confirmations</Label>
-            <Input
-              type="number"
-              min={0}
-              value={form.minConfirmations}
-              onChange={(e) => setForm({ ...form, minConfirmations: Number(e.target.value) })}
-            />
-          </div>
-          <div className="flex items-center gap-2 pt-6">
-            <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
-            <Label className="text-sm">Active (visible to users)</Label>
-          </div>
-        </div>
           <Button size="sm" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
             {mutation.isPending ? "Saving…" : "Save"}
           </Button>

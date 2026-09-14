@@ -16,19 +16,31 @@ const SUPPORTED = new Set<string>(CRYPTO_TYPES.map((c) => c.code));
 async function ensureWallet(userId: string, cryptoType: string) {
   const { data } = await supabaseAdmin
     .from("wallets")
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .eq("user_id", userId)
     .eq("crypto_type", cryptoType)
     .maybeSingle();
-  if (data) return { ...data, balance: Number(data.balance), held_balance: Number(data.held_balance) };
+  if (data) {
+    return {
+      ...data,
+      balance: Number(data.balance),
+      held_balance: Number(data.held_balance),
+      swap_locked_balance: Number(data.swap_locked_balance),
+    };
+  }
 
   const { data: created, error } = await supabaseAdmin
     .from("wallets")
     .insert({ user_id: userId, crypto_type: cryptoType })
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .single();
   if (error) throw new Error(error.message);
-  return { ...created, balance: Number(created.balance), held_balance: Number(created.held_balance) };
+  return {
+    ...created,
+    balance: Number(created.balance),
+    held_balance: Number(created.held_balance),
+    swap_locked_balance: Number(created.swap_locked_balance),
+  };
 }
 
 export async function getSwapQuote(fromCrypto: string, toCrypto: string, fromAmount: number) {
@@ -60,10 +72,15 @@ export async function executeSwap(params: {
   }
 
   // Conditional debit — only succeeds while the free balance still covers
-  // it, same guard openTrade uses for escrow holds.
+  // it, same guard openTrade uses for escrow holds. Spending draws down any
+  // swap-restricted portion of this wallet first (floored at 0) — trading
+  // is exactly what that restriction permits.
   const { data: debited, error: debitErr } = await supabaseAdmin
     .from("wallets")
-    .update({ balance: fromWallet.balance - params.fromAmount })
+    .update({
+      balance: fromWallet.balance - params.fromAmount,
+      swap_locked_balance: Math.max(0, fromWallet.swap_locked_balance - params.fromAmount),
+    })
     .eq("id", fromWallet.id)
     .gte("balance", params.fromAmount)
     .select("id")
@@ -71,10 +88,15 @@ export async function executeSwap(params: {
   if (debitErr) throw new Error(debitErr.message);
   if (!debited) throw new Error("Your balance changed — try again.");
 
+  // The received side is entirely swap-derived, so fully restricted from
+  // withdrawal — see requestWithdrawal in wallet.functions.ts.
   const toWallet = await ensureWallet(params.userId, params.toCrypto);
   const { error: creditErr } = await supabaseAdmin
     .from("wallets")
-    .update({ balance: toWallet.balance + quote.toAmount })
+    .update({
+      balance: toWallet.balance + quote.toAmount,
+      swap_locked_balance: toWallet.swap_locked_balance + quote.toAmount,
+    })
     .eq("id", toWallet.id);
   if (creditErr) throw new Error(creditErr.message);
 

@@ -19,19 +19,31 @@ const SUPPORTED = new Set<string>(CRYPTO_TYPES.map((c) => c.code));
 async function ensureWallet(userId: string, cryptoType: string) {
   const { data } = await supabaseAdmin
     .from("wallets")
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .eq("user_id", userId)
     .eq("crypto_type", cryptoType)
     .maybeSingle();
-  if (data) return { ...data, balance: Number(data.balance), held_balance: Number(data.held_balance) };
+  if (data) {
+    return {
+      ...data,
+      balance: Number(data.balance),
+      held_balance: Number(data.held_balance),
+      swap_locked_balance: Number(data.swap_locked_balance),
+    };
+  }
 
   const { data: created, error } = await supabaseAdmin
     .from("wallets")
     .insert({ user_id: userId, crypto_type: cryptoType })
-    .select("id, balance, held_balance")
+    .select("id, balance, held_balance, swap_locked_balance")
     .single();
   if (error) throw new Error(error.message);
-  return { ...created, balance: Number(created.balance), held_balance: Number(created.held_balance) };
+  return {
+    ...created,
+    balance: Number(created.balance),
+    held_balance: Number(created.held_balance),
+    swap_locked_balance: Number(created.swap_locked_balance),
+  };
 }
 
 export async function createLimitOrder(params: {
@@ -58,6 +70,9 @@ export async function createLimitOrder(params: {
     .update({
       balance: wallet.balance - params.fromAmount,
       held_balance: wallet.held_balance + params.fromAmount,
+      // Committing to a limit order is trading — draws down any
+      // swap-restricted portion of this wallet first, same as an escrow hold.
+      swap_locked_balance: Math.max(0, wallet.swap_locked_balance - params.fromAmount),
     })
     .eq("id", wallet.id)
     .gte("balance", params.fromAmount)
@@ -97,6 +112,9 @@ export async function cancelLimitOrder(params: { userId: string; orderId: string
     .update({
       balance: wallet.balance + Number(order.from_amount),
       held_balance: Math.max(0, wallet.held_balance - Number(order.from_amount)),
+      // Restore whatever swap-restricted portion this hold may have drawn
+      // down — see the matching reduction in createLimitOrder.
+      swap_locked_balance: wallet.swap_locked_balance + Number(order.from_amount),
     })
     .eq("id", wallet.id);
 
@@ -166,10 +184,15 @@ export async function fillEligibleLimitOrders() {
         .maybeSingle();
       if (!debited) continue; // held balance inconsistent — skip, don't fill
 
+      // Filling a limit order is a swap under the hood — the received side
+      // is swap-derived, so fully restricted from withdrawal.
       const toWallet = await ensureWallet(order.user_id, order.to_crypto);
       await supabaseAdmin
         .from("wallets")
-        .update({ balance: toWallet.balance + netCrypto })
+        .update({
+          balance: toWallet.balance + netCrypto,
+          swap_locked_balance: toWallet.swap_locked_balance + netCrypto,
+        })
         .eq("id", toWallet.id);
 
       await supabaseAdmin.from("transactions").insert([

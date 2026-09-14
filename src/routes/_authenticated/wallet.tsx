@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -13,6 +13,7 @@ import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-sett
 import { CRYPTO_TYPES, TRC20_WITHDRAWAL_ENABLED, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
 import { withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
 import { CoinIcon } from "@/components/coin-icon";
+import { SwapDialog } from "@/components/swap-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,6 +86,8 @@ function WalletPage() {
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
+  const [swapDialogOpen, setSwapDialogOpen] = useState(false);
+  const [swapDefaultFrom, setSwapDefaultFrom] = useState<string | undefined>(undefined);
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [btcWithdrawMode, setBtcWithdrawMode] = useState<"onchain" | "lightning">("onchain");
   const [usdtNetwork, setUsdtNetwork] = useState<"BEP20" | "TRC20">("BEP20");
@@ -231,10 +234,15 @@ function WalletPage() {
             Escrow holds lock part of your balance until a trade resolves.
           </p>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/swap">
-            <ArrowDownUp className="size-4" /> Swap
-          </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setSwapDefaultFrom(undefined);
+            setSwapDialogOpen(true);
+          }}
+        >
+          <ArrowDownUp className="size-4" /> Swap
         </Button>
       </div>
 
@@ -308,10 +316,16 @@ function WalletPage() {
                       >
                         <ArrowDownToLine className="size-4" /> Receive
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full" asChild>
-                        <Link to="/swap" search={{ from: w.crypto_type }}>
-                          <ArrowDownUp className="size-4" /> Swap
-                        </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setSwapDefaultFrom(w.crypto_type);
+                          setSwapDialogOpen(true);
+                        }}
+                      >
+                        <ArrowDownUp className="size-4" /> Swap
                       </Button>
                     </div>
                     {w.crypto_type === "BTC" ? (
@@ -791,6 +805,8 @@ function WalletPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SwapDialog open={swapDialogOpen} onOpenChange={setSwapDialogOpen} defaultFrom={swapDefaultFrom} />
     </div>
   );
 }

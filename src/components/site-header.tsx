@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ADMIN_TABS } from "@/lib/admin-nav";
+import { SwapDialog } from "@/components/swap-dialog";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserAvatar } from "@/components/user-avatar";
@@ -47,6 +48,7 @@ export function SiteHeader() {
   const { user, profile, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
   const nav = !user ? [] : isAdmin ? ADMIN_NAV : AUTH_NAV;
 
   // The marketing hero (now at "/landing", not the "/" homepage anymore)
@@ -62,20 +64,40 @@ export function SiteHeader() {
   };
 
   const links = (onClick?: () => void) =>
-    nav.map((item) => (
-      <Link
-        key={`${item.to}:${item.label}`}
-        to={item.to}
-        search={item.search}
-        onClick={onClick}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        activeProps={{ className: "flex items-center gap-1.5 text-sm text-foreground font-medium" }}
-        activeOptions={item.strictActive ? { exact: true, includeSearch: true } : { exact: false }}
-      >
-        <item.icon className="size-4" />
-        {item.label}
-      </Link>
-    ));
+    nav.map((item) => {
+      // Swap is a modal, not a page — clicking it opens the dialog in place
+      // rather than navigating away from whatever the user was looking at.
+      if (item.to === "/swap") {
+        return (
+          <button
+            key={`${item.to}:${item.label}`}
+            type="button"
+            onClick={() => {
+              setSwapOpen(true);
+              onClick?.();
+            }}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <item.icon className="size-4" />
+            {item.label}
+          </button>
+        );
+      }
+      return (
+        <Link
+          key={`${item.to}:${item.label}`}
+          to={item.to}
+          search={item.search}
+          onClick={onClick}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          activeProps={{ className: "flex items-center gap-1.5 text-sm text-foreground font-medium" }}
+          activeOptions={item.strictActive ? { exact: true, includeSearch: true } : { exact: false }}
+        >
+          <item.icon className="size-4" />
+          {item.label}
+        </Link>
+      );
+    });
 
   return (
     <header
@@ -161,6 +183,8 @@ export function SiteHeader() {
           )}
         </div>
       </div>
+
+      <SwapDialog open={swapOpen} onOpenChange={setSwapOpen} />
     </header>
   );
 }

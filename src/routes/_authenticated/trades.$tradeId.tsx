@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, Flag, Lock, ShieldAlert, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowLeft, Copy, ExternalLink, Flag, Lock, ShieldAlert, ThumbsDown, ThumbsUp } from "lucide-react";
 import {
   cancelTrade,
   getTrade,
@@ -107,6 +107,8 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "border-border bg-muted/60 text-muted-foreground",
 };
 
+const TERMS_PREVIEW_LENGTH = 160;
+
 function TradeRoom() {
   const { tradeId } = Route.useParams();
   const { user } = useAuth();
@@ -114,6 +116,7 @@ function TradeRoom() {
   const fetchTrade = useServerFn(getTrade);
   const [reason, setReason] = useState("");
   const [disputeOpen, setDisputeOpen] = useState(false);
+  const [termsExpanded, setTermsExpanded] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
   const [feedbackIsPositive, setFeedbackIsPositive] = useState<boolean | null>(null);
@@ -311,20 +314,24 @@ function TradeRoom() {
         <div className="space-y-4 lg:overflow-y-auto lg:pr-1">
           {/* Trade status + timer */}
           <Card>
-            <CardContent className="space-y-3 py-4">
-              <div className="flex items-center gap-2">
-                <Lock className="size-4 text-primary" />
-                <p className="text-sm font-semibold">{statusLabel}</p>
-                <Badge variant="outline" className="ml-auto font-normal">
+            <CardContent className="space-y-4 py-5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Lock className="size-5 text-primary" />
+                  <p className="text-base font-semibold">{statusLabel}</p>
+                </div>
+                <Badge variant="outline" className="font-normal">
                   You are the {d.role}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2.5 text-sm">
                 <span className="text-muted-foreground">Trade time</span>
-                <ElapsedTime
-                  since={t.created_at}
-                  until={t.status === "released" || t.status === "cancelled" ? t.updated_at : undefined}
-                />
+                <span className="text-base font-semibold">
+                  <ElapsedTime
+                    since={t.created_at}
+                    until={t.status === "released" || t.status === "cancelled" ? t.updated_at : undefined}
+                  />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -332,9 +339,24 @@ function TradeRoom() {
           {/* Offer terms */}
           {d.terms ? (
             <Card>
-              <CardContent className="space-y-1.5 py-4">
-                <p className="text-sm font-medium">Offer terms</p>
-                <p className="whitespace-pre-line text-sm text-muted-foreground">{d.terms}</p>
+              <CardContent className="space-y-2 py-5">
+                <p className="text-base font-semibold">Offer terms</p>
+                <div className="rounded-md border border-border bg-background p-3">
+                  <p className="whitespace-pre-line text-sm text-muted-foreground">
+                    {termsExpanded || d.terms.length <= TERMS_PREVIEW_LENGTH
+                      ? d.terms
+                      : `${d.terms.slice(0, TERMS_PREVIEW_LENGTH)}…`}
+                  </p>
+                  {d.terms.length > TERMS_PREVIEW_LENGTH ? (
+                    <button
+                      type="button"
+                      className="mt-2 text-xs font-medium text-foreground underline underline-offset-2"
+                      onClick={() => setTermsExpanded((v) => !v)}
+                    >
+                      {termsExpanded ? "Show less" : "Show more"}
+                    </button>
+                  ) : null}
+                </div>
               </CardContent>
             </Card>
           ) : null}
@@ -342,8 +364,8 @@ function TradeRoom() {
           {/* Offer policies */}
           {d.tags && d.tags.length > 0 ? (
             <Card>
-              <CardContent className="space-y-2 py-4">
-                <p className="text-sm font-medium">Offer policies</p>
+              <CardContent className="space-y-2 py-5">
+                <p className="text-base font-semibold">Offer policies</p>
                 <div className="flex flex-wrap gap-1.5">
                   {d.tags.map((t: string) => (
                     <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
@@ -358,10 +380,10 @@ function TradeRoom() {
           {/* Payment action */}
           {active ? (
             <Card>
-              <CardContent className="space-y-3 py-4">
+              <CardContent className="space-y-4 py-5">
                 {isBuyer ? (
                   <>
-                    <p className="text-sm">
+                    <p className="text-sm leading-relaxed">
                       {t.status === "escrow_funded" ? (
                         <>
                           Make a payment of{" "}
@@ -370,14 +392,15 @@ function TradeRoom() {
                             {total.toLocaleString()} ({t.fiat_currency})
                           </span>{" "}
                           using <span className="font-semibold text-foreground">{t.payment_method}</span>{" "}
-                          and press Mark as Paid below.
+                          and press <span className="font-semibold text-foreground">Mark as Paid</span> below.
                         </>
                       ) : (
                         "You've marked this payment as sent. Waiting for the seller to confirm and release escrow."
                       )}
                     </p>
                     <Button
-                      className="w-full justify-center gap-2"
+                      size="lg"
+                      className="w-full justify-center gap-2 bg-success text-success-foreground hover:bg-success/90"
                       disabled={t.status !== "escrow_funded" || paid.isPending}
                       onClick={() => paid.mutate()}
                     >
@@ -395,7 +418,7 @@ function TradeRoom() {
                   </>
                 ) : (
                   <>
-                    <p className="text-sm">
+                    <p className="text-sm leading-relaxed">
                       {t.status === "escrow_funded" ? (
                         <>
                           Waiting for the buyer to send{" "}
@@ -410,6 +433,7 @@ function TradeRoom() {
                       )}
                     </p>
                     <Button
+                      size="lg"
                       className="w-full"
                       disabled={release.isPending}
                       onClick={startRelease}
@@ -421,7 +445,8 @@ function TradeRoom() {
 
                 {isBuyer && t.status === "escrow_funded" ? (
                   <Button
-                    variant="outline"
+                    size="lg"
+                    variant="secondary"
                     className="w-full"
                     disabled={cancel.isPending}
                     onClick={() => cancel.mutate()}
@@ -433,7 +458,7 @@ function TradeRoom() {
             </Card>
           ) : (
             <Card>
-              <CardContent className="py-4 text-sm text-muted-foreground">
+              <CardContent className="py-5 text-sm text-muted-foreground">
                 This trade is {statusLabel}. No further actions.
               </CardContent>
             </Card>
@@ -523,8 +548,8 @@ function TradeRoom() {
               only while active) and Report a problem (not escrow-affecting,
               no gating, available any time — even long after completion). */}
           <Card>
-            <CardContent className="space-y-1 py-2">
-              <p className="px-1 pb-1 pt-2 text-xs font-medium text-muted-foreground">
+            <CardContent className="space-y-1 py-3">
+              <p className="px-1 pb-2 text-base font-semibold">
                 Other actions
               </p>
 
@@ -536,7 +561,9 @@ function TradeRoom() {
                     onClick={() => setDisputeOpen(!disputeOpen)}
                     aria-expanded={disputeOpen}
                   >
-                    <ShieldAlert className="size-4 text-muted-foreground" />
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <ShieldAlert className="size-4" />
+                    </span>
                     <span>
                       <span className="block text-sm font-medium">Open a dispute</span>
                       <span className="block text-xs text-muted-foreground">
@@ -590,7 +617,9 @@ function TradeRoom() {
                 onClick={() => setReportOpen(!reportOpen)}
                 aria-expanded={reportOpen}
               >
-                <Flag className="size-4 text-muted-foreground" />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Flag className="size-4" />
+                </span>
                 <span>
                   <span className="block text-sm font-medium">Report a problem</span>
                   <span className="block text-xs text-muted-foreground">
@@ -624,28 +653,41 @@ function TradeRoom() {
 
           {/* Trade information */}
           <Card>
-            <CardContent className="space-y-3 py-4 text-sm">
-              <p className="text-xs font-medium text-muted-foreground">Trade information</p>
-              <div className="space-y-3">
+            <CardContent className="space-y-4 py-5 text-sm">
+              <p className="text-base font-semibold">Trade information</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Trade ID</p>
                   <button
                     type="button"
                     onClick={copyTradeId}
-                    className="mono flex items-center gap-1 text-xs hover:text-primary"
+                    className="mono flex items-center gap-1 hover:text-primary"
                     title="Copy full trade ID"
                   >
                     #{t.id.slice(0, 8).toUpperCase()}
                     <Copy className="size-3" />
                   </button>
                 </div>
+                {t.listing_id ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Offer</p>
+                    <Link
+                      to="/listings/$id"
+                      params={{ id: t.listing_id }}
+                      className="mono flex items-center gap-1 hover:text-primary"
+                    >
+                      #{t.listing_id.slice(0, 8).toUpperCase()}
+                      <ExternalLink className="size-3" />
+                    </Link>
+                  </div>
+                ) : null}
                 <div>
                   <p className="text-xs text-muted-foreground">Trade started</p>
-                  <p>{new Date(t.created_at).toLocaleString()}</p>
+                  <p className="font-medium">{new Date(t.created_at).toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Trade completed</p>
-                  <p>
+                  <p className="font-medium">
                     {t.status === "released" || t.status === "cancelled"
                       ? new Date(t.updated_at).toLocaleString()
                       : "—"}
@@ -653,7 +695,7 @@ function TradeRoom() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Rate</p>
-                  <p className="mono flex items-center gap-1.5">
+                  <p className="mono flex items-center gap-1.5 font-medium">
                     <CoinIcon code={t.crypto_type} className="size-4" />
                     {t.amount} {t.crypto_type} ≈ {symbol}
                     {total.toLocaleString()}
@@ -661,22 +703,23 @@ function TradeRoom() {
                 </div>
                 {t.fee_amount > 0 ? (
                   <div>
-                    <p className="text-xs text-muted-foreground">Escrow fee</p>
-                    <p className="mono">
+                    <p className="text-xs text-muted-foreground">Platform fee</p>
+                    <p className="mono font-medium">
                       {t.fee_amount.toFixed(8)} {t.crypto_type}
                       {t.fee_percent != null ? (
-                        <span className="ml-1 text-xs text-muted-foreground">({t.fee_percent}%)</span>
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">({t.fee_percent}%)</span>
                       ) : null}
                     </p>
+                    <p className="text-xs text-muted-foreground">Paid by the seller, from escrow</p>
                   </div>
                 ) : null}
-                <div>
+                <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">
                     {isBuyer ? "You'll receive" : "Buyer receives"}
                   </p>
-                  <p className="mono">
+                  <p className="mono font-medium">
                     {t.payout_amount.toFixed(8)} {t.crypto_type}
-                    <span className="ml-1 text-xs text-muted-foreground">at release</span>
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">at release</span>
                   </p>
                 </div>
               </div>

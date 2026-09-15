@@ -79,10 +79,13 @@ function CountdownBadge({ expiresAt }: { expiresAt: string }) {
   );
 }
 
-/** Live elapsed hh:mm:ss (or mm:ss) since a timestamp — for the "Trade time" row. */
-function ElapsedTime({ since }: { since: string }) {
+/** Elapsed hh:mm:ss (or mm:ss) since a timestamp, for the "Trade time" row —
+ * ticks live while `until` is unset, or freezes at that fixed timestamp once
+ * the trade is done so the counter doesn't keep climbing after the fact. */
+function ElapsedTime({ since, until }: { since: string; until?: string | undefined }) {
   const now = useTicking();
-  const totalSeconds = Math.max(0, Math.floor((now - new Date(since).getTime()) / 1000));
+  const end = until ? new Date(until).getTime() : now;
+  const totalSeconds = Math.max(0, Math.floor((end - new Date(since).getTime()) / 1000));
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
@@ -318,7 +321,10 @@ function TradeRoom() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Trade time</span>
-                <ElapsedTime since={t.created_at} />
+                <ElapsedTime
+                  since={t.created_at}
+                  until={t.status === "released" || t.status === "cancelled" ? t.updated_at : undefined}
+                />
               </div>
             </CardContent>
           </Card>
@@ -714,7 +720,6 @@ function TradeRoom() {
             counterpartyName={counterparty?.display_name ?? "Trader"}
             sellerName={t.seller?.display_name ?? "Seller"}
             paymentDetails={paymentDetails.data ?? null}
-            disabled={!active && t.status !== "disputed"}
             hideHeader
             className="flex h-[32rem] flex-col lg:h-full lg:min-h-0 lg:flex-1"
             banner={

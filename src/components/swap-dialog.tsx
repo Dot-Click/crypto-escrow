@@ -92,6 +92,12 @@ export function SwapDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          <p className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+            Just a quick note regarding your swapped balance: you can use it for trades on our
+            platform, but it cannot be withdrawn or sent to other users because we are not a
+            crypto exchange. If you wish to withdraw, please convert the amount back to the
+            original cryptocurrency first.
+          </p>
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label>From</Label>

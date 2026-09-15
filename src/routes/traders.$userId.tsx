@@ -14,6 +14,8 @@ import {
   ThumbsDown,
   ThumbsUp,
   Users,
+  UserPlus,
+  UserX,
 } from "lucide-react";
 import { getTraderProfile } from "@/lib/trader-profile.functions";
 import { getUserFeedback } from "@/lib/user-feedback.functions";
@@ -56,7 +58,6 @@ function TraderProfilePage() {
   const [offersSide, setOffersSide] = useState<"buy" | "sell">("buy");
   const [sendOpen, setSendOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [showMore, setShowMore] = useState(false);
 
   const fetchProfile = useServerFn(getTraderProfile);
   const profile = useQuery({
@@ -181,72 +182,79 @@ function TraderProfilePage() {
         </Card>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
-        <div className="bg-card p-4">
-          <div className="mono flex items-center gap-1.5 text-2xl font-semibold tabular-nums text-emerald-600">
-            <ThumbsUp className="size-4" /> {p.positiveFeedback}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">Positive feedback</div>
-        </div>
-        <div className="bg-card p-4">
-          <div className="mono flex items-center gap-1.5 text-2xl font-semibold tabular-nums text-destructive">
-            <ThumbsDown className="size-4" /> {p.negativeFeedback}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">Negative feedback</div>
-        </div>
-        <div className="col-span-2 bg-card p-4 sm:col-span-1">
-          <div className="mono text-2xl font-semibold tabular-nums">
-            {p.tradeSuccessRate30d != null ? `${p.tradeSuccessRate30d}%` : "—"}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">Trade success (30d)</div>
-        </div>
-      </div>
-
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="secondary" className="gap-1">
-            <Users className="size-3.5" /> Trusted by: {p.trustedByCount}
-          </Badge>
-          <Badge variant="secondary">Blocked by: {p.blockedByCount}</Badge>
-          <Badge variant="secondary">Has blocked: {p.hasBlockedCount}</Badge>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setShowMore((v) => !v)}>
-            {showMore ? "View less" : "View more"}
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          {!isSelf && viewer ? (
-            <>
-              <Button
-                variant={relationship.data?.isTrusted ? "default" : "outline"}
-                size="sm"
-                className="gap-1.5"
-                disabled={trustMutation.isPending}
-                onClick={() => trustMutation.mutate(!relationship.data?.isTrusted)}
-              >
-                <ShieldCheck className="size-4" />
-                {relationship.data?.isTrusted ? "Trusted" : "Trust"}
-              </Button>
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {showMore ? (
-        <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border">
-          <div className="bg-card p-4">
-            <div className="mono text-lg font-semibold tabular-nums">
-              {p.avgPaymentMinutes30d != null ? `${p.avgPaymentMinutes30d} min` : "—"}
+      <Card className="mb-6">
+        <CardContent className="space-y-3 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-wrap gap-8">
+              <div>
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  Positive feedback <ThumbsUp className="size-3.5 text-emerald-600" />
+                </p>
+                <p className="mono text-2xl font-semibold tabular-nums text-emerald-600">+{p.positiveFeedback}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  Negative feedback <ThumbsDown className="size-3.5 text-destructive" />
+                </p>
+                <p className="mono text-2xl font-semibold tabular-nums text-destructive">−{p.negativeFeedback}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Trades success (30d)</p>
+                <p className="mono text-2xl font-semibold tabular-nums">
+                  {p.tradeSuccessRate30d != null ? `${p.tradeSuccessRate30d}%` : "—"}
+                </p>
+              </div>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">Avg payment (30d)</div>
-          </div>
-          <div className="bg-card p-4">
-            <div className="mono text-lg font-semibold tabular-nums">
-              {p.avgReleaseMinutes30d != null ? `${p.avgReleaseMinutes30d} min` : "—"}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <UserPlus className="size-3.5" /> Trusted by: {p.trustedByCount}
+              </Badge>
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <UserX className="size-3.5" /> Blocked by: {p.blockedByCount}
+              </Badge>
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <Users className="size-3.5" /> Has blocked: {p.hasBlockedCount}
+              </Badge>
+              {!isSelf && viewer ? (
+                <Button
+                  variant={relationship.data?.isTrusted ? "default" : "outline"}
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={trustMutation.isPending}
+                  onClick={() => trustMutation.mutate(!relationship.data?.isTrusted)}
+                >
+                  <ShieldCheck className="size-4" />
+                  {relationship.data?.isTrusted ? "Trusted" : "Trust"}
+                </Button>
+              ) : null}
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">Avg release (30d)</div>
           </div>
-        </div>
-      ) : null}
+
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-3 text-sm text-muted-foreground">
+            <span>
+              Trades released <span className="mono font-medium text-foreground">{p.tradesCompleted}</span>
+            </span>
+            <span aria-hidden="true">|</span>
+            <span>
+              Trade partners <span className="mono font-medium text-foreground">{p.uniquePartners}</span>
+            </span>
+            <span aria-hidden="true">|</span>
+            <span>
+              Avg. payment (30d){" "}
+              <span className="mono font-medium text-foreground">
+                {p.avgPaymentMinutes30d != null ? `${p.avgPaymentMinutes30d} min` : "—"}
+              </span>
+            </span>
+            <span aria-hidden="true">|</span>
+            <span>
+              Avg. release (30d){" "}
+              <span className="mono font-medium text-foreground">
+                {p.avgReleaseMinutes30d != null ? `${p.avgReleaseMinutes30d} min` : "—"}
+              </span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="offers" className="mb-6">
         <TabsList>

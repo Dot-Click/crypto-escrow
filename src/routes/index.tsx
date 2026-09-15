@@ -314,7 +314,7 @@ function Marketplace() {
           fiat, amount, create-offer, filters, refresh), matching
           SafeTheTrade's layout. Country/Tags/Sort share the same "Filters"
           sheet both bars use. */}
-      <div className="mb-4 hidden items-center gap-2 rounded-lg border border-border bg-muted p-2 lg:flex">
+      <div className="mb-4 hidden items-center gap-3 rounded-lg border border-border bg-muted p-2 lg:flex">
         <Button
           type="button"
           onClick={() => setSide("sell")}

@@ -85,6 +85,7 @@ function WalletPage() {
 
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
+  const [depositMode, setDepositMode] = useState<"onchain" | "lightning">("onchain");
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [swapDialogOpen, setSwapDialogOpen] = useState(false);
   const [swapDefaultFrom, setSwapDefaultFrom] = useState<string | undefined>(undefined);
@@ -97,7 +98,6 @@ function WalletPage() {
   const [lnWithdrawDestination, setLnWithdrawDestination] = useState("");
   const [stepUpCode, setStepUpCode] = useState("");
 
-  const [lightningOpen, setLightningOpen] = useState(false);
   const [lnAmountSats, setLnAmountSats] = useState("");
   const [lnInvoice, setLnInvoice] = useState<{
     id: string;
@@ -207,12 +207,6 @@ function WalletPage() {
     refetchInterval: 4_000,
   });
 
-  const closeLightningDialog = () => {
-    setLightningOpen(false);
-    setLnAmountSats("");
-    setLnInvoice(null);
-  };
-
   const wallets = overview.data?.wallets ?? [];
   const withdrawWallet = wallets.find((w) => w.crypto_type === withdrawCoin);
   const availableToWithdraw = withdrawWallet
@@ -290,7 +284,7 @@ function WalletPage() {
                       Available of {w.balance} {w.crypto_type} total
                       {w.swap_locked_balance > 0 ? ` · ${withdrawable} withdrawable` : ""}
                     </p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -312,31 +306,14 @@ function WalletPage() {
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => setDepositCoin(w.crypto_type)}
+                        onClick={() => {
+                          setDepositMode("onchain");
+                          setDepositCoin(w.crypto_type);
+                        }}
                       >
                         <ArrowDownToLine className="size-4" /> Receive
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          setSwapDefaultFrom(w.crypto_type);
-                          setSwapDialogOpen(true);
-                        }}
-                      >
-                        <ArrowDownUp className="size-4" /> Swap
-                      </Button>
                     </div>
-                    {w.crypto_type === "BTC" ? (
-                      <button
-                        type="button"
-                        onClick={() => setLightningOpen(true)}
-                        className="flex w-full items-center justify-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
-                      >
-                        <Zap className="size-3" /> Receive via Lightning instead
-                      </button>
-                    ) : null}
                   </CardContent>
                 </Card>
               );
@@ -634,19 +611,114 @@ function WalletPage() {
           if (!o) {
             setDepositCoin(null);
             setDepositNetwork(null);
+            setDepositMode("onchain");
+            setLnAmountSats("");
+            setLnInvoice(null);
           }
         }}
       >
         <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Deposit {depositCoin}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {depositMode === "lightning" ? <Zap className="size-4" /> : null}
+              Deposit {depositCoin}
+              {depositMode === "lightning" ? " via Lightning" : ""}
+            </DialogTitle>
             <DialogDescription>
-              Send {depositCoin} to your unique address below. Your balance updates automatically
-              once the transaction has enough confirmations on-chain.
+              {depositMode === "lightning"
+                ? "Instant BTC deposit over the Lightning Network. Pay the invoice from any Lightning wallet and your balance updates as soon as it settles."
+                : `Send ${depositCoin} to your unique address below. Your balance updates automatically once the transaction has enough confirmations on-chain.`}
             </DialogDescription>
           </DialogHeader>
 
-          {depositAddresses.isLoading ? (
+          {depositCoin === "BTC" ? (
+            <div className="flex gap-1.5 rounded-md bg-muted p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setDepositMode("onchain")}
+                className={
+                  depositMode === "onchain"
+                    ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                    : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                }
+              >
+                On-chain
+              </button>
+              <button
+                type="button"
+                onClick={() => setDepositMode("lightning")}
+                className={
+                  depositMode === "lightning"
+                    ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
+                    : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                }
+              >
+                <Zap className="mr-1 inline size-3" /> Lightning
+              </button>
+            </div>
+          ) : null}
+
+          {depositMode === "lightning" ? (
+            !lnInvoice ? (
+              <form
+                className="space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  lightningMutation.mutate();
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="ln-amount">Amount (sats)</Label>
+                  <Input
+                    id="ln-amount"
+                    inputMode="numeric"
+                    value={lnAmountSats}
+                    onChange={(e) => setLnAmountSats(e.target.value)}
+                    placeholder="50000"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={lightningMutation.isPending}>
+                  {lightningMutation.isPending ? "Creating invoice…" : "Create Lightning invoice"}
+                </Button>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {lnInvoice.status === "pending" ? (
+                  <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
+                    <QRCodeSVG value={lnInvoice.bolt11} size={200} />
+                    <p className="mono max-h-24 w-full overflow-y-auto break-all text-center text-xs">
+                      {lnInvoice.bolt11}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(lnInvoice.bolt11);
+                        toast.success("Invoice copied");
+                      }}
+                    >
+                      <Copy className="size-4" /> Copy invoice
+                    </Button>
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="size-3 animate-spin" /> Waiting for payment — {lnInvoice.amount_btc} BTC
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Expires {new Date(lnInvoice.expires_at).toLocaleTimeString()}
+                    </p>
+                  </div>
+                ) : lnInvoice.status === "settled" ? (
+                  <p className="rounded-md border border-border bg-muted/40 p-4 text-center text-sm">
+                    Paid — {lnInvoice.amount_btc} BTC credited to your wallet.
+                  </p>
+                ) : (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
+                    This invoice expired before payment arrived. Close and create a new one.
+                  </p>
+                )}
+              </div>
+            )
+          ) : depositAddresses.isLoading ? (
             <p className="text-sm text-muted-foreground">Loading your deposit address…</p>
           ) : depositAddresses.isError ? (
             <p className="text-sm text-destructive">
@@ -720,86 +792,6 @@ function WalletPage() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDepositCoin(null)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={lightningOpen} onOpenChange={(o) => (o ? setLightningOpen(true) : closeLightningDialog())}>
-        <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Zap className="size-4" /> Deposit BTC via Lightning
-            </DialogTitle>
-            <DialogDescription>
-              Instant BTC deposit over the Lightning Network. Pay the invoice from any Lightning
-              wallet and your balance updates as soon as it settles.
-            </DialogDescription>
-          </DialogHeader>
-
-          {!lnInvoice ? (
-            <form
-              className="space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                lightningMutation.mutate();
-              }}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="ln-amount">Amount (sats)</Label>
-                <Input
-                  id="ln-amount"
-                  inputMode="numeric"
-                  value={lnAmountSats}
-                  onChange={(e) => setLnAmountSats(e.target.value)}
-                  placeholder="50000"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={lightningMutation.isPending}>
-                {lightningMutation.isPending ? "Creating invoice…" : "Create Lightning invoice"}
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              {lnInvoice.status === "pending" ? (
-                <div className="flex flex-col items-center gap-3 rounded-md border border-border bg-muted/40 p-4">
-                  <QRCodeSVG value={lnInvoice.bolt11} size={200} />
-                  <p className="mono max-h-24 w-full overflow-y-auto break-all text-center text-xs">
-                    {lnInvoice.bolt11}
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      void navigator.clipboard.writeText(lnInvoice.bolt11);
-                      toast.success("Invoice copied");
-                    }}
-                  >
-                    <Copy className="size-4" /> Copy invoice
-                  </Button>
-                  <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="size-3 animate-spin" /> Waiting for payment — {lnInvoice.amount_btc} BTC
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Expires {new Date(lnInvoice.expires_at).toLocaleTimeString()}
-                  </p>
-                </div>
-              ) : lnInvoice.status === "settled" ? (
-                <p className="rounded-md border border-border bg-muted/40 p-4 text-center text-sm">
-                  Paid — {lnInvoice.amount_btc} BTC credited to your wallet.
-                </p>
-              ) : (
-                <p className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-center text-sm text-destructive">
-                  This invoice expired before payment arrived. Close and create a new one.
-                </p>
-              )}
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={closeLightningDialog}>
               Close
             </Button>
           </DialogFooter>

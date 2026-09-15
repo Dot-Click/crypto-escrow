@@ -176,6 +176,20 @@
 
 @utility panel {
   background-color: var(--color-card);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   border-radius: var(--radius-lg);
+}
+
+/* Bump every element using Tailwind's plain border utility (cards, inputs,
+   dropdowns, dividers, dialogs) from the default hairline to a clearly
+   visible "medium" weight. Written outside any @layer/@utility block so it
+   always wins over the generated utility, regardless of source order. */
+.border,
+.border-t,
+.border-b,
+.border-l,
+.border-r,
+.border-x,
+.border-y {
+  border-width: 2px;
 }

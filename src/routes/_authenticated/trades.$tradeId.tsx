@@ -107,6 +107,18 @@ const STATUS_TONE: Record<string, string> = {
   cancelled: "border-border bg-muted/60 text-muted-foreground",
 };
 
+// Same tinted border/background per status as STATUS_TONE, but without a
+// colored text-* — the trade-summary banner reads better with plain white
+// text on the tint than with the status color itself.
+const STATUS_BANNER_TONE: Record<string, string> = {
+  pending: "border-border bg-muted/60",
+  escrow_funded: "border-primary/30 bg-primary/10",
+  payment_claimed: "border-warning/30 bg-warning/10",
+  released: "border-success/30 bg-success/10",
+  disputed: "border-destructive/30 bg-destructive/10",
+  cancelled: "border-border bg-muted/60",
+};
+
 const TERMS_PREVIEW_LENGTH = 160;
 
 function TradeRoom() {
@@ -296,6 +308,7 @@ function TradeRoom() {
 
   const statusLabel = TRADE_STATUS_LABEL[t.status as TradeStatus] ?? t.status;
   const statusTone = STATUS_TONE[t.status] ?? STATUS_TONE["pending"];
+  const statusBannerTone = STATUS_BANNER_TONE[t.status] ?? STATUS_BANNER_TONE["pending"];
 
   return (
     <div className="mx-auto flex w-full max-w-[1400px] flex-col px-4 py-6 lg:h-[calc(100dvh-3.5rem)]">
@@ -766,7 +779,7 @@ function TradeRoom() {
             hideHeader
             className="flex h-[32rem] flex-col lg:h-full lg:min-h-0 lg:flex-1"
             banner={
-              <div className={`flex shrink-0 flex-col gap-1 px-4 py-2.5 text-sm font-medium ${statusTone}`}>
+              <div className={`flex shrink-0 flex-col gap-1 px-4 py-2.5 text-sm font-medium text-foreground ${statusBannerTone}`}>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <CoinIcon code={t.crypto_type} className="size-4" />
                   <span className="uppercase">{isBuyer ? "Buying" : "Selling"}</span> {t.amount}{" "}

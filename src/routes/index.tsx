@@ -289,7 +289,7 @@ function Marketplace() {
           listing cards already use, just at the currently selected
           crypto/currency (or their defaults). */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
           {side === "sell" ? "Buy" : "Sell"}{" "}
           <span className="text-primary">{crypto === "all" ? "Crypto" : COIN_FULL_NAME[crypto] ?? crypto}</span>{" "}
           with <span className="text-primary">{heroMethodText}</span>

@@ -135,6 +135,7 @@ function NewListing() {
         ? computeEffectivePrice(marketPrice, marginNum, fxRate)
         : null;
   const symbol = currencySymbol(currency);
+  const timeLimitBelowMinimum = timeLimitMinutes !== "" && Number(timeLimitMinutes) < MIN_PAYMENT_WINDOW_MINUTES;
 
   const savedMethodsFor = (m: string) => (savedMethods.data ?? []).filter((pm) => pm.method === m);
 
@@ -658,7 +659,7 @@ function NewListing() {
                         type="number"
                         inputMode="numeric"
                         min={MIN_PAYMENT_WINDOW_MINUTES}
-                        className="w-24"
+                        className={timeLimitBelowMinimum ? "w-24 border-destructive focus-visible:ring-destructive" : "w-24"}
                         value={timeLimitMinutes}
                         onChange={(e) => setTimeLimitMinutes(e.target.value)}
                         placeholder="60"
@@ -666,11 +667,18 @@ function NewListing() {
                       <span className="text-sm text-muted-foreground">minutes</span>
                     </div>
                   ) : null}
-                  <p className="hidden text-xs text-muted-foreground group-focus-within:block">
-                    {timeLimitEnabled
-                      ? `The buyer must mark payment as sent within this window, or the trade auto-cancels and your escrow is refunded. Minimum ${MIN_PAYMENT_WINDOW_MINUTES} minutes.`
-                      : "No time limit — escrow stays held until the buyer pays or you cancel manually."}
-                  </p>
+                  {timeLimitEnabled && timeLimitBelowMinimum ? (
+                    <p className="text-xs text-destructive">
+                      Must be at least {MIN_PAYMENT_WINDOW_MINUTES} minutes — shorter windows don't give
+                      buyers a realistic chance to pay.
+                    </p>
+                  ) : (
+                    <p className="hidden text-xs text-muted-foreground group-focus-within:block">
+                      {timeLimitEnabled
+                        ? `The buyer must mark payment as sent within this window, or the trade auto-cancels and your escrow is refunded. Minimum ${MIN_PAYMENT_WINDOW_MINUTES} minutes.`
+                        : "No time limit — escrow stays held until the buyer pays or you cancel manually."}
+                    </p>
+                  )}
                 </div>
 
                 <div className="group space-y-2 rounded-md border border-border p-3">
@@ -858,7 +866,12 @@ function NewListing() {
                 Next
               </Button>
             ) : (
-              <Button size="lg" className="rounded-full px-6" disabled={busy} onClick={submit}>
+              <Button
+                size="lg"
+                className="rounded-full px-6"
+                disabled={busy || (timeLimitEnabled && timeLimitBelowMinimum)}
+                onClick={submit}
+              >
                 {busy ? "Publishing…" : "Publish offer"}
               </Button>
             )}

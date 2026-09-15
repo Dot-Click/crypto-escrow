@@ -193,6 +193,7 @@ function EditOfferDialog({
   const [maxAmount, setMaxAmount] = useState("");
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState("60");
+  const timeLimitBelowMinimum = timeLimitMinutes !== "" && Number(timeLimitMinutes) < MIN_PAYMENT_WINDOW_MINUTES;
   const [minTradesEnabled, setMinTradesEnabled] = useState(false);
   const [minTradesRequired, setMinTradesRequired] = useState("3");
   const [blockedCountries, setBlockedCountries] = useState<string[]>([]);
@@ -447,7 +448,7 @@ function EditOfferDialog({
                     type="number"
                     inputMode="numeric"
                     min={MIN_PAYMENT_WINDOW_MINUTES}
-                    className="w-24"
+                    className={timeLimitBelowMinimum ? "w-24 border-destructive focus-visible:ring-destructive" : "w-24"}
                     value={timeLimitMinutes}
                     onChange={(e) => setTimeLimitMinutes(e.target.value)}
                   />
@@ -455,7 +456,14 @@ function EditOfferDialog({
                 </div>
               ) : null}
               {timeLimitEnabled ? (
-                <p className="text-xs text-muted-foreground">Minimum {MIN_PAYMENT_WINDOW_MINUTES} minutes.</p>
+                timeLimitBelowMinimum ? (
+                  <p className="text-xs text-destructive">
+                    Must be at least {MIN_PAYMENT_WINDOW_MINUTES} minutes — shorter windows don't give
+                    buyers a realistic chance to pay.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Minimum {MIN_PAYMENT_WINDOW_MINUTES} minutes.</p>
+                )
               ) : null}
             </div>
 
@@ -529,7 +537,7 @@ function EditOfferDialog({
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={busy} onClick={save}>
+          <Button disabled={busy || (timeLimitEnabled && timeLimitBelowMinimum)} onClick={save}>
             {busy ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

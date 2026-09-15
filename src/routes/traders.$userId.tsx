@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { getTraderProfile } from "@/lib/trader-profile.functions";
 import { getUserFeedback } from "@/lib/user-feedback.functions";
-import { getViewerRelationship, setTrust } from "@/lib/user-relationships.functions";
+import { getViewerRelationship, setBlock, setTrust } from "@/lib/user-relationships.functions";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { currencySymbol } from "@/lib/currencies";
 import { useAuth } from "@/hooks/useAuth";
@@ -90,6 +90,16 @@ function TraderProfilePage() {
   const setTrustFn = useServerFn(setTrust);
   const trustMutation = useMutation({
     mutationFn: (trusted: boolean) => setTrustFn({ data: { targetUserId: userId, trusted } }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["viewer-relationship", userId] });
+      void qc.invalidateQueries({ queryKey: ["trader-profile", userId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setBlockFn = useServerFn(setBlock);
+  const blockMutation = useMutation({
+    mutationFn: (blocked: boolean) => setBlockFn({ data: { targetUserId: userId, blocked } }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["viewer-relationship", userId] });
       void qc.invalidateQueries({ queryKey: ["trader-profile", userId] });
@@ -226,16 +236,33 @@ function TraderProfilePage() {
                 <Users className="size-3.5" /> Has blocked: {p.hasBlockedCount}
               </Badge>
               {!isSelf && viewer ? (
-                <Button
-                  variant={relationship.data?.isTrusted ? "default" : "outline"}
-                  size="sm"
-                  className="gap-1.5"
-                  disabled={trustMutation.isPending}
-                  onClick={() => trustMutation.mutate(!relationship.data?.isTrusted)}
-                >
-                  <ShieldCheck className="size-4" />
-                  {relationship.data?.isTrusted ? "Trusted" : "Trust"}
-                </Button>
+                <>
+                  <Button
+                    variant={relationship.data?.isTrusted ? "default" : "outline"}
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={trustMutation.isPending}
+                    onClick={() => trustMutation.mutate(!relationship.data?.isTrusted)}
+                  >
+                    <ShieldCheck className="size-4" />
+                    {relationship.data?.isTrusted ? "Trusted" : "Trust"}
+                  </Button>
+                  <Button
+                    variant={relationship.data?.isBlocked ? "destructive" : "outline"}
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={blockMutation.isPending || (!relationship.data?.canBlock && !relationship.data?.isBlocked)}
+                    title={
+                      !relationship.data?.canBlock && !relationship.data?.isBlocked
+                        ? "You can only block someone you've traded with"
+                        : undefined
+                    }
+                    onClick={() => blockMutation.mutate(!relationship.data?.isBlocked)}
+                  >
+                    <UserX className="size-4" />
+                    {relationship.data?.isBlocked ? "Blocked" : "Block"}
+                  </Button>
+                </>
               ) : null}
             </div>
           </div>

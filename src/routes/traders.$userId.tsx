@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import {
   BadgeCheck,
   Flag,
+  Pencil,
+  Plus,
   Send,
   Share2,
   ShieldCheck,
@@ -109,57 +111,75 @@ function TraderProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-10">
-      <Card className="mb-6">
-        <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <UserAvatar userId={p.id} displayName={p.displayName} className="size-14 shrink-0 text-lg" />
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold">{p.displayName}</h1>
-                <TraderLevelBadge tradesCompleted={p.tradesCompleted} />
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <span className={p.isOnline ? "size-1.5 rounded-full bg-emerald-500" : "size-1.5 rounded-full bg-muted-foreground/40"} />
-                  {p.isOnline ? "Active now" : `Last seen ${formatRelative(p.lastSeenAt)}`}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">Joined {formatDate(p.memberSince)}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                <Badge variant="outline" className={p.isEmailVerified ? "gap-1 border-primary/40 text-primary" : "gap-1 text-muted-foreground"}>
-                  <BadgeCheck className="size-3.5" /> Email {p.isEmailVerified ? "verified" : "unverified"}
-                </Badge>
-                <Badge variant="outline" className={p.isVerified ? "gap-1 border-primary/40 text-primary" : "gap-1 text-muted-foreground"}>
-                  <BadgeCheck className="size-3.5" /> ID {p.isVerified ? "verified" : "unverified"}
-                </Badge>
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
+        <Card>
+          <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <UserAvatar userId={p.id} displayName={p.displayName} className="size-14 shrink-0 text-lg" />
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-semibold">{p.displayName}</h1>
+                  <TraderLevelBadge tradesCompleted={p.tradesCompleted} />
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className={p.isOnline ? "size-1.5 rounded-full bg-emerald-500" : "size-1.5 rounded-full bg-muted-foreground/40"} />
+                    {p.isOnline ? "Active now" : `Last seen ${formatRelative(p.lastSeenAt)}`}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">Joined {formatDate(p.memberSince)}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                  <Badge variant="outline" className={p.isEmailVerified ? "gap-1 border-primary/40 text-primary" : "gap-1 text-muted-foreground"}>
+                    <BadgeCheck className="size-3.5" /> Email {p.isEmailVerified ? "verified" : "unverified"}
+                  </Badge>
+                  <Badge variant="outline" className={p.isVerified ? "gap-1 border-primary/40 text-primary" : "gap-1 text-muted-foreground"}>
+                    <BadgeCheck className="size-3.5" /> ID {p.isVerified ? "verified" : "unverified"}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {isSelf ? (
-              <Button variant="outline" asChild>
-                <Link to="/account">Edit profile</Link>
-              </Button>
-            ) : (
-              <>
-                <Button className="gap-1.5" onClick={() => setSendOpen(true)}>
-                  <Send className="size-4" /> Send crypto
-                </Button>
-                <Button variant="outline" className="gap-1.5" onClick={shareProfile}>
-                  <Share2 className="size-4" /> Share profile
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex flex-wrap gap-2">
+              {isSelf ? (
+                <>
+                  <Button className="gap-1.5" asChild>
+                    <Link to="/listings/new">
+                      <Plus className="size-4" /> Create offer
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" asChild>
+                    <Link to="/account">
+                      <Pencil className="size-4" /> Edit profile
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={shareProfile}>
+                    <Share2 className="size-4" /> Share profile
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button className="gap-1.5" onClick={() => setSendOpen(true)}>
+                    <Send className="size-4" /> Send crypto
+                  </Button>
+                  <Button variant="outline" className="gap-1.5" onClick={shareProfile}>
+                    <Share2 className="size-4" /> Share profile
+                  </Button>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-      <Card className="mb-6">
-        <CardContent className="py-5">
-          <p className="mb-1 text-sm font-medium">Bio</p>
-          <p className="text-sm text-muted-foreground">
-            {p.bio || `${isSelf ? "You haven't" : "This user hasn't"} added a bio yet.`}
-          </p>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardContent className="flex h-full flex-col items-center justify-center gap-2 py-5 text-center">
+            <p className="text-sm font-medium">{p.bio || `${isSelf ? "You haven't" : "This user hasn't"} added a bio yet.`}</p>
+            {isSelf ? (
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <Link to="/account">
+                  <Pencil className="size-3.5" /> Edit
+                </Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3">
         <div className="bg-card p-4">

@@ -108,10 +108,7 @@ export function SwapDialog({
             <div className="flex gap-2">
               <Select value={fromCrypto} onValueChange={setFromCrypto}>
                 <SelectTrigger className="w-32 shrink-0">
-                  <span className="flex items-center gap-2">
-                    <CoinIcon code={fromCrypto} className="size-4" />
-                    <SelectValue />
-                  </span>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {CRYPTO_TYPES.map((c) => (
@@ -156,10 +153,7 @@ export function SwapDialog({
             <div className="flex gap-2">
               <Select value={toCrypto} onValueChange={setToCrypto}>
                 <SelectTrigger className="w-32 shrink-0">
-                  <span className="flex items-center gap-2">
-                    <CoinIcon code={toCrypto} className="size-4" />
-                    <SelectValue />
-                  </span>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {CRYPTO_TYPES.map((c) => (

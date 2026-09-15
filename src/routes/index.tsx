@@ -340,13 +340,15 @@ function Marketplace() {
 
         <Select value={crypto} onValueChange={setCrypto}>
           <SelectTrigger className="h-10 w-40 shrink-0">
-            <span className="flex min-w-0 items-center gap-2 truncate">
-              <Layers className="size-4 shrink-0 text-muted-foreground" />
-              <SelectValue placeholder="All crypto" />
-            </span>
+            <SelectValue placeholder="All crypto" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All crypto</SelectItem>
+            <SelectItem value="all">
+              <span className="flex items-center gap-2">
+                <Layers className="size-4 shrink-0 text-muted-foreground" />
+                All crypto
+              </span>
+            </SelectItem>
             {CRYPTO_TYPES.map((c) => (
               <SelectItem key={c.code} value={c.code}>
                 <span className="flex items-center gap-2">
@@ -477,13 +479,15 @@ function Marketplace() {
 
         <Select value={crypto} onValueChange={setCrypto}>
           <SelectTrigger className="h-11">
-            <span className="flex min-w-0 items-center gap-2 truncate">
-              <Layers className="size-4 shrink-0 text-muted-foreground" />
-              <SelectValue placeholder="All crypto" />
-            </span>
+            <SelectValue placeholder="All crypto" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All crypto</SelectItem>
+            <SelectItem value="all">
+              <span className="flex items-center gap-2">
+                <Layers className="size-4 shrink-0 text-muted-foreground" />
+                All crypto
+              </span>
+            </SelectItem>
             {CRYPTO_TYPES.map((c) => (
               <SelectItem key={c.code} value={c.code}>
                 <span className="flex items-center gap-2">

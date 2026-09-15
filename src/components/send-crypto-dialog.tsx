@@ -88,10 +88,7 @@ export function SendCryptoDialog({
             <div className="flex gap-2">
               <Select value={cryptoType} onValueChange={setCryptoType}>
                 <SelectTrigger className="w-36 shrink-0">
-                  <span className="flex items-center gap-2">
-                    <CoinIcon code={cryptoType} className="size-4" />
-                    <SelectValue />
-                  </span>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {CRYPTO_TYPES.map((c) => (

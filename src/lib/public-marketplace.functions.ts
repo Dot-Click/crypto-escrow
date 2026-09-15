@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getTraderReputationStats } from "@/lib/trader-reputation.server";
 
 /**
  * Public, unauthenticated marketplace feed — same spirit as
@@ -73,5 +74,8 @@ export const getPublicListing = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!listing) throw new Error("This offer is no longer available");
-    return listing;
+
+    const seller = await getTraderReputationStats(supabaseAdmin, listing.seller_id);
+
+    return { ...listing, seller };
   });

@@ -34,7 +34,7 @@ import { PaymentRailIcon } from "@/components/payment-rail-icon";
 import { CRYPTO_TYPES } from "@/lib/constants";
 import { CURRENCIES, currencySymbol } from "@/lib/currencies";
 import { COUNTRIES } from "@/lib/countries";
-import { OFFER_TAGS, offerTagLabel } from "@/lib/offer-tags";
+import { OFFER_TAGS } from "@/lib/offer-tags";
 import { providerForMethod, railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
 import { computeReceiveAmount, escrowFeePercentForMethod, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
@@ -753,40 +753,11 @@ function Marketplace() {
 
                     {/* Actions */}
                     <div className="ml-auto flex shrink-0 items-center gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button type="button" variant="outline" size="icon" aria-label="Offer details">
-                            <Info className="size-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-72 space-y-2 text-sm" align="end">
-                          <div className="flex flex-wrap gap-1.5">
-                            {l.accepted_payment_methods.map((m) => (
-                              <Badge key={m} variant="secondary" className="gap-1 font-normal">
-                                <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3" />
-                                {m}
-                              </Badge>
-                            ))}
-                            {(l.tags ?? []).map((t) => (
-                              <Badge key={t} variant="outline" className="font-normal text-muted-foreground">
-                                {offerTagLabel(t)}
-                              </Badge>
-                            ))}
-                          </div>
-                          {(l.blocked_countries ?? []).length > 0 ? (
-                            <p className="text-xs text-muted-foreground">
-                              Blocked:{" "}
-                              {l.blocked_countries
-                                .map((code) => COUNTRIES.find((c) => c.code === code)?.name ?? code)
-                                .join(", ")}
-                            </p>
-                          ) : null}
-                          {l.terms ? <p className="text-xs text-muted-foreground">{l.terms}</p> : null}
-                          {!l.terms && (l.blocked_countries ?? []).length === 0 && (l.tags ?? []).length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No extra details for this offer.</p>
-                          ) : null}
-                        </PopoverContent>
-                      </Popover>
+                      <Button type="button" variant="outline" size="icon" aria-label="Offer details" asChild>
+                        <Link to="/listings/$id" params={{ id: l.id }}>
+                          <Info className="size-4" />
+                        </Link>
+                      </Button>
                       <Button className="gap-1.5" onClick={() => startTrade(l)}>
                         <CoinIcon code={l.crypto_type} className="size-4" />
                         {l.side === "sell" ? "Buy" : "Sell"}

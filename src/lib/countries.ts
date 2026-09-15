@@ -75,3 +75,11 @@ export function countryName(code: string | null | undefined): string | null {
   if (!code) return null;
   return COUNTRIES.find((c) => c.code === code)?.name ?? code;
 }
+
+/** ISO alpha-2 -> flag emoji, via the regional indicator symbol trick. */
+export function countryFlagEmoji(code: string | null | undefined): string | null {
+  if (!code || code.length !== 2) return null;
+  const upper = code.toUpperCase();
+  const codePoints = [...upper].map((c) => 0x1f1e6 - 65 + c.charCodeAt(0));
+  return String.fromCodePoint(...codePoints);
+}

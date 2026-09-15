@@ -182,20 +182,27 @@ export async function openTrade(params: {
   if (listing.max_amount != null && params.fiatAmount > Number(listing.max_amount)) {
     throw new Error(`This offer covers at most $${listing.max_amount}`);
   }
-  if (listing.min_trades_required || listing.blocked_countries?.length) {
-    const { data: buyerProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("trades_completed, country")
-      .eq("id", params.userId)
-      .maybeSingle();
-    if (listing.min_trades_required && (!buyerProfile || buyerProfile.trades_completed < listing.min_trades_required)) {
-      throw new Error(
-        `This offer requires at least ${listing.min_trades_required} completed trades — you have ${buyerProfile?.trades_completed ?? 0}`,
-      );
-    }
-    if (buyerProfile?.country && listing.blocked_countries?.includes(buyerProfile.country)) {
-      throw new Error("This offer is not available to traders from your country");
-    }
+  // Every trade needs both sides' country on file — set at signup, but
+  // existing accounts may predate that requirement, so trading itself is
+  // the enforcement point for anyone who never went back and set one.
+  const [{ data: visitorProfile }, { data: sellerProfile }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("trades_completed, country").eq("id", params.userId).maybeSingle(),
+    supabaseAdmin.from("profiles").select("country").eq("id", listing.seller_id).maybeSingle(),
+  ]);
+  if (!visitorProfile?.country) {
+    throw new Error("Set your country in Account Settings before trading");
+  }
+  if (!sellerProfile?.country) {
+    throw new Error("This offer's seller hasn't set their country yet — trading is temporarily unavailable");
+  }
+
+  if (listing.min_trades_required && visitorProfile.trades_completed < listing.min_trades_required) {
+    throw new Error(
+      `This offer requires at least ${listing.min_trades_required} completed trades — you have ${visitorProfile.trades_completed}`,
+    );
+  }
+  if (listing.blocked_countries?.includes(visitorProfile.country)) {
+    throw new Error("This offer is not available to traders from your country");
   }
 
   if (listing.tags?.includes("no_vpn") && params.buyerIp) {

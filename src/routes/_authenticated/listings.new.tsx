@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -63,7 +63,7 @@ const STEPS: StepDef[] = [
 
 function NewListing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [step, setStep] = useState(0);
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [cryptoType, setCryptoType] = useState<string>("BTC");
@@ -230,6 +230,10 @@ function NewListing() {
 
   const submit = async () => {
     if (!user) return;
+    if (!profile?.country) {
+      toast.error("Set your country in Account Settings before creating an offer");
+      return;
+    }
     if (timeLimitEnabled && (!timeLimitMinutes || Number(timeLimitMinutes) < MIN_PAYMENT_WINDOW_MINUTES)) {
       toast.error(`Payment time limit must be at least ${MIN_PAYMENT_WINDOW_MINUTES} minutes, or turn it off`);
       return;
@@ -326,6 +330,15 @@ function NewListing() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 pb-24 pt-8">
+      {!profile?.country ? (
+        <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          Set your country in{" "}
+          <Link to="/account" className="underline underline-offset-2">
+            Account Settings
+          </Link>{" "}
+          before creating an offer.
+        </p>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle>Create an offer</CardTitle>

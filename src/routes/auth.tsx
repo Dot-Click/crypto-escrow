@@ -158,6 +158,10 @@ function AuthPage() {
   };
 
   const signUp = async () => {
+    if (!country) {
+      toast.error("Select your country to continue");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -376,6 +380,9 @@ function AuthPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Country</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Required — used to apply per-country trading restrictions.
+                    </p>
                     <Select value={country} onValueChange={setCountry}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select your country" />

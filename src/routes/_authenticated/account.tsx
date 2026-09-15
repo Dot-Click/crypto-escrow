@@ -287,6 +287,10 @@ function AccountPage() {
 
   const save = async () => {
     if (!user) return;
+    if (!country) {
+      toast.error("Select your country before saving");
+      return;
+    }
     if (bio.length > 500) {
       toast.error("Bio must be 500 characters or fewer");
       return;
@@ -652,7 +656,12 @@ function AccountPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Country</Label>
+                <Label>Country (required)</Label>
+                {!country ? (
+                  <p className="text-xs text-destructive">
+                    Set your country — you can't create offers or trade until you do.
+                  </p>
+                ) : null}
                 <Select value={country} onValueChange={setCountry}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select your country" />

@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 import { requestLoginStepUpCode, verifyLoginStepUpCode } from "@/lib/security-login.functions";
 import { COUNTRIES } from "@/lib/countries";
@@ -184,17 +183,6 @@ function AuthPage() {
     toast.success("Account created — you're signed in.");
   };
 
-  const google = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Google sign-in failed");
-    }
-    // On success this redirects the browser away; on return, the effect
-    // above picks up the new session.
-  };
-
   return (
     <div className="flex min-h-screen bg-background">
       {/* Left panel — illustration, hidden on mobile */}
@@ -321,6 +309,7 @@ function AuthPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                     />
                   </div>
                   <div className="space-y-2">
@@ -330,9 +319,10 @@ function AuthPage() {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
                     />
                   </div>
-                  <Button className="w-full rounded-full" disabled={busy} onClick={signIn}>
+                  <Button className="w-full rounded-md" disabled={busy} onClick={signIn}>
                     Sign in
                   </Button>
                 </TabsContent>
@@ -354,6 +344,7 @@ function AuthPage() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
                     />
                   </div>
                   <div className="space-y-2">
@@ -363,6 +354,7 @@ function AuthPage() {
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 8 characters"
                     />
                   </div>
                   <div className="space-y-2">
@@ -405,20 +397,11 @@ function AuthPage() {
                       placeholder="Friend's invite code"
                     />
                   </div>
-                  <Button className="w-full rounded-full" disabled={busy} onClick={signUp}>
+                  <Button className="w-full rounded-md" disabled={busy} onClick={signUp}>
                     Create account
                   </Button>
                 </TabsContent>
               </Tabs>
-
-              <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="h-px flex-1 bg-border" />
-                OR
-                <span className="h-px flex-1 bg-border" />
-              </div>
-              <Button variant="outline" className="w-full rounded-full" onClick={google}>
-                Continue with Google
-              </Button>
               </>
               )}
             </CardContent>

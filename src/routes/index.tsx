@@ -340,7 +340,7 @@ function Marketplace() {
 
         <Select value={crypto} onValueChange={setCrypto}>
           <SelectTrigger className="h-10 w-40 shrink-0">
-            <span className="flex items-center gap-2 truncate">
+            <span className="flex min-w-0 items-center gap-2 truncate">
               <Layers className="size-4 shrink-0 text-muted-foreground" />
               <SelectValue placeholder="All crypto" />
             </span>
@@ -363,7 +363,7 @@ function Marketplace() {
           className="flex h-10 w-44 shrink-0 items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
           onClick={() => setMethodPickerOpen(true)}
         >
-          <span className="flex items-center gap-2 truncate">
+          <span className="flex min-w-0 items-center gap-2 truncate">
             {methodFilters.length > 0 ? (
               <>
                 <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 shrink-0 text-muted-foreground" />
@@ -456,8 +456,8 @@ function Marketplace() {
             onClick={() => setSide("sell")}
             className={
               side === "sell"
-                ? "h-11 justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-                : "h-11 justify-center gap-2 bg-muted text-foreground hover:bg-muted/80"
+                ? "h-11 justify-center gap-2 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                : "h-11 justify-center gap-2 rounded-full bg-muted text-foreground hover:bg-muted/80"
             }
           >
             <ArrowDownCircle className="size-4" /> Buy
@@ -467,8 +467,8 @@ function Marketplace() {
             onClick={() => setSide("buy")}
             className={
               side === "buy"
-                ? "h-11 justify-center gap-2 bg-green-600 text-white hover:bg-green-600/90"
-                : "h-11 justify-center gap-2 bg-muted text-foreground hover:bg-muted/80"
+                ? "h-11 justify-center gap-2 rounded-full bg-green-600 text-white hover:bg-green-600/90"
+                : "h-11 justify-center gap-2 rounded-full bg-muted text-foreground hover:bg-muted/80"
             }
           >
             <ArrowUpCircle className="size-4" /> Sell
@@ -477,7 +477,7 @@ function Marketplace() {
 
         <Select value={crypto} onValueChange={setCrypto}>
           <SelectTrigger className="h-11">
-            <span className="flex items-center gap-2 truncate">
+            <span className="flex min-w-0 items-center gap-2 truncate">
               <Layers className="size-4 shrink-0 text-muted-foreground" />
               <SelectValue placeholder="All crypto" />
             </span>
@@ -500,7 +500,7 @@ function Marketplace() {
           className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 text-sm"
           onClick={() => setMethodPickerOpen(true)}
         >
-          <span className="flex items-center gap-2 truncate">
+          <span className="flex min-w-0 items-center gap-2 truncate">
             {methodFilters.length > 0 ? (
               <>
                 <PaymentRailIcon railKey={railKeyForMethod(methodFilters[0]!)} className="size-4 shrink-0 text-muted-foreground" />

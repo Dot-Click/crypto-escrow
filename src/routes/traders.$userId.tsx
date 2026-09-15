@@ -4,13 +4,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  ArrowDownCircle,
+  ArrowLeftRight,
+  ArrowUpCircle,
   BadgeCheck,
   Flag,
+  History,
+  MessagesSquare,
   Pencil,
   Plus,
   Send,
   Share2,
   ShieldCheck,
+  ShoppingBag,
   ThumbsDown,
   ThumbsUp,
   Users,
@@ -33,6 +39,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const Route = createFileRoute("/traders/$userId")({
   head: () => ({
@@ -56,6 +63,7 @@ function TraderProfilePage() {
   const isSelf = viewer?.id === userId;
 
   const [offersSide, setOffersSide] = useState<"buy" | "sell">("buy");
+  const [offersSort, setOffersSort] = useState<"price-asc" | "price-desc">("price-asc");
   const [sendOpen, setSendOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
 
@@ -108,7 +116,9 @@ function TraderProfilePage() {
   const p = profile.data;
   const buyOffers = p.activeListings.filter((l) => l.side === "buy");
   const sellOffers = p.activeListings.filter((l) => l.side === "sell");
-  const visibleOffers = offersSide === "buy" ? buyOffers : sellOffers;
+  const visibleOffers = [...(offersSide === "buy" ? buyOffers : sellOffers)].sort((a, b) =>
+    offersSort === "price-asc" ? a.price - b.price : b.price - a.price,
+  );
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-10">
@@ -256,110 +266,189 @@ function TraderProfilePage() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="offers" className="mb-6">
-        <TabsList>
-          <TabsTrigger value="offers">Offers {p.activeListings.length}</TabsTrigger>
-          <TabsTrigger value="feedback">Feedbacks {p.positiveFeedback + p.negativeFeedback}</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+      <Card className="mb-6">
+        <CardContent className="py-5">
+          <Tabs defaultValue="offers">
+            <TabsList className="mb-4 h-auto bg-transparent p-0">
+              <TabsTrigger value="offers" className="gap-1.5 data-[state=active]:bg-muted">
+                <ShoppingBag className="size-4" /> Offers
+                <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                  {p.activeListings.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="feedback" className="gap-1.5 data-[state=active]:bg-muted">
+                <MessagesSquare className="size-4" /> Feedbacks
+                <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                  {p.positiveFeedback + p.negativeFeedback}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1.5 data-[state=active]:bg-muted">
+                <History className="size-4" /> History
+              </TabsTrigger>
+            </TabsList>
 
-        <TabsContent value="offers">
-          <div className="mb-3 flex gap-2">
-            <Button size="sm" variant={offersSide === "buy" ? "default" : "outline"} onClick={() => setOffersSide("buy")}>
-              Buy {buyOffers.length}
-            </Button>
-            <Button size="sm" variant={offersSide === "sell" ? "default" : "outline"} onClick={() => setOffersSide("sell")}>
-              Sell {sellOffers.length}
-            </Button>
-          </div>
-          {visibleOffers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active offers right now.</p>
-          ) : (
-            <div className="space-y-2">
-              {visibleOffers.map((l) => (
-                <Link
-                  key={l.id}
-                  to="/listings/$id"
-                  params={{ id: l.id }}
-                  className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="space-y-1">
-                    <span className="flex items-center gap-1.5 font-medium">
-                      <CoinIcon code={l.cryptoType} className="size-4" />
-                      {l.side === "sell" ? "Selling" : "Buying"} {l.cryptoType}
-                      <span className="mono text-xs font-normal text-muted-foreground">
-                        {l.marginPercent > 0 ? "+" : ""}
-                        {l.marginPercent}%
-                      </span>
-                    </span>
-                    <p className="mono text-xs text-muted-foreground">
-                      {currencySymbol(l.fiatCurrency)}
-                      {l.price.toLocaleString()} / {l.cryptoType}
-                      {l.minAmount != null && l.maxAmount != null
-                        ? ` · ${currencySymbol(l.fiatCurrency)}${l.minAmount.toLocaleString()}–${currencySymbol(l.fiatCurrency)}${l.maxAmount.toLocaleString()}`
-                        : ""}
+            <TabsContent value="offers" className="mt-0">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    variant={offersSide === "buy" ? "default" : "outline"}
+                    onClick={() => setOffersSide("buy")}
+                  >
+                    <ArrowDownCircle className="size-4" /> Buy
+                    <Badge variant="destructive" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                      {buyOffers.length}
+                    </Badge>
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    variant={offersSide === "sell" ? "default" : "outline"}
+                    onClick={() => setOffersSide("sell")}
+                  >
+                    <ArrowUpCircle className="size-4" /> Sell
+                    <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                      {sellOffers.length}
+                    </Badge>
+                  </Button>
+                </div>
+                {visibleOffers.length > 0 ? (
+                  <Select value={offersSort} onValueChange={(v) => setOffersSort(v as typeof offersSort)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="price-asc">Sort by price ↑</SelectItem>
+                      <SelectItem value="price-desc">Sort by price ↓</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : null}
+              </div>
+
+              {visibleOffers.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-14 text-center">
+                  <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <ArrowLeftRight className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">No active {offersSide} offers</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isSelf ? "Post an offer to start accepting trades." : "Check back later for new offers."}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {l.acceptedPaymentMethods.map((m) => (
-                      <Badge key={m} variant="secondary" className="gap-1 font-normal">
-                        <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3.5" />
-                        {m}
-                        {railKeyForMethod(m) === "gift_card" ? (
-                          <span className="text-[10px] text-muted-foreground">No KYC Required</span>
-                        ) : null}
-                      </Badge>
-                    ))}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                  {isSelf ? (
+                    <Button className="gap-1.5" asChild>
+                      <Link to="/listings/new">
+                        <Plus className="size-4" /> Create offer
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {visibleOffers.map((l) => (
+                    <Link
+                      key={l.id}
+                      to="/listings/$id"
+                      params={{ id: l.id }}
+                      className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <CoinIcon code={l.cryptoType} className="size-4" />
+                          {l.side === "sell" ? "Selling" : "Buying"} {l.cryptoType}
+                          <span className="mono text-xs font-normal text-muted-foreground">
+                            {l.marginPercent > 0 ? "+" : ""}
+                            {l.marginPercent}%
+                          </span>
+                        </span>
+                        <p className="mono text-xs text-muted-foreground">
+                          {currencySymbol(l.fiatCurrency)}
+                          {l.price.toLocaleString()} / {l.cryptoType}
+                          {l.minAmount != null && l.maxAmount != null
+                            ? ` · ${currencySymbol(l.fiatCurrency)}${l.minAmount.toLocaleString()}–${currencySymbol(l.fiatCurrency)}${l.maxAmount.toLocaleString()}`
+                            : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {l.acceptedPaymentMethods.map((m) => (
+                          <Badge key={m} variant="secondary" className="gap-1 font-normal">
+                            <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3.5" />
+                            {m}
+                            {railKeyForMethod(m) === "gift_card" ? (
+                              <span className="text-[10px] text-muted-foreground">No KYC Required</span>
+                            ) : null}
+                          </Badge>
+                        ))}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="feedback">
-          {feedback.isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : (feedback.data?.items.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted-foreground">No feedback yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {feedback.data!.items.map((f) => (
-                <div key={f.id} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
-                  {f.isPositive ? (
-                    <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                  ) : (
-                    <ThumbsDown className="mt-0.5 size-4 shrink-0 text-destructive" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm">
-                      <span className="font-medium">{f.raterDisplayName}</span>
-                      {f.paymentMethod ? <span className="text-muted-foreground"> · {f.paymentMethod}</span> : null}
-                    </p>
-                    {f.comment ? <p className="text-sm text-muted-foreground">{f.comment}</p> : null}
-                    <p className="mt-1 text-xs text-muted-foreground">{formatRelative(f.createdAt)}</p>
+            <TabsContent value="feedback" className="mt-0">
+              {feedback.isLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (feedback.data?.items.length ?? 0) === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-14 text-center">
+                  <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <MessagesSquare className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">No feedback yet</p>
+                    <p className="text-sm text-muted-foreground">Feedback appears here after a trade is released.</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+              ) : (
+                <div className="space-y-2">
+                  {feedback.data!.items.map((f) => (
+                    <div key={f.id} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
+                      {f.isPositive ? (
+                        <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <ThumbsDown className="mt-0.5 size-4 shrink-0 text-destructive" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm">
+                          <span className="font-medium">{f.raterDisplayName}</span>
+                          {f.paymentMethod ? <span className="text-muted-foreground"> · {f.paymentMethod}</span> : null}
+                        </p>
+                        {f.comment ? <p className="text-sm text-muted-foreground">{f.comment}</p> : null}
+                        <p className="mt-1 text-xs text-muted-foreground">{formatRelative(f.createdAt)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="history">
-          {p.volumeByCrypto.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No completed trades yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {p.volumeByCrypto.map((v) => (
-                <Badge key={v.cryptoType} variant="secondary" className="gap-1.5 font-normal">
-                  <CoinIcon code={v.cryptoType} className="size-4" />
-                  {v.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} {v.cryptoType} released
-                </Badge>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="history" className="mt-0">
+              {p.volumeByCrypto.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-14 text-center">
+                  <span className="flex size-11 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <History className="size-5" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold">No trade history yet</p>
+                    <p className="text-sm text-muted-foreground">Released trades will show up here.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {p.volumeByCrypto.map((v) => (
+                    <Badge key={v.cryptoType} variant="secondary" className="gap-1.5 font-normal">
+                      <CoinIcon code={v.cryptoType} className="size-4" />
+                      {v.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} {v.cryptoType} released
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       <Card className="mb-6">
         <CardContent className="p-5">

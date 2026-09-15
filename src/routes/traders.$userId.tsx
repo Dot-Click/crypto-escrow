@@ -352,7 +352,7 @@ function TraderProfilePage() {
                       key={l.id}
                       to="/listings/$id"
                       params={{ id: l.id }}
-                      className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="space-y-1">
                         <span className="flex items-center gap-1.5 font-medium">
@@ -404,7 +404,7 @@ function TraderProfilePage() {
               ) : (
                 <div className="space-y-2">
                   {feedback.data!.items.map((f) => (
-                    <div key={f.id} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3">
+                    <div key={f.id} className="flex items-start gap-3 rounded-md border border-border bg-background p-3">
                       {f.isPositive ? (
                         <ThumbsUp className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                       ) : (

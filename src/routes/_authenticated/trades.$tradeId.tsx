@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Copy, ExternalLink, Flag, Lock, ShieldAlert, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowLeft, ChevronDown, Copy, ExternalLink, Flag, Lock, ShieldAlert, ThumbsDown, ThumbsUp } from "lucide-react";
 import {
   cancelTrade,
   getTrade,
@@ -34,6 +34,7 @@ import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { TradeChat } from "@/components/trade-chat";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
@@ -133,6 +134,7 @@ function TradeRoom() {
   const [reportOpen, setReportOpen] = useState(false);
   const [feedbackIsPositive, setFeedbackIsPositive] = useState<boolean | null>(null);
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
 
   const trade = useQuery({
     queryKey: ["trade", tradeId],
@@ -310,22 +312,12 @@ function TradeRoom() {
   const statusTone = STATUS_TONE[t.status] ?? STATUS_TONE["pending"];
   const statusBannerTone = STATUS_BANNER_TONE[t.status] ?? STATUS_BANNER_TONE["pending"];
 
-  return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col px-4 py-6 lg:h-[calc(100dvh-3.5rem)]">
-      <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2 shrink-0">
-        <Link to="/trades">
-          <ArrowLeft className="mr-1 size-4" /> All trades
-        </Link>
-      </Button>
-
-      {/* Left sidebar (compact stacked panels) + right chat-first panel.
-          Stacks to a single column below lg so mobile stays readable; on
-          desktop the whole row is pinned to the viewport height and each
-          column scrolls independently instead of the page itself scrolling. */}
-      <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-stretch">
-        {/* — Left sidebar — */}
-        <div className="space-y-4 lg:overflow-y-auto lg:pr-1">
-          {/* Trade status + timer */}
+  // Shared between the desktop sidebar column and the mobile "More actions"
+  // bottom sheet — same trade details, just a different container so mobile
+  // isn't forced to scroll past a full sidebar before reaching the chat.
+  const sidebarContent = (
+    <>
+      {/* Trade status + timer */}
           <Card>
             <CardContent className="space-y-4 py-5">
               <div className="flex items-center justify-between gap-2">
@@ -738,6 +730,25 @@ function TradeRoom() {
               </div>
             </CardContent>
           </Card>
+    </>
+  );
+
+  return (
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col px-4 py-6 lg:h-[calc(100dvh-3.5rem)]">
+      <Button asChild variant="ghost" size="sm" className="mb-3 -ml-2 shrink-0">
+        <Link to="/trades">
+          <ArrowLeft className="mr-1 size-4" /> All trades
+        </Link>
+      </Button>
+
+      {/* Left sidebar (compact stacked panels) + right chat-first panel.
+          The sidebar only renders at lg+; on mobile the same content moves
+          into the "More actions" bottom sheet below so the chat is what you
+          land on instead of a long stack of cards. */}
+      <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-[340px_minmax(0,1fr)] lg:items-stretch">
+        {/* — Left sidebar (desktop only) — */}
+        <div className="hidden space-y-4 lg:block lg:overflow-y-auto lg:pr-1">
+          {sidebarContent}
         </div>
 
         {/* — Right panel: chat, header, and status banner. On desktop this
@@ -810,6 +821,33 @@ function TradeRoom() {
           <p className="shrink-0 pt-1 text-center text-xs text-muted-foreground">
             Messages and attachments are kept as evidence for admin dispute review.
           </p>
+
+          {/* Mobile-only status + "More actions" bar — replaces the desktop
+              sidebar, which is hidden below lg. Opens the same trade details
+              as a bottom sheet instead of a long stack of cards above the chat. */}
+          <Sheet open={mobileDetailsOpen} onOpenChange={setMobileDetailsOpen}>
+            <div className="flex shrink-0 items-center justify-between rounded-lg border border-border bg-card px-4 py-3 lg:hidden">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <Lock className="size-4 text-muted-foreground" />
+                {statusLabel}
+              </span>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  More actions
+                  <ChevronDown className="size-4" />
+                </button>
+              </SheetTrigger>
+            </div>
+            <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader>
+                <SheetTitle>Trade details</SheetTitle>
+              </SheetHeader>
+              <div className="space-y-4 pt-4">{sidebarContent}</div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 

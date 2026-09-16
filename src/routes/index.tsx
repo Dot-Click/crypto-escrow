@@ -37,6 +37,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { OFFER_TAGS } from "@/lib/offer-tags";
 import { providerForMethod, railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentMethodPicker } from "@/components/payment-method-picker";
+import { CurrencyCombobox } from "@/components/currency-combobox";
 import { computeReceiveAmount, escrowFeePercentForMethod, resolveListingPrice, resolveListingPriceUsd } from "@/lib/pricing";
 import { getFxRates, getMarketPrices } from "@/lib/market.functions";
 import { Button } from "@/components/ui/button";
@@ -393,22 +394,7 @@ function Marketplace() {
           />
         </div>
 
-        <Select value={currency} onValueChange={setCurrency}>
-          <SelectTrigger className="h-10 w-28 shrink-0">
-            <SelectValue placeholder="Any Fiat" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any Fiat</SelectItem>
-            {CURRENCIES.map((c) => (
-              <SelectItem key={c.code} value={c.code}>
-                <span className="flex items-center gap-2">
-                  <span className={`fi fi-${c.flagCode}`} aria-hidden />
-                  {c.code}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CurrencyCombobox value={currency} onChange={setCurrency} includeAny className="h-10 w-32 shrink-0" />
 
         <div className="relative h-10 w-40 shrink-0">
           <Input
@@ -532,22 +518,7 @@ function Marketplace() {
           />
         </div>
 
-        <Select value={currency} onValueChange={setCurrency}>
-          <SelectTrigger className="h-11">
-            <SelectValue placeholder="Any Fiat" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Any Fiat</SelectItem>
-            {CURRENCIES.map((c) => (
-              <SelectItem key={c.code} value={c.code}>
-                <span className="flex items-center gap-2">
-                  <span className={`fi fi-${c.flagCode}`} aria-hidden />
-                  {c.code}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CurrencyCombobox value={currency} onChange={setCurrency} includeAny className="h-11" />
 
         <div className="relative h-11 w-full">
           <Input

@@ -133,10 +133,10 @@ function OffersPage() {
     );
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-8">
       <h1 className="mb-6 text-2xl font-semibold">Your offers</h1>
 
-      <Card>
+      <Card className="max-w-xl">
         <CardContent className="space-y-4 py-5">
           <div>
             <p className="text-lg font-semibold">P2P Offers</p>
@@ -215,7 +215,7 @@ function OffersPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {myListings.isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : filtered.length === 0 ? (

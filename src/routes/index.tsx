@@ -24,10 +24,10 @@ import {
   Search,
   SlidersHorizontal,
   Tag,
+  ThumbsUp,
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon, COIN_FULL_NAME } from "@/components/coin-icon";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
@@ -646,50 +646,53 @@ function Marketplace() {
                     profiles: { display_name: string; trades_completed: number; country: string | null } | null;
                   }
                 ).profiles;
+                const positiveRate = (l as unknown as { sellerPositiveRate: number | null }).sellerPositiveRate;
                 const price = priceOf(l);
                 const symbol = currencySymbol(l.fiat_currency);
                 const margin = Number(l.margin_percent);
                 const previewFiat = l.min_amount != null ? Number(l.min_amount) : 10;
                 const primaryMethod = l.accepted_payment_methods[0];
                 const preview = computeReceiveAmount(previewFiat, price, escrowFeePercentForMethod(primaryMethod));
+                const actionLabel = l.side === "sell" ? "Buy" : "Sell";
                 return (
                   <div
                     key={l.id}
-                    className="flex flex-col gap-3 border-b border-border p-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-4"
+                    className="flex flex-col gap-3 border-b border-border p-5 last:border-b-0 sm:flex-row sm:items-center sm:gap-6"
                   >
                     {/* Trader — avatar with an online dot, name + flag, trust stats */}
-                    <div className="flex w-full items-center gap-3 sm:w-52 sm:shrink-0">
+                    <div className="flex w-full items-center gap-3 sm:w-56 sm:shrink-0">
                       <div className="relative shrink-0">
                         <UserAvatar
                           userId={l.seller_id}
                           displayName={counterparty?.display_name ?? "Trader"}
-                          className="size-10"
+                          className="size-12"
                         />
-                        <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-green-500 ring-2 ring-background" />
                       </div>
                       <div className="min-w-0">
                         <Link
                           to="/traders/$userId"
                           params={{ userId: l.seller_id }}
-                          className="flex items-center gap-1.5 truncate text-sm font-medium hover:underline"
+                          className="flex items-center gap-1.5 truncate text-sm font-semibold hover:underline"
                         >
                           {counterparty?.country ? (
                             <span className={`fi fi-${counterparty.country.toLowerCase()}`} aria-hidden />
                           ) : null}
                           {counterparty?.display_name ?? "Trader"}
                         </Link>
-                        <div className="flex items-center gap-1.5">
-                          <TraderLevelBadge tradesCompleted={counterparty?.trades_completed ?? 0} />
-                          <span className="text-xs text-muted-foreground">
-                            {counterparty?.trades_completed ?? 0} Trades
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp className="size-3 text-primary" />
+                            {positiveRate != null ? `${positiveRate.toFixed(1)}%` : "New"}
                           </span>
+                          {counterparty?.trades_completed ?? 0} Trades
                         </div>
                       </div>
                     </div>
 
                     {/* Price — coin icon, rate, margin badge, trade range */}
-                    <div className="w-full sm:w-44 sm:shrink-0">
-                      <div className="mono flex items-center gap-1.5 text-sm font-semibold">
+                    <div className="w-full sm:w-48 sm:shrink-0">
+                      <div className="mono flex items-center gap-1.5 text-base font-semibold">
                         <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
                         {symbol}
                         {price.toLocaleString()}
@@ -709,7 +712,7 @@ function Marketplace() {
                         ) : null}
                       </div>
                       {l.min_amount != null && l.max_amount != null ? (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           {symbol}
                           {Number(l.min_amount).toLocaleString()} – {symbol}
                           {Number(l.max_amount).toLocaleString()}
@@ -718,20 +721,20 @@ function Marketplace() {
                     </div>
 
                     {/* Pay / Receive — matches SafeTheTrade's two-column preview */}
-                    <div className="hidden w-40 shrink-0 md:block">
-                      <p className="text-xs text-muted-foreground">Pay</p>
-                      <p className="truncate text-sm font-medium">
-                        {primaryMethod ? providerForMethod(primaryMethod) : "—"}
+                    <div className="hidden w-44 shrink-0 md:block">
+                      <p className="text-xs text-muted-foreground">
+                        Pay <span className="font-semibold text-foreground">{primaryMethod ? providerForMethod(primaryMethod) : "—"}</span>
                         {l.accepted_payment_methods.length > 1 ? (
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">
-                            +{l.accepted_payment_methods.length - 1}
-                          </span>
+                          <span className="ml-1 font-normal">+{l.accepted_payment_methods.length - 1}</span>
                         ) : null}
                       </p>
+                      <p className="mono text-base font-semibold">
+                        {previewFiat.toLocaleString()} {l.fiat_currency}
+                      </p>
                     </div>
-                    <div className="hidden w-36 shrink-0 md:block">
+                    <div className="hidden w-40 shrink-0 md:block">
                       <p className="text-xs text-muted-foreground">Receive ({l.crypto_type})</p>
-                      <p className="mono truncate text-sm font-medium">
+                      <p className="mono text-base font-semibold">
                         {price ? preview.netCrypto.toFixed(8) : "—"}
                       </p>
                     </div>
@@ -743,9 +746,16 @@ function Marketplace() {
                           <Info className="size-4" />
                         </Link>
                       </Button>
-                      <Button className="gap-1.5" onClick={() => startTrade(l)}>
+                      <Button
+                        className={
+                          actionLabel === "Buy"
+                            ? "gap-1.5 bg-success text-success-foreground hover:bg-success/90"
+                            : "gap-1.5"
+                        }
+                        onClick={() => startTrade(l)}
+                      >
+                        {actionLabel}
                         <CoinIcon code={l.crypto_type} className="size-4" />
-                        {l.side === "sell" ? "Buy" : "Sell"}
                       </Button>
                     </div>
                   </div>

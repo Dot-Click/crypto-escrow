@@ -50,7 +50,30 @@ export const getPublicListings = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .range(data.pageParam, data.pageParam + data.pageSize - 1);
     if (error) throw new Error(error.message);
-    return listings;
+
+    // Positive-feedback rate per seller, batched into one query for the whole
+    // page instead of one round trip per row — same "X% positive" stat
+    // SafeTheTrade-style marketplaces show next to each seller's name.
+    const sellerIds = [...new Set((listings ?? []).map((l) => l.seller_id))];
+    const feedbackBySeller = new Map<string, { positive: number; negative: number }>();
+    if (sellerIds.length > 0) {
+      const { data: feedbackRows } = await supabaseAdmin
+        .from("user_feedback")
+        .select("rated_user_id, is_positive")
+        .in("rated_user_id", sellerIds);
+      for (const f of feedbackRows ?? []) {
+        const entry = feedbackBySeller.get(f.rated_user_id) ?? { positive: 0, negative: 0 };
+        if (f.is_positive) entry.positive += 1;
+        else entry.negative += 1;
+        feedbackBySeller.set(f.rated_user_id, entry);
+      }
+    }
+
+    return (listings ?? []).map((l) => {
+      const fb = feedbackBySeller.get(l.seller_id);
+      const total = (fb?.positive ?? 0) + (fb?.negative ?? 0);
+      return { ...l, sellerPositiveRate: total > 0 ? (fb!.positive / total) * 100 : null };
+    });
   });
 
 /**

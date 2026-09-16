@@ -104,10 +104,16 @@ export function SiteHeader() {
       className={
         isHome
           ? "absolute inset-x-0 top-0 z-40 border-b border-transparent bg-transparent"
-          : "sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur"
+          : "sticky top-0 z-40 px-4 pt-4 pb-2"
       }
     >
-      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 px-4">
+      <div
+        className={
+          isHome
+            ? "mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 px-4"
+            : "mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 rounded-2xl border border-border bg-card/95 px-4 shadow-panel backdrop-blur"
+        }
+      >
         <Link to="/" className="flex items-center">
           <img src="/logo.png" alt="CEMP" className="h-16 w-auto shrink-0 -my-4" />
         </Link>

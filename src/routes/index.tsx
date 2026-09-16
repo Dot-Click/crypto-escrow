@@ -304,7 +304,7 @@ function Marketplace() {
           <span className="text-primary">{crypto === "all" ? "Crypto" : COIN_FULL_NAME[crypto] ?? crypto}</span>{" "}
           with <span className="text-primary">{heroMethodText}</span>
         </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+        <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           {heroFx && heroCurrency !== "USD" ? (
             <span className="flex items-center gap-1.5">
               <span className={`fi fi-${CURRENCIES.find((c) => c.code === "USD")?.flagCode ?? "us"}`} aria-hidden />
@@ -324,7 +324,7 @@ function Marketplace() {
           fiat, amount, create-offer, filters, refresh), matching
           SafeTheTrade's layout. Country/Tags/Sort share the same "Filters"
           sheet both bars use. */}
-      <div className="mb-4 hidden items-center gap-3 rounded-lg border border-border bg-muted p-2 lg:flex">
+      <div className="mb-4 hidden items-center gap-3 rounded-lg border border-border bg-muted p-4 lg:flex">
         <Button
           type="button"
           onClick={() => setSide("sell")}

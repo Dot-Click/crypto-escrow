@@ -740,18 +740,14 @@ function Marketplace() {
                     </div>
 
                     {/* Actions */}
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2 sm:ml-4">
                       <Button type="button" variant="outline" size="icon" aria-label="Offer details" asChild>
                         <Link to="/listings/$id" params={{ id: l.id }}>
                           <Info className="size-4" />
                         </Link>
                       </Button>
                       <Button
-                        className={
-                          actionLabel === "Buy"
-                            ? "gap-1.5 bg-success text-success-foreground hover:bg-success/90"
-                            : "gap-1.5"
-                        }
+                        className="gap-1.5"
                         onClick={() => startTrade(l)}
                       >
                         {actionLabel}

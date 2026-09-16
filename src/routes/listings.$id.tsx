@@ -228,19 +228,19 @@ function ListingDetailPage() {
               ) : null}
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-md border border-border bg-background p-3">
+                <div className="rounded-md bg-background p-3">
                   <p className="text-xs text-muted-foreground">Region</p>
                   <p className="text-sm font-medium">
                     {blockedCountryNames.length === 0 ? "Global" : `Global, excludes ${blockedCountryNames.join(", ")}`}
                   </p>
                 </div>
-                <div className="rounded-md border border-border bg-background p-3">
+                <div className="rounded-md bg-background p-3">
                   <p className="text-xs text-muted-foreground">Trade limit</p>
                   <p className="text-sm font-medium">
                     {l.payment_window_minutes ? `${l.payment_window_minutes} min` : "No limit"}
                   </p>
                 </div>
-                <div className="rounded-md border border-border bg-background p-3">
+                <div className="rounded-md bg-background p-3">
                   <p className="text-xs text-muted-foreground">Offer info</p>
                   <p className="mono text-sm font-medium">
                     {l.fixed_price != null
@@ -248,7 +248,7 @@ function ListingDetailPage() {
                       : `${Number(l.margin_percent) > 0 ? "+" : ""}${Number(l.margin_percent)}% · ${l.fiat_currency}`}
                   </p>
                 </div>
-                <div className="rounded-md border border-border bg-background p-3">
+                <div className="rounded-md bg-background p-3">
                   <p className="text-xs text-muted-foreground">Amount range</p>
                   <p className="mono text-sm font-medium">
                     {symbol}
@@ -264,7 +264,7 @@ function ListingDetailPage() {
               </div>
 
               {l.terms ? (
-                <div className="rounded-md border border-border bg-background p-3">
+                <div className="rounded-md bg-background p-3">
                   <p className="mb-1 text-xs text-muted-foreground">Offer terms</p>
                   <p className="whitespace-pre-line text-sm">
                     {termsExpanded || l.terms.length <= TERMS_PREVIEW_LENGTH
@@ -344,7 +344,7 @@ function ListingDetailPage() {
               {rangeError ? <p className="text-xs text-destructive">{rangeError}</p> : null}
             </div>
 
-            <div className="space-y-2 rounded-md border border-border bg-background p-3">
+            <div className="space-y-2 rounded-md bg-background p-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   Receive <span className="font-medium text-foreground">{l.crypto_type}</span>

@@ -153,7 +153,7 @@ export function TraderPreviewPopover({
               </div>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-3 rounded-md border border-border bg-background p-3 text-sm">
+            <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/30 p-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Joined</p>
                 <p className="font-medium">{formatDate(profile.data.memberSince)}</p>

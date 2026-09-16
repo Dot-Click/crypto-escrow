@@ -10,6 +10,7 @@ import {
   BadgeCheck,
   Flag,
   History,
+  Info,
   MessagesSquare,
   Pencil,
   Plus,
@@ -375,10 +376,8 @@ function TraderProfilePage() {
               ) : (
                 <div className="space-y-2">
                   {visibleOffers.map((l) => (
-                    <Link
+                    <div
                       key={l.id}
-                      to="/listings/$id"
-                      params={{ id: l.id }}
                       className="flex flex-col gap-2 rounded-md border border-border bg-background p-3 transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="space-y-1">
@@ -398,7 +397,7 @@ function TraderProfilePage() {
                             : ""}
                         </p>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {l.acceptedPaymentMethods.map((m) => (
                           <Badge key={m} variant="secondary" className="gap-1 font-normal">
                             <PaymentRailIcon railKey={railKeyForMethod(m)} className="size-3.5" />
@@ -408,8 +407,19 @@ function TraderProfilePage() {
                             ) : null}
                           </Badge>
                         ))}
+                        <Button variant="outline" size="icon" className="shrink-0" aria-label="Offer details" asChild>
+                          <Link to="/listings/$id" params={{ id: l.id }}>
+                            <Info className="size-4" />
+                          </Link>
+                        </Button>
+                        <Button className="shrink-0 gap-1.5" asChild>
+                          <Link to="/listings/$id" params={{ id: l.id }}>
+                            <CoinIcon code={l.cryptoType} className="size-4" />
+                            {l.side === "sell" ? "Buy" : "Sell"}
+                          </Link>
+                        </Button>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}

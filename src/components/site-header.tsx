@@ -111,11 +111,11 @@ export function SiteHeader() {
         className={
           isHome
             ? "mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 px-4"
-            : "mx-auto flex h-14 w-full max-w-[1400px] items-center gap-4 rounded-2xl border border-border bg-card/95 px-4 shadow-panel backdrop-blur"
+            : "mx-auto flex w-full max-w-[1400px] items-center gap-4 rounded-lg border border-border bg-card/95 px-4 py-3 shadow-panel backdrop-blur"
         }
       >
         <Link to="/" className="flex items-center">
-          <img src="/logo.png" alt="CEMP" className="h-16 w-auto shrink-0 -my-4" />
+          <img src="/logo.png" alt="CEMP" className="h-12 w-auto shrink-0" />
         </Link>
 
         <nav className="ml-6 hidden items-center gap-6 md:flex">{links()}</nav>

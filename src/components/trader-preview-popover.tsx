@@ -9,11 +9,13 @@ import { BadgeCheck, ExternalLink, ShieldCheck, ShieldX, ThumbsDown, ThumbsUp, U
 import { getTraderProfile } from "@/lib/trader-profile.functions";
 import { getViewerRelationship, setBlock, setTrust } from "@/lib/user-relationships.functions";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { countryFlagEmoji, countryName } from "@/lib/countries";
 import { CoinIcon } from "@/components/coin-icon";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -33,6 +35,7 @@ export function TraderPreviewPopover({
   const { user: viewer } = useAuth();
   const qc = useQueryClient();
   const isSelf = viewer?.id === userId;
+  const isMobile = useIsMobile();
 
   const fetchProfile = useServerFn(getTraderProfile);
   const profile = useQuery({
@@ -76,18 +79,9 @@ export function TraderPreviewPopover({
     }
   };
 
-  return (
-    <Dialog onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <button type="button" className="cursor-pointer text-left" aria-label={`Preview ${displayName}'s profile`}>
-          {children}
-        </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Profile info</DialogTitle>
-        </DialogHeader>
-        {profile.isLoading || profile.isPending ? (
+  const body = (
+    <>
+      {profile.isLoading || profile.isPending ? (
           <p className="py-4 text-center text-sm text-muted-foreground">Loading…</p>
         ) : profile.error || !profile.data ? (
           <p className="py-4 text-center text-sm text-destructive">Couldn't load this trader.</p>
@@ -203,6 +197,37 @@ export function TraderPreviewPopover({
             </div>
           </div>
         )}
+    </>
+  );
+
+  const trigger = (
+    <button type="button" className="cursor-pointer text-left" aria-label={`Preview ${displayName}'s profile`}>
+      {children}
+    </button>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet onOpenChange={handleOpenChange}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Profile info</SheetTitle>
+          </SheetHeader>
+          <div className="pt-4">{body}</div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Profile info</DialogTitle>
+        </DialogHeader>
+        {body}
       </DialogContent>
     </Dialog>
   );

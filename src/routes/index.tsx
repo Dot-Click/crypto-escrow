@@ -393,16 +393,6 @@ function Marketplace() {
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
         </button>
 
-        <div className="relative h-10 w-48 shrink-0">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="BTC, bank transfer…"
-            className="h-10 pl-9"
-          />
-        </div>
-
         <CurrencyCombobox value={currency} onChange={setCurrency} includeAny className="h-10 w-32 shrink-0" />
 
         <div className="relative h-10 w-40 shrink-0">
@@ -665,7 +655,7 @@ function Marketplace() {
                         <UserAvatar
                           userId={l.seller_id}
                           displayName={counterparty?.display_name ?? "Trader"}
-                          className="size-12"
+                          className="size-12 ring-2 ring-border"
                         />
                         <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-green-500 ring-2 ring-background" />
                       </div>
@@ -673,16 +663,16 @@ function Marketplace() {
                         <Link
                           to="/traders/$userId"
                           params={{ userId: l.seller_id }}
-                          className="flex items-center gap-1.5 truncate text-sm font-semibold hover:underline"
+                          className="flex items-center gap-1.5 truncate text-base font-semibold hover:underline"
                         >
                           {counterparty?.country ? (
                             <span className={`fi fi-${counterparty.country.toLowerCase()}`} aria-hidden />
                           ) : null}
                           {counterparty?.display_name ?? "Trader"}
                         </Link>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
-                            <ThumbsUp className="size-3 text-primary" />
+                            <ThumbsUp className="size-3.5 text-primary" />
                             {positiveRate != null ? `${positiveRate.toFixed(1)}%` : "New"}
                           </span>
                           {counterparty?.trades_completed ?? 0} Trades
@@ -690,6 +680,9 @@ function Marketplace() {
                       </div>
                     </div>
 
+                    {/* Price / Pay / Receive / Actions — kept together and pushed to the
+                        right edge so they don't leave a wide dead zone next to Trader. */}
+                    <div className="flex w-full items-center gap-6 sm:ml-auto sm:w-auto sm:shrink-0">
                     {/* Price — coin icon, rate, margin badge, trade range */}
                     <div className="w-full sm:w-48 sm:shrink-0">
                       <div className="mono flex items-center gap-1.5 text-base font-semibold">
@@ -740,7 +733,7 @@ function Marketplace() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex shrink-0 items-center gap-2 sm:ml-4">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Button type="button" variant="outline" size="icon" aria-label="Offer details" asChild>
                         <Link to="/listings/$id" params={{ id: l.id }}>
                           <Info className="size-4" />
@@ -753,6 +746,7 @@ function Marketplace() {
                         {actionLabel}
                         <CoinIcon code={l.crypto_type} className="size-4" />
                       </Button>
+                    </div>
                     </div>
                   </div>
                 );

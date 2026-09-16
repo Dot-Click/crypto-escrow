@@ -277,17 +277,21 @@ function OffersPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-md bg-muted/40 p-2.5">
+                  <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
                     <p className="text-xs text-muted-foreground">Market price:</p>
-                    <p className="mono flex items-center gap-1.5 font-semibold">
-                      <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
-                      {Number(l.price).toLocaleString()} {l.fiat_currency}
+                    <p className="mono flex flex-wrap items-center gap-1.5 font-semibold">
+                      <span className="flex min-w-0 items-center gap-1.5 truncate">
+                        <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
+                        <span className="truncate">
+                          {Number(l.price).toLocaleString()} {l.fiat_currency}
+                        </span>
+                      </span>
                       {l.fixed_price == null && l.margin_percent !== 0 ? (
                         <Badge
                           className={
                             l.margin_percent < 0
-                              ? "bg-green-600/15 font-normal text-green-600 hover:bg-green-600/15"
-                              : "bg-destructive/15 font-normal text-destructive hover:bg-destructive/15"
+                              ? "shrink-0 bg-green-600/15 font-normal text-green-600 hover:bg-green-600/15"
+                              : "shrink-0 bg-destructive/15 font-normal text-destructive hover:bg-destructive/15"
                           }
                         >
                           {l.margin_percent > 0 ? "+" : ""}
@@ -296,9 +300,9 @@ function OffersPage() {
                       ) : null}
                     </p>
                   </div>
-                  <div className="rounded-md bg-muted/40 p-2.5">
+                  <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
                     <p className="text-xs text-muted-foreground">Range:</p>
-                    <p className="mono font-semibold">
+                    <p className="mono truncate font-semibold">
                       {l.min_amount != null && l.max_amount != null
                         ? `${Number(l.min_amount).toLocaleString()} - ${Number(l.max_amount).toLocaleString()} ${l.fiat_currency}`
                         : "—"}

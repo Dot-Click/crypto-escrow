@@ -82,7 +82,7 @@ export const Route = createFileRoute("/")({
   component: Marketplace,
 });
 
-type SortKey = "newest" | "price_asc" | "price_desc";
+type SortKey = "newest" | "price_asc" | "price_desc" | "trusted";
 
 /** Multi-select tag filter — shared between the mobile compact bar and the
  * desktop sidebar so the checklist only exists once. */
@@ -141,7 +141,9 @@ function Marketplace() {
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   const [amount, setAmount] = useState("");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("newest");
+  // Lowest price first is what most buyers actually want; nobody's browsing
+  // for the newest or most expensive offer by default.
+  const [sort, setSort] = useState<SortKey>("price_asc");
   const [activeListing, setActive] = useState<ListingRow | null>(null);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
@@ -256,6 +258,13 @@ function Marketplace() {
     }
     if (sort === "price_asc") out = [...out].sort((a, b) => usdPriceOf(a) - usdPriceOf(b));
     if (sort === "price_desc") out = [...out].sort((a, b) => usdPriceOf(b) - usdPriceOf(a));
+    // "Most trusted" — same completed-trades count that drives the Trusted
+    // level badge shown on each row (see trader-level.ts), just sorted by it.
+    if (sort === "trusted") {
+      const tradesOf = (l: (typeof allListings)[number]) =>
+        (l as unknown as { profiles: { trades_completed: number } | null }).profiles?.trades_completed ?? 0;
+      out = [...out].sort((a, b) => tradesOf(b) - tradesOf(a));
+    }
     return out;
   }, [allListings, marketPrices.data, fxRates.data, amount, search, sort]);
 
@@ -589,9 +598,10 @@ function Marketplace() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">Newest</SelectItem>
                   <SelectItem value="price_asc">Price: low to high</SelectItem>
                   <SelectItem value="price_desc">Price: high to low</SelectItem>
+                  <SelectItem value="trusted">Most trusted</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
                 </SelectContent>
               </Select>
             </div>

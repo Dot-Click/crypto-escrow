@@ -67,7 +67,7 @@
 
   /* base — lightened a step from the original #0D0D0D/#1A1A1A/#2A2A2A run,
      same hierarchy of steps between background/card/border, just less black */
-  --background: oklch(0.205 0 0);
+  --background: #25282b;
   --foreground: oklch(0.965 0 0);
   --card: oklch(0.263 0 0);
   --card-foreground: oklch(0.965 0 0);
@@ -75,7 +75,7 @@
   --popover-foreground: oklch(0.965 0 0);
   --border: oklch(0.325 0 0);
   --input: oklch(0.325 0 0);
-  --muted: oklch(0.29 0 0);
+  --muted: #1a1d1e;
   --muted-foreground: oklch(0.965 0 0);
   /* Kept as an actual grey, separate from --muted-foreground (now white) —
      placeholder text needs to read as "not yet typed", so it can't share
@@ -83,7 +83,7 @@
   --placeholder: oklch(0.55 0 0);
   --accent: oklch(0.325 0 0);
   --accent-foreground: oklch(0.965 0 0);
-  --secondary: oklch(0.29 0 0);
+  --secondary: #1a1d1e;
   --secondary-foreground: oklch(0.965 0 0);
 
   /* actions & statuses */
@@ -133,10 +133,11 @@
     inset: 0;
     z-index: -10;
     pointer-events: none;
-    background-image: url("/dotted_grid.png");
+    /* background-image: url("/dotted_grid.png");
     background-repeat: repeat;
     background-size: 220px 220px;
-    opacity: 0.1;
+    opacity: 0.1; */
+    background-color: #0c0e0c;
   }
 
   h1,

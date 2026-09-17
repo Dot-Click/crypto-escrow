@@ -11,7 +11,7 @@ export const listMyTrades = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("trades")
       .select(
-        "id, crypto_type, amount, price, expires_at, fiat_currency, payment_method, status, created_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name), seller:profiles!trades_seller_id_fkey(display_name)",
+        "id, listing_id, crypto_type, amount, price, expires_at, fiat_currency, payment_method, status, created_at, buyer_id, seller_id, buyer:profiles!trades_buyer_id_fkey(display_name), seller:profiles!trades_seller_id_fkey(display_name)",
       )
       .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
       .order("created_at", { ascending: false })

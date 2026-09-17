@@ -678,6 +678,7 @@ export type Database = {
           content: string | null
           created_at: string
           id: string
+          reply_to_id: string | null
           sender_id: string
           trade_id: string
         }
@@ -686,6 +687,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           sender_id: string
           trade_id: string
         }
@@ -694,10 +696,18 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           sender_id?: string
           trade_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "messages_sender_id_fkey"
             columns: ["sender_id"]
@@ -754,11 +764,13 @@ export type Database = {
           bio: string | null
           closed_at: string | null
           country: string | null
+          country_ip_mismatch: boolean
           created_at: string
           display_name: string
           email: string | null
           email_notifications: boolean
           id: string
+          ip_country: string | null
           is_verified: boolean
           last_seen_at: string
           login_email_verification: boolean
@@ -775,11 +787,13 @@ export type Database = {
           bio?: string | null
           closed_at?: string | null
           country?: string | null
+          country_ip_mismatch?: boolean
           created_at?: string
           display_name?: string
           email?: string | null
           email_notifications?: boolean
           id: string
+          ip_country?: string | null
           is_verified?: boolean
           last_seen_at?: string
           login_email_verification?: boolean
@@ -796,11 +810,13 @@ export type Database = {
           bio?: string | null
           closed_at?: string | null
           country?: string | null
+          country_ip_mismatch?: boolean
           created_at?: string
           display_name?: string
           email?: string | null
           email_notifications?: boolean
           id?: string
+          ip_country?: string | null
           is_verified?: boolean
           last_seen_at?: string
           login_email_verification?: boolean

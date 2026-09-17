@@ -660,7 +660,7 @@ function TradeRoom() {
           <Card>
             <CardContent className="space-y-4 py-5 text-sm">
               <p className="text-base font-semibold">Trade information</p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-4 [&>div]:min-w-0">
                 <div>
                   <p className="text-xs text-muted-foreground">Trade ID</p>
                   <button
@@ -700,16 +700,18 @@ function TradeRoom() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Rate</p>
-                  <p className="mono flex items-center gap-1.5 font-medium">
-                    <CoinIcon code={t.crypto_type} className="size-4" />
-                    {t.amount} {t.crypto_type} ≈ {symbol}
-                    {total.toLocaleString()}
+                  <p className="mono flex flex-wrap items-center gap-1.5 font-medium">
+                    <CoinIcon code={t.crypto_type} className="size-4 shrink-0" />
+                    <span className="break-all">
+                      {t.amount} {t.crypto_type} ≈ {symbol}
+                      {total.toLocaleString()}
+                    </span>
                   </p>
                 </div>
                 {t.fee_amount > 0 ? (
                   <div>
                     <p className="text-xs text-muted-foreground">Platform fee</p>
-                    <p className="mono font-medium">
+                    <p className="mono break-all font-medium">
                       {t.fee_amount.toFixed(8)} {t.crypto_type}
                       {t.fee_percent != null ? (
                         <span className="ml-1 text-xs font-normal text-muted-foreground">({t.fee_percent}%)</span>

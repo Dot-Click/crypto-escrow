@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { toast } from "sonner";
+import { Copy, Download, ExternalLink } from "lucide-react";
 import { listMyTrades } from "@/lib/trades.functions";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { TRADE_STATUS_LABEL, type TradeStatus } from "@/lib/constants";
@@ -68,6 +69,11 @@ function TradesPage() {
 
   const settled = all.filter((t) => t.status === "released");
   const volume = settled.reduce((sum, t) => sum + t.amount * t.price, 0);
+
+  const copyId = (id: string, label: string) => {
+    void navigator.clipboard.writeText(id);
+    toast.success(`${label} copied`);
+  };
 
   const exportCsv = () => {
     const header = [
@@ -224,6 +230,51 @@ function TradesPage() {
                     With {t.role === "buyer" ? t.seller?.display_name : t.buyer?.display_name} ·{" "}
                     {new Date(t.created_at).toLocaleString()}
                   </p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      Trade
+                      <Link
+                        to="/trades/$tradeId"
+                        params={{ tradeId: t.id }}
+                        className="mono flex items-center gap-1 hover:text-primary"
+                        title="Open trade room"
+                      >
+                        #{t.id.slice(0, 8).toUpperCase()}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => copyId(t.id, "Trade ID")}
+                        className="hover:text-primary"
+                        title="Copy full trade ID"
+                        aria-label="Copy full trade ID"
+                      >
+                        <Copy className="size-3" />
+                      </button>
+                    </span>
+                    {t.listing_id ? (
+                      <span className="flex items-center gap-1">
+                        Offer
+                        <Link
+                          to="/listings/$id"
+                          params={{ id: t.listing_id }}
+                          className="mono flex items-center gap-1 hover:text-primary"
+                          title="Open offer"
+                        >
+                          #{t.listing_id.slice(0, 8).toUpperCase()}
+                          <ExternalLink className="size-3" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => copyId(t.listing_id!, "Offer ID")}
+                          className="hover:text-primary"
+                          title="Copy full offer ID"
+                          aria-label="Copy full offer ID"
+                        >
+                          <Copy className="size-3" />
+                        </button>
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <Button asChild className="w-full sm:w-auto">
                   <Link to="/trades/$tradeId" params={{ tradeId: t.id }}>

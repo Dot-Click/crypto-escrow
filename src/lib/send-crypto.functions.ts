@@ -26,6 +26,36 @@ async function ensureWallet(userId: string, cryptoType: string) {
 }
 
 /**
+ * Resolves a display name to a profile id, for the wallet page's "Send to
+ * a CEMP username" withdrawal path. display_name has no uniqueness
+ * constraint in this schema, so an ambiguous match refuses to guess —
+ * silently picking one of several same-named accounts would misroute funds.
+ */
+export const findTraderByDisplayName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { displayName: string }) => {
+    const displayName = input.displayName.trim();
+    if (!displayName) throw new Error("Enter a username");
+    return { displayName };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: matches, error } = await supabaseAdmin
+      .from("profiles")
+      .select("id, display_name")
+      .ilike("display_name", data.displayName)
+      .limit(2);
+    if (error) throw new Error(error.message);
+    if (!matches || matches.length === 0) throw new Error("No trader found with that username");
+    if (matches.length > 1) {
+      throw new Error("Multiple traders share that username — ask them for their profile link instead");
+    }
+    const match = matches[0]!;
+    if (match.id === context.userId) throw new Error("That's your own account");
+    return { userId: match.id, displayName: match.display_name };
+  });
+
+/**
  * Internal wallet-to-wallet transfer to another trader — no counterparty
  * lookup by email/username, the recipient is whichever profile the "Send
  * crypto" button was clicked from. Same risk class as an on-chain withdrawal

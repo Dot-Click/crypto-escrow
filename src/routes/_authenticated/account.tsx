@@ -27,6 +27,7 @@ import { RAIL_DETAIL_FIELDS, summarizeDetails } from "@/lib/payment-method-field
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { COUNTRIES } from "@/lib/countries";
 import { closeAccount } from "@/lib/account.functions";
+import { setProfileCountry } from "@/lib/profile-country.functions";
 import { uploadAvatar } from "@/lib/avatar";
 import {
   getNotificationSettings,
@@ -198,6 +199,8 @@ function AccountPage() {
   const [openSection, setOpenSection] = useState<MenuKey | null>(null);
   const toggleSection = (key: MenuKey) => setOpenSection((cur) => (cur === key ? null : key));
 
+  const setCountryFn = useServerFn(setProfileCountry);
+
   const myBio = useQuery({
     queryKey: ["my-bio", user?.id],
     enabled: !!user,
@@ -296,9 +299,27 @@ function AccountPage() {
       return;
     }
     setBusy(true);
+
+    // Country is set exactly once, through its own server function (which
+    // cross-checks it against the request's IP) — everything else still
+    // goes through the plain client update below. Once profile.country is
+    // set the field is disabled, so this only ever fires the first time.
+    if (!profile?.country) {
+      try {
+        const { mismatch } = await setCountryFn({ data: { country } });
+        if (mismatch) {
+          toast.warning("Your declared country doesn't match your connection's location — flagged for review.");
+        }
+      } catch (e) {
+        setBusy(false);
+        toast.error(e instanceof Error ? e.message : "Couldn't set your country");
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({ display_name: displayName, role, country: country || null, bio: bio.trim() || null })
+      .update({ display_name: displayName, role, bio: bio.trim() || null })
       .eq("id", user.id);
     setBusy(false);
     if (error) {
@@ -661,8 +682,12 @@ function AccountPage() {
                   <p className="text-xs text-destructive">
                     Set your country — you can't create offers or trade until you do.
                   </p>
+                ) : profile?.country ? (
+                  <p className="text-xs text-muted-foreground">
+                    Locked once set, for trading safety — contact support if it's wrong.
+                  </p>
                 ) : null}
-                <Select value={country} onValueChange={setCountry}>
+                <Select value={country} onValueChange={setCountry} disabled={!!profile?.country}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select your country" />
                   </SelectTrigger>

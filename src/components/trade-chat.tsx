@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Paperclip, Send, X } from "lucide-react";
+import { Copy, CornerUpLeft, Loader2, Paperclip, Send, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { listMessages, sendMessage } from "@/lib/messages.functions";
@@ -133,6 +133,7 @@ export function TradeChat({
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -142,6 +143,18 @@ export function TradeChat({
     queryFn: () => fetchMessages({ data: { tradeId } }),
     refetchInterval: 15000,
   });
+
+  const messageById = useMemo(() => {
+    const map = new Map<string, { content: string | null; mine: boolean }>();
+    for (const m of messages.data ?? []) map.set(m.id, { content: m.content, mine: m.mine });
+    return map;
+  }, [messages.data]);
+  const replyTarget = replyingTo ? messageById.get(replyingTo) : undefined;
+
+  const copyMessage = (content: string) => {
+    void navigator.clipboard.writeText(content);
+    toast.success("Message copied");
+  };
 
   useEffect(() => {
     const channel = supabase
@@ -182,11 +195,14 @@ export function TradeChat({
         if (error) throw new Error(error.message);
         attachmentUrl = path;
       }
-      return sendFn({ data: { tradeId, content: text, attachmentUrl } });
+      return sendFn({
+        data: { tradeId, content: text, attachmentUrl, ...(replyingTo ? { replyToId: replyingTo } : {}) },
+      });
     },
     onSuccess: () => {
       setText("");
       setFile(null);
+      setReplyingTo(null);
       if (fileInput.current) fileInput.current.value = "";
       void qc.invalidateQueries({ queryKey });
     },
@@ -221,8 +237,36 @@ export function TradeChat({
               No messages yet. Share payment details or proof here — never off-platform.
             </p>
           ) : (
-            (messages.data ?? []).map((m) => (
-              <div key={m.id} className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
+            (messages.data ?? []).map((m) => {
+              const quoted = m.reply_to_id ? messageById.get(m.reply_to_id) : undefined;
+              return (
+              <div key={m.id} className={`group flex items-start gap-1.5 ${m.mine ? "justify-end" : "justify-start"}`}>
+                {m.mine ? (
+                  <div className="mt-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {!disabled ? (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        onClick={() => setReplyingTo(m.id)}
+                        aria-label="Reply"
+                        title="Reply"
+                      >
+                        <CornerUpLeft className="size-3.5" />
+                      </button>
+                    ) : null}
+                    {m.content ? (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        onClick={() => copyMessage(m.content!)}
+                        aria-label="Copy message"
+                        title="Copy message"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div
                   className={`max-w-[85%] rounded-lg px-3 py-2 text-sm sm:max-w-[75%] ${
                     m.mine
@@ -230,6 +274,19 @@ export function TradeChat({
                       : "border border-border bg-card text-foreground"
                   }`}
                 >
+                  {quoted ? (
+                    <div
+                      className={`mb-1.5 rounded border-l-2 px-2 py-1 text-xs ${
+                        m.mine
+                          ? "border-primary-foreground/40 bg-black/10 text-primary-foreground/80"
+                          : "border-border bg-muted/50 text-muted-foreground"
+                      }`}
+                    >
+                      <p className="line-clamp-2 break-words">
+                        {quoted.content ?? "Attachment"}
+                      </p>
+                    </div>
+                  ) : null}
                   {m.content ? <p className="whitespace-pre-line break-words">{m.content}</p> : null}
                   {m.attachment_url ? <AttachmentImage path={m.attachment_url} /> : null}
                   <p className={`mt-1 text-[10px] ${m.mine ? "opacity-70" : "text-muted-foreground"}`}>
@@ -239,8 +296,35 @@ export function TradeChat({
                     })}
                   </p>
                 </div>
+                {!m.mine ? (
+                  <div className="mt-1 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    {m.content ? (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        onClick={() => copyMessage(m.content!)}
+                        aria-label="Copy message"
+                        title="Copy message"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    ) : null}
+                    {!disabled ? (
+                      <button
+                        type="button"
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        onClick={() => setReplyingTo(m.id)}
+                        aria-label="Reply"
+                        title="Reply"
+                      >
+                        <CornerUpLeft className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
-            ))
+              );
+            })
           )}
           <div ref={bottom} />
         </div>
@@ -251,6 +335,27 @@ export function TradeChat({
           </p>
         ) : (
           <div className="shrink-0 space-y-2">
+            {replyTarget ? (
+              <div className="flex items-start gap-2 rounded-md border-l-2 border-primary bg-muted/40 px-2 py-1.5 text-xs">
+                <CornerUpLeft className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">
+                    Replying to {replyTarget.mine ? "yourself" : counterpartyName}
+                  </p>
+                  <p className="line-clamp-1 break-words text-muted-foreground">
+                    {replyTarget.content ?? "Attachment"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setReplyingTo(null)}
+                  aria-label="Cancel reply"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+            ) : null}
             {file ? (
               <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1 text-xs">
                 <Paperclip className="size-3.5 shrink-0" />

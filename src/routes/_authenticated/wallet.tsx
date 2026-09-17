@@ -9,6 +9,7 @@ import { getWalletOverview, requestWithdrawal } from "@/lib/wallet.functions";
 import { getMyDepositAddresses, listMyDepositClaims } from "@/lib/deposit-claims.functions";
 import { createLightningDeposit, recheckLightningDeposit } from "@/lib/lightning-deposit.functions";
 import { requestLightningWithdrawal } from "@/lib/lightning-withdrawal.functions";
+import { findTraderByDisplayName, sendCrypto } from "@/lib/send-crypto.functions";
 import { getSecuritySettings, requestStepUpEmailCode } from "@/lib/security-settings.functions";
 import { CRYPTO_TYPES, TRC20_WITHDRAWAL_ENABLED, WITHDRAWAL_FIXED_FEE } from "@/lib/constants";
 import { withdrawalNetworkLabel } from "@/lib/withdrawal-validation";
@@ -58,14 +59,73 @@ export const Route = createFileRoute("/_authenticated/wallet")({
 });
 
 const TYPE_LABEL: Record<string, string> = {
-  deposit: "Deposit",
-  withdrawal: "Withdrawal",
-  escrow_hold: "Escrow hold",
-  escrow_release: "Escrow release",
-  escrow_refund: "Escrow refund",
+  deposit: "Receive",
+  withdrawal: "Send-out",
+  escrow_hold: "Escrow reserved",
+  escrow_release: "Escrow released",
+  escrow_refund: "Escrow returned",
   swap_out: "Swap (sent)",
   swap_in: "Swap (received)",
+  transfer_out: "Send-out",
+  transfer_in: "Receive",
 };
+
+// "Recent activity" is the curated, external-facing subset of the ledger —
+// deposits/withdrawals/internal transfers/swaps. Escrow bookkeeping
+// (reserved/released/returned) only shows up under "All operations", same
+// split as SafeTheTrade's wallet page.
+const RECENT_ACTIVITY_TYPES = new Set([
+  "deposit",
+  "withdrawal",
+  "transfer_out",
+  "transfer_in",
+  "swap_out",
+  "swap_in",
+]);
+
+function txSubtitle(type: string) {
+  if (type === "deposit" || type === "withdrawal") return "Externally";
+  if (type === "transfer_out" || type === "transfer_in") return "With another trader";
+  if (type === "swap_out" || type === "swap_in") return "Swap";
+  return "Escrow";
+}
+
+const OUTGOING_TX_TYPES = new Set(["withdrawal", "transfer_out", "swap_out", "escrow_hold"]);
+
+type LedgerTx = {
+  id: string;
+  type: string;
+  amount: number;
+  crypto_type: string;
+  status: string;
+  external_address: string | null;
+  created_at: string;
+};
+
+function TransactionRow({ t }: { t: LedgerTx }) {
+  const outgoing = OUTGOING_TX_TYPES.has(t.type);
+  return (
+    <div className="flex items-center gap-3 border-b border-border py-3 last:border-0">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+        <CoinIcon code={t.crypto_type} className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">{TYPE_LABEL[t.type] ?? t.type}</p>
+        <p className="text-xs text-muted-foreground">{txSubtitle(t.type)}</p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="mono text-sm font-semibold">
+          {outgoing ? "-" : "+"}
+          {t.amount} {t.crypto_type}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {new Date(t.created_at).toLocaleDateString()}
+          {t.status !== "completed" ? ` · ${t.status}` : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const CLAIM_STATUS_LABEL: Record<string, string> = {
   pending: "Confirming…",
@@ -78,11 +138,14 @@ function WalletPage() {
   const fetchOverview = useServerFn(getWalletOverview);
   const submitWithdrawal = useServerFn(requestWithdrawal);
   const submitLightningWithdrawal = useServerFn(requestLightningWithdrawal);
+  const findRecipient = useServerFn(findTraderByDisplayName);
+  const sendToRecipient = useServerFn(sendCrypto);
   const fetchDepositAddresses = useServerFn(getMyDepositAddresses);
   const fetchMyClaims = useServerFn(listMyDepositClaims);
   const startLightningDeposit = useServerFn(createLightningDeposit);
   const recheckLightning = useServerFn(recheckLightningDeposit);
 
+  const [walletTab, setWalletTab] = useState<"assets" | "recent" | "all">("assets");
   const [depositCoin, setDepositCoin] = useState<string | null>(null);
   const [depositNetwork, setDepositNetwork] = useState<string | null>(null);
   const [depositMode, setDepositMode] = useState<"onchain" | "lightning">("onchain");
@@ -92,8 +155,10 @@ function WalletPage() {
   const [withdrawCoin, setWithdrawCoin] = useState(CRYPTO_TYPES[0].code as string);
   const [btcWithdrawMode, setBtcWithdrawMode] = useState<"onchain" | "lightning">("onchain");
   const [usdtNetwork, setUsdtNetwork] = useState<"BEP20" | "TRC20">("BEP20");
+  const [sendDestType, setSendDestType] = useState<"address" | "username">("address");
   const [amount, setAmount] = useState("");
   const [address, setAddress] = useState("");
+  const [recipientUsername, setRecipientUsername] = useState("");
   const [lnWithdrawAmountSats, setLnWithdrawAmountSats] = useState("");
   const [lnWithdrawDestination, setLnWithdrawDestination] = useState("");
   const [stepUpCode, setStepUpCode] = useState("");
@@ -143,8 +208,19 @@ function WalletPage() {
   });
 
   const withdrawMutation = useMutation({
-    mutationFn: () =>
-      submitWithdrawal({
+    mutationFn: async () => {
+      if (sendDestType === "username") {
+        const recipient = await findRecipient({ data: { displayName: recipientUsername.trim() } });
+        return sendToRecipient({
+          data: {
+            recipientUserId: recipient.userId,
+            cryptoType: withdrawCoin,
+            amount: Number(amount),
+            ...(withdrawalVerification !== "none" ? { stepUpCode } : {}),
+          },
+        });
+      }
+      return submitWithdrawal({
         data: {
           cryptoType: withdrawCoin,
           amount: Number(amount),
@@ -152,14 +228,22 @@ function WalletPage() {
           ...(withdrawCoin === "USDT" ? { network: usdtNetwork } : {}),
           ...(withdrawalVerification !== "none" ? { stepUpCode } : {}),
         },
-      }),
+      });
+    },
     onSuccess: () => {
+      const wasUsername = sendDestType === "username";
       setAmount("");
       setAddress("");
+      setRecipientUsername("");
       setStepUpCode("");
       setWithdrawDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ["wallet-overview"] });
-      toast.success("Withdrawal queued — it will broadcast within a few minutes.");
+      void qc.invalidateQueries({ queryKey: ["wallet"] });
+      toast.success(
+        wasUsername
+          ? "Sent — it lands in their CEMP wallet instantly."
+          : "Withdrawal queued — it will broadcast within a few minutes.",
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -219,6 +303,9 @@ function WalletPage() {
   const withdrawFee =
     (withdrawNetworkLabel && WITHDRAWAL_FIXED_FEE[`${withdrawCoin}:${withdrawNetworkLabel}`]) || 0;
 
+  const allTransactions = overview.data?.transactions ?? [];
+  const recentTransactions = allTransactions.filter((t) => RECENT_ACTIVITY_TYPES.has(t.type)).slice(0, 8);
+
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -240,12 +327,63 @@ function WalletPage() {
         </Button>
       </div>
 
+      <div className="mb-6 flex gap-6 border-b border-border">
+        {(
+          [
+            { key: "assets", label: "Wallet assets" },
+            { key: "recent", label: "Recent activity" },
+            { key: "all", label: "All operations" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setWalletTab(tab.key)}
+            className={
+              walletTab === tab.key
+                ? "border-b-2 border-primary pb-3 text-sm font-semibold text-foreground"
+                : "border-b-2 border-transparent pb-3 text-sm text-muted-foreground hover:text-foreground"
+            }
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {overview.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading balances…</p>
       ) : overview.isError ? (
         <p className="text-sm text-destructive">
           Couldn't load your wallet balances: {overview.error.message}
         </p>
+      ) : walletTab === "recent" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent activity</CardTitle>
+            <CardDescription>Your latest deposits, withdrawals, transfers, and swaps.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentTransactions.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No recent activity yet.</p>
+            ) : (
+              recentTransactions.map((t) => <TransactionRow key={t.id} t={t} />)
+            )}
+          </CardContent>
+        </Card>
+      ) : walletTab === "all" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All operations</CardTitle>
+            <CardDescription>Every balance change is logged here, including escrow holds.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {allTransactions.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No transactions yet.</p>
+            ) : (
+              allTransactions.map((t) => <TransactionRow key={t.id} t={t} />)
+            )}
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -292,8 +430,10 @@ function WalletPage() {
                         onClick={() => {
                           setWithdrawCoin(w.crypto_type);
                           setBtcWithdrawMode("onchain");
+                          setSendDestType("address");
                           setAmount("");
                           setAddress("");
+                          setRecipientUsername("");
                           setLnWithdrawAmountSats("");
                           setLnWithdrawDestination("");
                           setStepUpCode("");
@@ -321,17 +461,17 @@ function WalletPage() {
           </div>
 
           <Dialog open={withdrawDialogOpen} onOpenChange={setWithdrawDialogOpen}>
-            <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <ArrowUpFromLine className="size-4" /> Send {withdrawCoin}
+            <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto p-6">
+              <DialogHeader className="space-y-1.5">
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <ArrowUpFromLine className="size-5" /> Send {withdrawCoin}
                 </DialogTitle>
                 <DialogDescription>
                   Only free balance can be withdrawn — escrow holds stay locked.
                 </DialogDescription>
               </DialogHeader>
               <form
-                className="grid gap-3 sm:grid-cols-[140px_1fr_auto] sm:items-end"
+                className="space-y-6 pt-2"
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (isLightningWithdraw) lightningWithdrawMutation.mutate();
@@ -347,7 +487,7 @@ function WalletPage() {
                       if (v !== "BTC") setBtcWithdrawMode("onchain");
                     }}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -364,14 +504,14 @@ function WalletPage() {
                 </div>
 
                 {withdrawCoin === "BTC" ? (
-                  <div className="flex gap-1.5 rounded-md bg-muted p-1 text-xs sm:col-span-2">
+                  <div className="flex gap-2 rounded-lg bg-muted p-1.5 text-sm">
                     <button
                       type="button"
                       onClick={() => setBtcWithdrawMode("onchain")}
                       className={
                         btcWithdrawMode === "onchain"
-                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
-                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                          ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                          : "flex-1 rounded-md px-3 py-2 text-muted-foreground"
                       }
                     >
                       On-chain
@@ -381,24 +521,24 @@ function WalletPage() {
                       onClick={() => setBtcWithdrawMode("lightning")}
                       className={
                         btcWithdrawMode === "lightning"
-                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
-                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                          ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                          : "flex-1 rounded-md px-3 py-2 text-muted-foreground"
                       }
                     >
-                      <Zap className="mr-1 inline size-3" /> Lightning
+                      <Zap className="mr-1 inline size-3.5" /> Lightning
                     </button>
                   </div>
                 ) : null}
 
                 {withdrawCoin === "USDT" ? (
-                  <div className="flex gap-1.5 rounded-md bg-muted p-1 text-xs sm:col-span-2">
+                  <div className="flex gap-2 rounded-lg bg-muted p-1.5 text-sm">
                     <button
                       type="button"
                       onClick={() => setUsdtNetwork("BEP20")}
                       className={
                         usdtNetwork === "BEP20"
-                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
-                          : "flex-1 rounded px-2 py-1 text-muted-foreground"
+                          ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                          : "flex-1 rounded-md px-3 py-2 text-muted-foreground"
                       }
                     >
                       BEP20
@@ -410,8 +550,8 @@ function WalletPage() {
                       title={TRC20_WITHDRAWAL_ENABLED ? undefined : "Coming soon"}
                       className={
                         usdtNetwork === "TRC20" && TRC20_WITHDRAWAL_ENABLED
-                          ? "flex-1 rounded bg-background px-2 py-1 font-medium shadow-sm"
-                          : "flex-1 rounded px-2 py-1 text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                          ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                          : "flex-1 rounded-md px-3 py-2 text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       }
                     >
                       TRC20{TRC20_WITHDRAWAL_ENABLED ? "" : " (soon)"}
@@ -421,14 +561,15 @@ function WalletPage() {
 
                 {isLightningWithdraw ? (
                   <>
-                    <div className="space-y-2 sm:col-span-2">
+                    <div className="space-y-2">
                       <Label htmlFor="wd-ln-destination">Lightning invoice or Lightning Address</Label>
                       <Textarea
                         id="wd-ln-destination"
                         value={lnWithdrawDestination}
                         onChange={(e) => setLnWithdrawDestination(e.target.value)}
                         placeholder="lnbc1… or you@wallet.com"
-                        rows={2}
+                        rows={3}
+                        className="text-base"
                         required
                       />
                     </div>
@@ -440,25 +581,70 @@ function WalletPage() {
                         value={lnWithdrawAmountSats}
                         onChange={(e) => setLnWithdrawAmountSats(e.target.value)}
                         placeholder="50000"
+                        className="h-12 text-base"
                         required
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground sm:col-span-3">
+                    <p className="text-xs text-muted-foreground">
                       Available: {availableToWithdraw} BTC · Network fee: {withdrawFee} BTC
                     </p>
                   </>
                 ) : (
                   <>
-                    <div className="space-y-2">
-                      <Label htmlFor="wd-address">Destination address</Label>
-                      <Input
-                        id="wd-address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        placeholder={withdrawCoin === "USDT" && usdtNetwork === "TRC20" ? "T…" : "bc1q…"}
-                        required
-                      />
+                    <div className="flex gap-2 rounded-lg bg-muted p-1.5 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => setSendDestType("address")}
+                        className={
+                          sendDestType === "address"
+                            ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                            : "flex-1 rounded-md px-3 py-2 text-muted-foreground"
+                        }
+                      >
+                        External address
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSendDestType("username")}
+                        className={
+                          sendDestType === "username"
+                            ? "flex-1 rounded-md bg-background px-3 py-2 font-medium shadow-sm"
+                            : "flex-1 rounded-md px-3 py-2 text-muted-foreground"
+                        }
+                      >
+                        CEMP username
+                      </button>
                     </div>
+
+                    {sendDestType === "username" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="wd-username">Recipient's CEMP username</Label>
+                        <Input
+                          id="wd-username"
+                          value={recipientUsername}
+                          onChange={(e) => setRecipientUsername(e.target.value)}
+                          placeholder="Their display name"
+                          className="h-12 text-base"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Sent instantly to their CEMP wallet — no network fee, not reversible.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="wd-address">Destination address</Label>
+                        <Input
+                          id="wd-address"
+                          value={address}
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder={withdrawCoin === "USDT" && usdtNetwork === "TRC20" ? "T…" : "bc1q…"}
+                          className="h-12 text-base"
+                          required
+                        />
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label htmlFor="wd-amount">Amount</Label>
                       <Input
@@ -467,25 +653,28 @@ function WalletPage() {
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="0.00"
+                        className="h-12 text-base"
                         required
                       />
+                      <p className="text-xs text-muted-foreground">
+                        Available: {availableToWithdraw} {withdrawCoin}
+                        {sendDestType === "address" && withdrawFee > 0
+                          ? ` · Network fee: ${withdrawFee} ${withdrawCoin}`
+                          : null}
+                        {sendDestType === "address" && withdrawFee > 0 && amount && Number(amount) > withdrawFee
+                          ? ` · You'll send ${(Number(amount) - withdrawFee).toFixed(8)} ${withdrawCoin}`
+                          : null}
+                      </p>
                     </div>
-                    <p className="text-xs text-muted-foreground sm:col-span-2">
-                      Available: {availableToWithdraw} {withdrawCoin}
-                      {withdrawFee > 0 ? ` · Network fee: ${withdrawFee} ${withdrawCoin}` : null}
-                      {withdrawFee > 0 && amount && Number(amount) > withdrawFee
-                        ? ` · You'll send ${(Number(amount) - withdrawFee).toFixed(8)} ${withdrawCoin}`
-                        : null}
-                    </p>
                   </>
                 )}
 
                 {withdrawalVerification !== "none" ? (
-                  <div className="space-y-2 sm:col-span-3">
+                  <div className="space-y-2">
                     <Label htmlFor="wd-stepup">
                       {withdrawalVerification === "totp" ? "Authenticator code" : "Email code"}
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                       <Input
                         id="wd-stepup"
                         inputMode="numeric"
@@ -493,14 +682,13 @@ function WalletPage() {
                         value={stepUpCode}
                         onChange={(e) => setStepUpCode(e.target.value.replace(/\D/g, ""))}
                         placeholder="000000"
-                        className="mono max-w-32 tracking-widest"
+                        className="mono h-11 max-w-32 tracking-widest"
                         required
                       />
                       {withdrawalVerification === "email" ? (
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
                           disabled={stepUpCodeMutation.isPending}
                           onClick={() => stepUpCodeMutation.mutate()}
                         >
@@ -513,7 +701,8 @@ function WalletPage() {
 
                 <Button
                   type="submit"
-                  className="w-full sm:w-auto"
+                  size="lg"
+                  className="w-full"
                   disabled={
                     (isLightningWithdraw ? lightningWithdrawMutation.isPending : withdrawMutation.isPending) ||
                     (withdrawalVerification !== "none" && stepUpCode.length !== 6)
@@ -558,44 +747,6 @@ function WalletPage() {
                     </div>
                     <Badge variant={c.status === "verified" ? "secondary" : c.status === "rejected" ? "destructive" : "outline"}>
                       {CLAIM_STATUS_LABEL[c.status] ?? c.status}
-                    </Badge>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-base">Transaction ledger</CardTitle>
-              <CardDescription>Every balance change is logged here.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {(overview.data?.transactions ?? []).length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                  No transactions yet.
-                </p>
-              ) : (
-                (overview.data?.transactions ?? []).map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex flex-col gap-1 border-b border-border py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="flex items-center gap-1.5 text-sm font-medium">
-                        <CoinIcon code={t.crypto_type} className="size-4" />
-                        {TYPE_LABEL[t.type] ?? t.type}{" "}
-                        <span className="mono text-muted-foreground">
-                          {t.amount} {t.crypto_type}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(t.created_at).toLocaleString()}
-                        {t.external_address ? ` · ${t.external_address.slice(0, 16)}…` : ""}
-                      </p>
-                    </div>
-                    <Badge variant={t.status === "completed" ? "secondary" : "outline"}>
-                      {t.status}
                     </Badge>
                   </div>
                 ))

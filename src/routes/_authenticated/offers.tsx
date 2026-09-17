@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Layers, Link2, MoreVertical, Pencil, Plus, Search } from "lucide-react";
+import { ArrowLeftRight, Layers, Link2, MoreVertical, Pencil, Plus, Search, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { CRYPTO_TYPES, MIN_PAYMENT_WINDOW_MINUTES } from "@/lib/constants";
@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -49,7 +50,7 @@ import {
 export const Route = createFileRoute("/_authenticated/offers")({
   head: () => ({
     meta: [
-      { title: "Your offers — CEMP" },
+      { title: "My offers — CEMP" },
       { name: "description", content: "Manage, pause, or edit your published CEMP offers." },
     ],
   }),
@@ -83,6 +84,10 @@ function OffersPage() {
   const [side, setSide] = useState<"sell" | "buy">("sell");
   const [search, setSearch] = useState("");
   const [cryptoFilter, setCryptoFilter] = useState("all");
+  const [currencyFilter, setCurrencyFilter] = useState("all");
+  const [paymentFilter, setPaymentFilter] = useState("all");
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [sort, setSort] = useState<"newest" | "price_asc" | "price_desc">("newest");
 
   const myListings = useQuery({
     queryKey: ["my-listings", user?.id],
@@ -120,37 +125,43 @@ function OffersPage() {
   const all = myListings.data ?? [];
   const sellCount = all.filter((l) => l.side === "sell").length;
   const buyCount = all.filter((l) => l.side === "buy").length;
+  const currencies = [...new Set(all.map((l) => l.fiat_currency))].sort();
+  const paymentMethods = [...new Set(all.flatMap((l) => l.accepted_payment_methods))].sort();
   const q = search.trim().toLowerCase();
   const filtered = all
     .filter((l) => l.side === side)
     .filter((l) => cryptoFilter === "all" || l.crypto_type === cryptoFilter)
+    .filter((l) => currencyFilter === "all" || l.fiat_currency === currencyFilter)
+    .filter((l) => paymentFilter === "all" || l.accepted_payment_methods.includes(paymentFilter))
+    .filter((l) => !activeOnly || l.status === "active")
     .filter(
       (l) =>
         !q ||
         l.crypto_type.toLowerCase().includes(q) ||
         l.fiat_currency.toLowerCase().includes(q) ||
         l.accepted_payment_methods.some((m) => m.toLowerCase().includes(q)),
-    );
+    )
+    .sort((a, b) => (sort === "price_asc" ? a.price - b.price : sort === "price_desc" ? b.price - a.price : 0));
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8">
-      <h1 className="mb-6 text-2xl font-semibold">Your offers</h1>
+      <div className="mb-6 border-b border-border pb-6">
+        <h1 className="text-3xl font-bold">My offers</h1>
+        <p className="mt-1 text-muted-foreground">View and manage your offers</p>
+      </div>
 
-      <Card className="max-w-xl">
-        <CardContent className="space-y-4 py-5">
-          <div>
-            <p className="text-lg font-semibold">P2P Offers</p>
-            <p className="text-sm text-muted-foreground">View and manage your offers</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+      <div className="space-y-4 rounded-lg border border-border bg-muted p-4">
+        {/* Row 1 — side toggle + create button. Stacks on mobile so the
+            toggle pair never has to squeeze next to the button. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setSide("sell")}
               className={
                 side === "sell"
-                  ? "flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
-                  : "flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/80"
+                  ? "flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground sm:flex-initial"
+                  : "flex flex-1 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-background/60 sm:flex-initial"
               }
             >
               Offers to sell
@@ -163,8 +174,8 @@ function OffersPage() {
               onClick={() => setSide("buy")}
               className={
                 side === "buy"
-                  ? "flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
-                  : "flex items-center justify-center gap-2 rounded-lg bg-muted px-4 py-3 text-sm font-semibold text-foreground hover:bg-muted/80"
+                  ? "flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground sm:flex-initial"
+                  : "flex flex-1 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-background/60 sm:flex-initial"
               }
             >
               Offers to buy
@@ -174,14 +185,19 @@ function OffersPage() {
             </button>
           </div>
 
-          <Button asChild size="lg" className="w-full gap-1.5">
+          <Button asChild className="gap-1.5">
             <Link to="/listings/new">
               <Plus className="size-4" /> Create an offer
             </Link>
           </Button>
+        </div>
 
-          <div className="space-y-2 rounded-lg border border-border bg-background p-3">
-            <div className="relative">
+        {/* Row 2 — the search/filter panel, itself made of two nested
+            containers: search+toggle+sort, and the crypto/currency/payment
+            filters below it. */}
+        <div className="space-y-3 rounded-lg border border-border bg-background p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[200px] flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
@@ -190,8 +206,25 @@ function OffersPage() {
                 className="pl-9"
               />
             </div>
+            <label className="flex shrink-0 items-center gap-2 text-sm">
+              <Switch checked={activeOnly} onCheckedChange={setActiveOnly} />
+              Active offers only
+            </label>
+            <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+              <SelectTrigger className="w-44 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Sort by newest</SelectItem>
+                <SelectItem value="price_asc">Price: low to high</SelectItem>
+                <SelectItem value="price_desc">Price: high to low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-muted/30 p-2.5">
             <Select value={cryptoFilter} onValueChange={setCryptoFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="w-40 shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -211,123 +244,163 @@ function OffersPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
+              <SelectTrigger className="w-40 shrink-0 sm:ml-auto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  <span className="flex items-center gap-2">
+                    <Wallet className="size-4 shrink-0 text-muted-foreground" />
+                    Currency: All
+                  </span>
+                </SelectItem>
+                {currencies.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+              <SelectTrigger className="w-44 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Payment: All</SelectItem>
+                {paymentMethods.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {myListings.isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {all.length === 0 ? "You haven't published any offers yet." : "No offers match this filter."}
-          </p>
-        ) : (
-          filtered.map((l) => (
-            <Card key={l.id}>
-              <CardContent className="space-y-3 py-4">
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`size-2.5 rounded-full ${l.status === "active" ? "bg-success" : "bg-muted-foreground"}`}
-                    aria-hidden
-                  />
-                  <div className="flex items-center gap-1.5">
-                    <Button variant="outline" size="icon" className="size-8" onClick={() => setEditing(l)} aria-label="Edit offer">
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" className="size-8" aria-label="More actions">
-                          <MoreVertical className="size-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => copyOfferLink(l.id)}>
-                          <Link2 className="size-3.5" /> Copy link
-                        </DropdownMenuItem>
+          {/* Offers — inside this same filter panel, right after the filter row. */}
+          <div className="border-t border-border pt-3">
+            {myListings.isLoading ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-14 text-center">
+                <ArrowLeftRight className="size-6 text-muted-foreground" />
+                <p className="text-base font-semibold">No active offers</p>
+                <p className="text-sm text-muted-foreground">
+                  {all.length === 0
+                    ? "Post an offer to start accepting trades."
+                    : "No offers match this filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {filtered.map((l) => (
+                  <Card key={l.id}>
+                    <CardContent className="space-y-3 py-4">
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`size-2.5 rounded-full ${l.status === "active" ? "bg-success" : "bg-muted-foreground"}`}
+                          aria-hidden
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <Button variant="outline" size="icon" className="size-8" onClick={() => setEditing(l)} aria-label="Edit offer">
+                            <Pencil className="size-3.5" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="icon" className="size-8" aria-label="More actions">
+                                <MoreVertical className="size-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => copyOfferLink(l.id)}>
+                                <Link2 className="size-3.5" /> Copy link
+                              </DropdownMenuItem>
+                              {l.status === "active" ? (
+                                <DropdownMenuItem onClick={() => setStatus(l.id, "paused")}>Pause offer</DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setStatus(l.id, "active")}>Activate offer</DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
+                          <PaymentRailIcon railKey={railKeyForMethod(l.accepted_payment_methods[0] ?? "")} className="size-4 shrink-0 text-muted-foreground" />
+                          {l.accepted_payment_methods[0] ?? "No payment method"}
+                          {l.accepted_payment_methods.length > 1 ? (
+                            <span className="text-sm font-normal text-muted-foreground">
+                              +{l.accepted_payment_methods.length - 1}
+                            </span>
+                          ) : null}
+                        </p>
+                        {l.tags.length > 0 ? (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {l.tags.map((t) => (
+                              <Badge key={t} variant="secondary" className="font-normal">
+                                {offerTagLabel(t)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
+                          <p className="text-xs text-muted-foreground">Market price:</p>
+                          <p className="mono flex flex-wrap items-center gap-1.5 font-semibold">
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
+                              <span className="truncate">
+                                {Number(l.price).toLocaleString()} {l.fiat_currency}
+                              </span>
+                            </span>
+                            {l.fixed_price == null && l.margin_percent !== 0 ? (
+                              <Badge
+                                className={
+                                  l.margin_percent < 0
+                                    ? "shrink-0 bg-green-600/15 font-normal text-green-600 hover:bg-green-600/15"
+                                    : "shrink-0 bg-destructive/15 font-normal text-destructive hover:bg-destructive/15"
+                                }
+                              >
+                                {l.margin_percent > 0 ? "+" : ""}
+                                {l.margin_percent}%
+                              </Badge>
+                            ) : null}
+                          </p>
+                        </div>
+                        <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
+                          <p className="text-xs text-muted-foreground">Range:</p>
+                          <p className="mono truncate font-semibold">
+                            {l.min_amount != null && l.max_amount != null
+                              ? `${Number(l.min_amount).toLocaleString()} - ${Number(l.max_amount).toLocaleString()} ${l.fiat_currency}`
+                              : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <Badge variant={l.status === "active" ? "default" : "secondary"} className="font-normal">
+                          {l.status === "active" ? "Active" : "Paused"}
+                        </Badge>
                         {l.status === "active" ? (
-                          <DropdownMenuItem onClick={() => setStatus(l.id, "paused")}>Pause offer</DropdownMenuItem>
+                          <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "paused")}>
+                            Pause
+                          </Button>
                         ) : (
-                          <DropdownMenuItem onClick={() => setStatus(l.id, "active")}>Activate offer</DropdownMenuItem>
+                          <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "active")}>
+                            Activate
+                          </Button>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline">
-                    <PaymentRailIcon railKey={railKeyForMethod(l.accepted_payment_methods[0] ?? "")} className="size-4 shrink-0 text-muted-foreground" />
-                    {l.accepted_payment_methods[0] ?? "No payment method"}
-                    {l.accepted_payment_methods.length > 1 ? (
-                      <span className="text-sm font-normal text-muted-foreground">
-                        +{l.accepted_payment_methods.length - 1}
-                      </span>
-                    ) : null}
-                  </p>
-                  {l.tags.length > 0 ? (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {l.tags.map((t) => (
-                        <Badge key={t} variant="secondary" className="font-normal">
-                          {offerTagLabel(t)}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
-                    <p className="text-xs text-muted-foreground">Market price:</p>
-                    <p className="mono flex flex-wrap items-center gap-1.5 font-semibold">
-                      <span className="flex min-w-0 items-center gap-1.5 truncate">
-                        <CoinIcon code={l.crypto_type} className="size-4 shrink-0" />
-                        <span className="truncate">
-                          {Number(l.price).toLocaleString()} {l.fiat_currency}
-                        </span>
-                      </span>
-                      {l.fixed_price == null && l.margin_percent !== 0 ? (
-                        <Badge
-                          className={
-                            l.margin_percent < 0
-                              ? "shrink-0 bg-green-600/15 font-normal text-green-600 hover:bg-green-600/15"
-                              : "shrink-0 bg-destructive/15 font-normal text-destructive hover:bg-destructive/15"
-                          }
-                        >
-                          {l.margin_percent > 0 ? "+" : ""}
-                          {l.margin_percent}%
-                        </Badge>
-                      ) : null}
-                    </p>
-                  </div>
-                  <div className="min-w-0 rounded-md bg-muted/40 p-2.5">
-                    <p className="text-xs text-muted-foreground">Range:</p>
-                    <p className="mono truncate font-semibold">
-                      {l.min_amount != null && l.max_amount != null
-                        ? `${Number(l.min_amount).toLocaleString()} - ${Number(l.max_amount).toLocaleString()} ${l.fiat_currency}`
-                        : "—"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Badge variant={l.status === "active" ? "default" : "secondary"} className="font-normal">
-                    {l.status === "active" ? "Active" : "Paused"}
-                  </Badge>
-                  {l.status === "active" ? (
-                    <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "paused")}>
-                      Pause
-                    </Button>
-                  ) : (
-                    <Button variant="outline" size="sm" onClick={() => setStatus(l.id, "active")}>
-                      Activate
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <EditOfferDialog

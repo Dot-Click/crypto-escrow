@@ -17,7 +17,18 @@ const TESTNET_NETWORKS: SupportedNetwork[] = ["BTC_TESTNET", "LTC_TESTNET", "ETH
 
 function activeNetworkAllowlist(): Set<string> {
   const env = process.env.NETWORK_ENV === "testnet" ? "testnet" : "mainnet";
-  return new Set(env === "testnet" ? TESTNET_NETWORKS : MAINNET_NETWORKS);
+  const allow = new Set<string>(env === "testnet" ? TESTNET_NETWORKS : MAINNET_NETWORKS);
+  // Tron deposits are decoupled from the app-wide NETWORK_ENV: the Nile
+  // testnet collector + USDT contract are still unfilled placeholders (see
+  // supabase/migrations/20260911_04_seed_tron_collectors.sql), while
+  // TRON_MAINNET already has a real collector address and USDT contract
+  // provisioned for TRC20 withdrawals (see TRC20_WITHDRAWAL_ENABLED in
+  // constants.ts). Deposits reuse that same mainnet collector rather than
+  // waiting on Nile testnet setup nobody has done yet. Note: this only
+  // allocates a deposit address — incoming transfers to it aren't detected
+  // yet, since watch-deposits has no Tron scanning path (only UTXO/EVM).
+  allow.add("TRON_MAINNET");
+  return allow;
 }
 
 /**

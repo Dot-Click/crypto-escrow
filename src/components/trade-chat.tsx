@@ -4,9 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Copy, CornerUpLeft, Loader2, Paperclip, Send, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { listMessages, sendMessage } from "@/lib/messages.functions";
-import { playMessageSound } from "@/lib/notification-sound";
 import { RAIL_DETAIL_FIELDS } from "@/lib/payment-method-fields";
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { PaymentRailIcon } from "@/components/payment-rail-icon";
@@ -127,7 +125,6 @@ export function TradeChat({
   className?: string;
 }) {
   const qc = useQueryClient();
-  const { user } = useAuth();
   const fetchMessages = useServerFn(listMessages);
   const sendFn = useServerFn(sendMessage);
   const [text, setText] = useState("");
@@ -157,16 +154,16 @@ export function TradeChat({
   };
 
   useEffect(() => {
+    // The "new message" chime itself lives in GlobalChatNotifier (mounted
+    // once in the authenticated layout) so it plays app-wide, not just
+    // while this specific trade's chat happens to be open. This channel
+    // only needs to refetch the message list here.
     const channel = supabase
       .channel(`trade-chat-${tradeId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages", filter: `trade_id=eq.${tradeId}` },
-        (payload) => {
-          const row = payload.new as { sender_id?: string };
-          if (row.sender_id && row.sender_id !== user?.id) {
-            playMessageSound();
-          }
+        () => {
           void qc.invalidateQueries({ queryKey });
         },
       )
@@ -174,7 +171,7 @@ export function TradeChat({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [tradeId, qc, queryKey, user?.id]);
+  }, [tradeId, qc, queryKey]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "nearest" });

@@ -22,7 +22,7 @@ import { getAdminDb, requireCronSecret } from "../_shared/db.ts";
 import { deriveAddress, NETWORK_META, type SupportedNetwork } from "../_shared/hd-wallet.ts";
 
 const ALLOWED: readonly SupportedNetwork[] = [
-  "BTC_MAINNET", "LTC_MAINNET", "ETH_MAINNET", "BSC_MAINNET",
+  "BTC_MAINNET", "LTC_MAINNET", "ETH_MAINNET", "BSC_MAINNET", "TRON_MAINNET",
   "BTC_TESTNET", "LTC_TESTNET", "ETH_SEPOLIA", "BSC_TESTNET",
 ];
 

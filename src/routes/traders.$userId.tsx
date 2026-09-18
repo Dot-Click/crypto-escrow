@@ -183,6 +183,11 @@ function TraderProfilePage() {
             <div className="flex flex-wrap gap-2">
               {isSelf ? (
                 <>
+                  <Button className="gap-1.5" asChild>
+                    <Link to="/listings/new">
+                      <Plus className="size-4" /> Create offer
+                    </Link>
+                  </Button>
                   <Button variant="outline" className="gap-1.5" asChild>
                     <Link to="/account">
                       <Pencil className="size-4" /> Edit profile

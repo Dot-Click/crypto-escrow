@@ -359,23 +359,25 @@ function TraderProfilePage() {
       <Card className="mb-6">
         <CardContent className="py-5">
           <Tabs defaultValue="offers">
-            <TabsList className="mb-4 h-auto bg-transparent p-0">
-              <TabsTrigger value="offers" className="gap-1.5 data-[state=active]:bg-muted">
-                <ShoppingBag className="size-4" /> Offers
-                <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
-                  {p.activeListings.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="feedback" className="gap-1.5 data-[state=active]:bg-muted">
-                <MessagesSquare className="size-4" /> Feedbacks
-                <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
-                  {p.positiveFeedback + p.negativeFeedback}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5 data-[state=active]:bg-muted">
-                <History className="size-4" /> History
-              </TabsTrigger>
-            </TabsList>
+            <div className="-mx-1 mb-4 overflow-x-auto px-1">
+              <TabsList className="h-auto w-max min-w-full bg-transparent p-0">
+                <TabsTrigger value="offers" className="shrink-0 gap-1.5 data-[state=active]:bg-muted">
+                  <ShoppingBag className="size-4" /> Offers
+                  <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                    {p.activeListings.length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="feedback" className="shrink-0 gap-1.5 data-[state=active]:bg-muted">
+                  <MessagesSquare className="size-4" /> Feedbacks
+                  <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 justify-center px-1 font-normal">
+                    {p.positiveFeedback + p.negativeFeedback}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="history" className="shrink-0 gap-1.5 data-[state=active]:bg-muted">
+                  <History className="size-4" /> History
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="offers" className="mt-0">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

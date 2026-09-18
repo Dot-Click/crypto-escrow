@@ -30,6 +30,7 @@ import { getViewerRelationship, setBlock, setTrust } from "@/lib/user-relationsh
 import { railKeyForMethod } from "@/lib/payment-taxonomy";
 import { currencySymbol } from "@/lib/currencies";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { TraderLevelBadge } from "@/components/trader-level-badge";
 import { UserAvatar } from "@/components/user-avatar";
 import { CoinIcon } from "@/components/coin-icon";
@@ -39,8 +40,11 @@ import { ReportUserDialog } from "@/components/report-user-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const BIO_MAX_LENGTH = 500;
 
 export const Route = createFileRoute("/traders/$userId")({
   head: () => ({
@@ -67,6 +71,8 @@ function TraderProfilePage() {
   const [offersSort, setOffersSort] = useState<"price-asc" | "price-desc">("price-asc");
   const [sendOpen, setSendOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [bioEditing, setBioEditing] = useState(false);
+  const [bioDraft, setBioDraft] = useState("");
 
   const fetchProfile = useServerFn(getTraderProfile);
   const profile = useQuery({
@@ -112,6 +118,22 @@ function TraderProfilePage() {
     void navigator.clipboard.writeText(window.location.href);
     toast.success("Profile link copied");
   };
+
+  const saveBio = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ bio: bioDraft.trim() || null })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setBioEditing(false);
+      void qc.invalidateQueries({ queryKey: ["trader-profile", userId] });
+      toast.success("Bio updated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (profile.isLoading) {
     return <div className="mx-auto w-full max-w-[1400px] px-4 py-10 text-sm text-muted-foreground">Loading trader profile…</div>;
@@ -161,11 +183,6 @@ function TraderProfilePage() {
             <div className="flex flex-wrap gap-2">
               {isSelf ? (
                 <>
-                  <Button className="gap-1.5" asChild>
-                    <Link to="/listings/new">
-                      <Plus className="size-4" /> Create offer
-                    </Link>
-                  </Button>
                   <Button variant="outline" className="gap-1.5" asChild>
                     <Link to="/account">
                       <Pencil className="size-4" /> Edit profile
@@ -190,16 +207,56 @@ function TraderProfilePage() {
         </Card>
 
         <Card>
-          <CardContent className="flex h-full flex-col items-center justify-center gap-2 py-5 text-center">
-            <p className="text-sm font-medium">{p.bio || `${isSelf ? "You haven't" : "This user hasn't"} added a bio yet.`}</p>
-            {isSelf ? (
-              <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                <Link to="/account">
+          {bioEditing ? (
+            <CardContent className="space-y-2 py-5">
+              <Textarea
+                value={bioDraft}
+                onChange={(e) => setBioDraft(e.target.value.slice(0, BIO_MAX_LENGTH))}
+                placeholder="Tell other traders a bit about yourself…"
+                rows={4}
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Maximum {BIO_MAX_LENGTH} characters · {bioDraft.length}/{BIO_MAX_LENGTH}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  disabled={saveBio.isPending}
+                  onClick={() => saveBio.mutate()}
+                >
+                  {saveBio.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  disabled={saveBio.isPending}
+                  onClick={() => setBioEditing(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          ) : (
+            <CardContent className="flex h-full flex-col items-center justify-center gap-2 py-5 text-center">
+              <p className="text-sm font-medium">{p.bio || `${isSelf ? "You haven't" : "This user hasn't"} added a bio yet.`}</p>
+              {isSelf ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setBioDraft(p.bio ?? "");
+                    setBioEditing(true);
+                  }}
+                >
                   <Pencil className="size-3.5" /> Edit
-                </Link>
-              </Button>
-            ) : null}
-          </CardContent>
+                </Button>
+              ) : null}
+            </CardContent>
+          )}
         </Card>
       </div>
 

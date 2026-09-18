@@ -89,12 +89,18 @@ export function TraderPreviewPopover({
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
-                <UserAvatar userId={profile.data.id} displayName={profile.data.displayName} className="size-11 shrink-0" />
+                <Link to="/traders/$userId" params={{ userId: profile.data.id }} className="shrink-0">
+                  <UserAvatar userId={profile.data.id} displayName={profile.data.displayName} className="size-11" />
+                </Link>
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                  <Link
+                    to="/traders/$userId"
+                    params={{ userId: profile.data.id }}
+                    className="flex items-center gap-1.5 truncate text-sm font-semibold hover:underline"
+                  >
                     {profile.data.country ? <span>{countryFlagEmoji(profile.data.country)}</span> : null}
                     {profile.data.displayName}
-                  </p>
+                  </Link>
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <TraderLevelBadge tradesCompleted={profile.data.tradesCompleted} />
                     {profile.data.country ? countryName(profile.data.country) : "Country not set"}

@@ -87,7 +87,10 @@ function OffersPage() {
   const [currencyFilter, setCurrencyFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [activeOnly, setActiveOnly] = useState(false);
-  const [sort, setSort] = useState<"newest" | "price_asc" | "price_desc">("newest");
+  // "trusted" is a no-op sort here — every row on this page is your own
+  // listing, so there's no trust score to compare. Kept as an option only
+  // for dropdown parity with the marketplace browse page's sort menu.
+  const [sort, setSort] = useState<"price_asc" | "price_desc" | "trusted">("price_asc");
 
   const myListings = useQuery({
     queryKey: ["my-listings", user?.id],
@@ -141,7 +144,9 @@ function OffersPage() {
         l.fiat_currency.toLowerCase().includes(q) ||
         l.accepted_payment_methods.some((m) => m.toLowerCase().includes(q)),
     )
-    .sort((a, b) => (sort === "price_asc" ? a.price - b.price : sort === "price_desc" ? b.price - a.price : 0));
+    .sort((a, b) =>
+      sort === "price_asc" ? a.price - b.price : sort === "price_desc" ? b.price - a.price : 0,
+    );
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-8">
@@ -215,9 +220,9 @@ function OffersPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">Sort by newest</SelectItem>
                 <SelectItem value="price_asc">Price: low to high</SelectItem>
                 <SelectItem value="price_desc">Price: high to low</SelectItem>
+                <SelectItem value="trusted">Most trusted</SelectItem>
               </SelectContent>
             </Select>
           </div>

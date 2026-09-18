@@ -82,7 +82,7 @@ export const Route = createFileRoute("/")({
   component: Marketplace,
 });
 
-type SortKey = "newest" | "price_asc" | "price_desc" | "trusted";
+type SortKey = "price_asc" | "price_desc" | "trusted";
 
 /** Multi-select tag filter — shared between the mobile compact bar and the
  * desktop sidebar so the checklist only exists once. */
@@ -591,7 +591,6 @@ function Marketplace() {
                   <SelectItem value="price_asc">Price: low to high</SelectItem>
                   <SelectItem value="price_desc">Price: high to low</SelectItem>
                   <SelectItem value="trusted">Most trusted</SelectItem>
-                  <SelectItem value="newest">Newest</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -651,14 +650,19 @@ function Marketplace() {
                   >
                     {/* Trader — avatar with an online dot, name + flag, trust stats */}
                     <div className="flex w-full items-center gap-3 sm:w-56 sm:shrink-0">
-                      <div className="relative shrink-0">
+                      <Link
+                        to="/traders/$userId"
+                        params={{ userId: l.seller_id }}
+                        className="relative shrink-0"
+                        aria-label={`Open ${counterparty?.display_name ?? "trader"}'s profile`}
+                      >
                         <UserAvatar
                           userId={l.seller_id}
                           displayName={counterparty?.display_name ?? "Trader"}
                           className="size-12 ring-2 ring-border"
                         />
                         <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-green-500 ring-2 ring-background" />
-                      </div>
+                      </Link>
                       <div className="min-w-0">
                         <Link
                           to="/traders/$userId"

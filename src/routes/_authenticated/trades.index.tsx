@@ -227,8 +227,15 @@ function TradesPage() {
                     {t.payment_method ?? "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    With {t.role === "buyer" ? t.seller?.display_name : t.buyer?.display_name} ·{" "}
-                    {new Date(t.created_at).toLocaleString()}
+                    With{" "}
+                    <Link
+                      to="/traders/$userId"
+                      params={{ userId: t.role === "buyer" ? t.seller_id : t.buyer_id }}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {t.role === "buyer" ? t.seller?.display_name : t.buyer?.display_name}
+                    </Link>{" "}
+                    · {new Date(t.created_at).toLocaleString()}
                   </p>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">

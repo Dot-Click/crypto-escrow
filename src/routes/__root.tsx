@@ -146,6 +146,27 @@ function RootComponent() {
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  // Defensive fix for a known Radix Dialog/Popover/Sheet issue: closing one
+  // (e.g. the trader "Profile info" popup) can leave `pointer-events: none`
+  // stuck on <body>, which silently blocks clicks everywhere on the page —
+  // including buttons like "Report a problem" — until a manual refresh.
+  // This is worse with several dialogs/sheets on one page (the trade room
+  // has the profile popup, a release-confirm dialog, and a mobile sheet all
+  // in the same tree). Rather than track down the exact race, watch <body>
+  // and clear the lock whenever it's left set with no dialog actually open.
+  useEffect(() => {
+    const clearStuckLock = () => {
+      if (document.body.style.pointerEvents !== "none") return;
+      const hasOpenOverlay = document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+      );
+      if (!hasOpenOverlay) document.body.style.pointerEvents = "";
+    };
+    const observer = new MutationObserver(clearStuckLock);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

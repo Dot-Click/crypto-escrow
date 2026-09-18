@@ -89,11 +89,16 @@ export const getPublicListing = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // No `.eq("status", "active")` here — unlike the marketplace list above,
+    // this is a direct-by-id lookup (ids aren't guessable/enumerable), and it
+    // doubles as the "view offer" link from a past trade's chat/history. A
+    // paused/closed listing must still open read-only for someone who traded
+    // on it; only the "Start trade" action (gated client-side on l.status)
+    // should be unavailable once it's no longer active.
     const { data: listing, error } = await supabaseAdmin
       .from("listings")
       .select("*, profiles!listings_seller_id_fkey(display_name, trades_completed, country, is_verified)")
       .eq("id", data.id)
-      .eq("status", "active")
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!listing) throw new Error("This offer is no longer available");

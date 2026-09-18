@@ -87,6 +87,7 @@ function ListingDetailPage() {
   const rangeError = fiatAmount && (parsed < min || parsed > max) ? `Amount must be between ${symbol}${min} and ${symbol}${max}` : null;
   const notVerifiedEnough = !!l?.min_trades_required && (profile?.trades_completed ?? 0) < l.min_trades_required;
   const countryBlocked = !!profile?.country && !!l?.blocked_countries?.includes(profile.country);
+  const offerInactive = !!l && l.status !== "active";
 
   const create = useServerFn(createTrade);
   const startTrade = useMutation({
@@ -134,7 +135,8 @@ function ListingDetailPage() {
   const isGiftCard = l.accepted_payment_methods.some((m) => railKeyForMethod(m) === "gift_card");
   const flag = countryFlagEmoji(seller.country);
   const blockedCountryNames = (l.blocked_countries ?? []).map((c) => countryName(c) ?? c);
-  const validAmount = !!l && !!activeMethod && !!price && parsed > 0 && !rangeError && !notVerifiedEnough && !countryBlocked;
+  const validAmount =
+    !!l && !!activeMethod && !!price && parsed > 0 && !rangeError && !notVerifiedEnough && !countryBlocked && !offerInactive;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -288,6 +290,12 @@ function ListingDetailPage() {
 
         <Card className="h-fit">
           <CardContent className="space-y-4 py-5">
+            {offerInactive ? (
+              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                This offer is no longer active — the seller paused or closed it. You can still view its
+                terms, but new trades can't be started against it.
+              </p>
+            ) : null}
             {notVerifiedEnough ? (
               <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                 This offer requires at least {l.min_trades_required} completed trades — you have{" "}
